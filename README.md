@@ -310,7 +310,7 @@ company data is stored: the demo account is fictional, and the only credentials 
 npm i
 cp .env.example .env.local
 npm run dev        # http://localhost:3000
-npm test           # 157 Vitest tests: finance engine, memo number check, reply parser, sourcing, reputation, quotation, fraud, dashboard
+npm test           # 194 Vitest tests: finance engine, memo number check, reply parser, sourcing, reputation, quotation, fraud, dashboard
 npx vitest run -c vitest.live.config.ts   # live checks (model benchmark + one live sourcing search); spends API credit
 ```
 

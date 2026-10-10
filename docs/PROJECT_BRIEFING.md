@@ -292,7 +292,7 @@ Browser (React)  ──>  Next.js 16 app on Vercel  ──>  OpenAI (reads and w
 10. Islamic finance first (Diminishing Musharakah, Ijarah, Islamic LTFF, Murabaha preset, correct tax per mode, Shariah notes, Islamic term-sheet email)
 11. "Pay in full when affordable" option
 
-Also built: automated unit tests for the finance engine, memo number check, reply parser, sourcing, reputation, quotation, fraud and dashboard. The slides say 145. The README says 113 (out of date). The working tree ran 157 on the evening of 10 Oct. Check `npm test` and quote one number consistently.
+Also built: automated unit tests for the finance engine, memo number check, reply parser, sourcing, reputation, quotation, fraud and dashboard. 194 tests, the same number in the README and on the slides.
 
 **What we used (disclose this, as the rulebook asks):**
 
@@ -519,7 +519,7 @@ Short answers first. Add a sentence only if the judge asks for more.
     It compares options for a business decision, shows every number and source, and the owner decides. Settings says "Not financial or religious advice".
 
 31. **What did you build versus use?**
-    - **We built:** the finance engine with Islamic modes and tax, the AI-plus-checks pipeline, the fraud rules, the whole app, and the automated tests (145 on the slides). That is all 16 commits, made during the event.
+    - **We built:** the finance engine with Islamic modes and tax, the AI-plus-checks pipeline, the fraud rules, the whole app, and the 194 automated tests, all made during the event (see the commit history).
     - **We used:** OpenAI, Tavily, Gmail, MongoDB, Next.js, shadcn/ui and other open-source libraries, plus AI coding assistants. All are listed in the README.
 
 32. **Is this really Financial Operations?**
