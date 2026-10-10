@@ -659,7 +659,7 @@ function ConfirmForm(props: {
                     onChange={(v) => patch({ markupClaimedPct: v })}
                     suffix="%"
                   />
-                  <FieldDescription className="text-xs">What the supplier says, e.g. &quot;0% markup&quot;</FieldDescription>
+                  <FieldDescription className="text-xs">The supplier&apos;s own wording, e.g. &quot;0% markup&quot;</FieldDescription>
                 </FormField>
                 <Field className="gap-1.5">
                   <FieldTitle>First installment due</FieldTitle>
@@ -667,7 +667,7 @@ function ConfirmForm(props: {
                     value={draft.firstInstallmentOnDelivery}
                     onChange={(v) => patch({ firstInstallmentOnDelivery: v })}
                   />
-                  <FieldDescription className="text-xs">If due on delivery, the hidden rate is higher.</FieldDescription>
+                  <FieldDescription className="text-xs">If due on delivery, paying later costs more.</FieldDescription>
                 </Field>
               </div>
             </FieldSet>

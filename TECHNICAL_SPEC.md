@@ -16,8 +16,11 @@ Status legend used throughout:
 
 Faisla ("decision") is a CFO-in-a-box for small and medium businesses. The owner uploads a supplier's
 quotation; Faisla checks the price against the market, checks reviews of the supplier and the product,
-finds and emails other suppliers, reads their replies, compares every way to pay (cash, installments,
-bank loan, SBP LTFF), and writes a one-page decision memo.
+finds and emails other suppliers, reads their replies, compares every way to pay (cash, the supplier's
+deferred-price plan, and Shariah-compliant financing: Diminishing Musharakah, Ijarah, SBP Islamic LTFF), and writes a
+one-page decision memo. **Islamic finance first:** conventional (interest-based) financing is compared only when the
+owner's financing preference is "Islamic and conventional", is labelled, and is never recommended
+(see docs/ISLAMIC_FINANCE.md).
 
 **Core rule:** AI reads the messy documents and emails, code does every rupee of maths, and the owner
 confirms. No number shown on screen is produced by an LLM.
@@ -26,8 +29,8 @@ confirms. No number shown on screen is produced by an LLM.
 
 | Module example | Faisla feature |
 | --- | --- |
-| Financial planning | Financing comparison: hidden rate, PV, after-tax view, runway, stress test (core) |
-| Credit and risk assessment | LTFF vs bank loan, cash-risk check, supplier reputation; loan pack (PROPOSED) |
+| Financial planning | Financing comparison: effective cost of paying later, PV, after-tax view, runway, stress test (core) |
+| Credit and risk assessment | Islamic LTFF vs Diminishing Musharakah vs Ijarah, cash-risk check, supplier reputation; financing pack (PROPOSED) |
 | Accounting automation | Quotation → structured data, arithmetic checks on totals |
 | Payments | Payment-plan choice, installment reminders |
 | Fraud detection | Payment-fraud check on supplier emails and bank details (PROPOSED) |
@@ -36,7 +39,7 @@ confirms. No number shown on screen is produced by an LLM.
 
 | Stage | Faisla |
 | --- | --- |
-| Problem | SMEs make big purchase and borrowing decisions blind: hidden interest, missed cheap loans, ignored tax, cash crunches |
+| Problem | SMEs make big purchase and borrowing decisions blind: the cost of paying later on "0%" plans, missed cheap Shariah-compliant financing, ignored tax, cash crunches |
 | Data/Input | Quotation photo/PDF, supplier email replies, web prices and reviews, company cash and costs, SBP rates |
 | AI Component | Vision extraction, search-result and review reading, RFQ and reply handling, memo writing |
 | Solution | Ranked comparison of every way to pay + decision memo + bank term-sheet request |
@@ -85,7 +88,7 @@ Secrets (LLM key, search key, email keys, Supabase service key) live in Vercel e
 2. **Upload quotation**: photo/PDF → AI extraction → owner confirms/edits every field.
 3. **Market and reputation check**: quoted price vs cached web prices and simulated benchmark → "% above market"; reviews of supplier and model → reputation flag with links.
 4. **Find and email suppliers**: 2–3 suppliers found, RFQ emailed; replies read by AI, price extracted, offer row added; each new supplier gets the reputation check (and the fraud check, PROPOSED).
-5. **Compare every way to pay**: cash, supplier installments, bank term loan, LTFF (if exporter). Before/after tax, runway, stress slider, Assumptions card.
+5. **Compare every way to pay**: cash, the supplier's deferred-price plan, Diminishing Musharakah, Ijarah, Islamic LTFF (if exporter); conventional loan / LTFF only under the "both" preference, never recommended. Before/after tax, runway, stress slider, Assumptions card with Shariah notes.
 6. **Decide and act**: memo from the code's numbers; "Request term sheet" emails the bank; installment reminders (SHOULD); loan pack (PROPOSED).
 
 ---
@@ -97,9 +100,9 @@ every number in this spec: `reference/finance_reference.py`.
 
 ### 4.1 Conventions
 
-- Month 0 = delivery date. Loan/installment payments are in arrears (month 1, 2, …) unless the quotation says the first installment is due on delivery.
+- Month 0 = delivery date. Installments and rentals are paid in arrears (month 1, 2, …) unless the quotation says the first installment is due on delivery.
 - Monthly discount rate from yearly: `d = (1 + yearly)^(1/12) − 1`.
-- Loan EMI uses the bank convention `i = yearlyRate / 12`.
+- Monthly installments (Diminishing Musharakah, Murabaha, Islamic LTFF, conventional) and Ijarah rentals use the bank convention `i = yearlyRate / 12` on the outstanding amount; never compounded.
 - Tax savings arrive at the end of each tax year (months 12, 24, …).
 - Pre-tax flows are discounted at the pre-tax discount rate (15%); after-tax flows at the after-tax rate `15% × (1 − taxRate) = 10.65%`.
 - All money is integer-safe PKR in storage; calculations in floating point, rounded only for display.
@@ -140,12 +143,12 @@ stressTest(options: Option[], kiborShift: number): ComparisonRow[];    // shifts
 
 ### 4.3 Formulas
 
-1. **Hidden rate:** find monthly `r` with `cashPrice = Σ installment / (1 + r)^t`, t = 1…n (or 0…n−1 if due on delivery). Yearly = `(1 + r)^12 − 1`. Also show the simple quote `r × 12`.
-2. **EMI:** `P · i · (1 + i)^n / ((1 + i)^n − 1)`, `i = yearlyRate / 12`.
+1. **Effective cost of paying later** (supplier's deferred-price plan, a permissible bay' muajjal, not interest): find monthly `r` with `cashPrice = Σ installment / (1 + r)^t`, t = 1…n (or 0…n−1 if due on delivery). Yearly = `(1 + r)^12 − 1`. Also show the simple quote `r × 12`.
+2. **Monthly installment / rental:** `P · i · (1 + i)^n / ((1 + i)^n − 1)`, `i = yearlyRate / 12`. P = bank's share (Diminishing Musharakah, Islamic LTFF), amount financed (Murabaha), or cost net of the security deposit (Ijarah).
 3. **PV:** `Σ flow_t / (1 + d)^t`.
-4. **After tax:** tax saved in year y = `(markup_y + depreciation_y) × taxRate`, received at month 12y. Depreciation base = what the option actually pays for the machines (installment total, cash price, or loan option's purchase price). Schedule: 25% initial allowance in year 1, then 15% a year on the reducing balance (including year 1, on cost less the allowance), 10-year life, remainder written off in year 10. Scrap value ignored (same for every option).
+4. **After tax:** tax saved in year y = `(profit_y + depreciation_y) × taxRate`, received at month 12y. Depreciation base = what the option actually pays for the machines (installment total, cash price, or the financed purchase price). Ijarah: rentals are deducted as paid, no depreciation for the lessee during the lease; the security deposit is adjusted against the purchase price at the end (net nil), which is then depreciated at 15% reducing balance from the next tax year (no initial allowance). Schedule: 25% initial allowance in year 1, then 15% a year on the reducing balance (including year 1, on cost less the allowance), 10-year life, remainder written off in year 10. Scrap value ignored (same for every option).
 5. **Runway:** `(cash − upfront) ÷ (monthlyFixedCosts + newMonthlyPayment)`. Counts no sales income, so it is a floor.
-6. **Assumptions card:** lists bank processing fees, insurance and collateral (editable fee field, default 0), LTFF approval time, LTFF eligibility (exporter, new machinery; confirmed by the bank).
+6. **Assumptions card:** lists the financing preference, processing fees, insurance (takaful) and collateral (editable fee field, default 0), Islamic LTFF approval time and eligibility (exporter, new machinery; confirmed by the bank), and Shariah notes (asset-backed, no compounding, late payment to charity, takaful, Shariah board approval).
 
 ### 4.4 Demo inputs (fictional)
 
@@ -155,27 +158,31 @@ stressTest(options: Option[], kiborShift: number): ComparisonRow[];    // shifts
 | Cash in bank | Rs 1,00,00,000 |
 | Monthly fixed costs | Rs 35,00,000 |
 | Tax rate | 29% (editable) |
-| Discount rate | 15% (≈ bank rate KIBOR + 3% ≈ 14.8%, rounded); 10.65% after tax |
+| Discount rate | 15% (≈ cost of financing, KIBOR + 3% ≈ 14.8%, rounded); 10.65% after tax |
 | Machine | Jack F5 direct-drive single-needle lockstitch (real model; new units listed in Pakistan at Rs 63,000–79,000, web median Rs 70,000) |
 | Supplier A | 80 machines × Rs 75,000 = Rs 60,00,000; 12 × Rs 5,00,000 "0% markup", first installment one month after delivery; 8% cash discount → Rs 55,20,000 |
 | Market benchmark | Median Rs 68,700 per machine (simulated, close to the real web median of Rs 70,000; A is ~9% above) |
 | Supplier B | 80 × Rs 67,000 per machine = Rs 53,60,000 cash |
-| Loans | 10% down (Rs 5,36,000), 36 months, P = Rs 48,24,000; bank 14.8%, LTFF 8.5% (policy 11.5% − 3%) |
+| Financing | 10% own share / security deposit (Rs 5,36,000), 36 months, P = Rs 48,24,000; Diminishing Musharakah and Ijarah 14.8% (KIBOR + 3%), SBP Islamic LTFF 8.5% (policy 11.5% − 3%); conventional loan 14.8% and LTFF 8.5% kept for the "both" preference |
 
 ### 4.5 Expected results (the comparison table)
 
 | Option | Pay | PV before tax | PV after tax | Runway | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| A, "0%" installments | 12 × 5,00,000 | 55,67,038 | 44,87,290 | 2.50 | Hidden 16.9% a year |
+| A, deferred-price plan ("0%") | 12 × 5,00,000 | 55,67,038 | 44,87,290 | 2.50 | Paying later costs 16.9% a year |
 | A, cash | 55,20,000 now | 55,20,000 | 44,20,541 | 1.28 | Salaries at risk |
 | B, cash | 53,60,000 now | 53,60,000 | 42,92,409 | 1.33 | Cheapest price, drains cash |
-| B, bank 14.8% | 5,36,000 + 36 × 1,66,753 | 54,11,012 | 43,32,522 | 2.58 | Safe, dearer than LTFF |
-| **B, LTFF 8.5%** | 5,36,000 + 36 × 1,52,282 | **49,87,935** | **40,13,687** | **2.59** | **Recommended** |
+| B, Diminishing Musharakah 14.8% | 5,36,000 + 36 × 1,66,753 | 54,11,012 | 43,32,522 | 2.58 | Safe, dearer than Islamic LTFF |
+| B, Ijarah 14.8% | 5,36,000 + 36 × 1,66,753 | 54,11,012 | 41,90,272 | 2.58 | Safe, dearer than Islamic LTFF |
+| **B, Islamic LTFF 8.5%** | 5,36,000 + 36 × 1,52,282 | **49,87,935** | **40,13,687** | **2.59** | **Recommended** |
+
+Under the "Islamic and conventional" preference two more rows appear with the same numbers as their Islamic
+counterparts, verdict "Interest-based, for comparison only": `B, conventional loan 14.8%` and `B, conventional LTFF 8.5%`.
 
 - Savings vs "0%" plan: Rs 5,79,103 before tax, Rs 4,73,603 after tax.
 - Runway today (no purchase): 2.86 months.
-- Stress (KIBOR +2% → bank 16.8%): EMI 1,71,509, PV 55,50,038 before tax; recommendation unchanged (LTFF is linked to the policy rate, not KIBOR).
-- LTFF beats paying cash for any discount rate above 8.84% a year.
+- Stress (KIBOR +2% → Diminishing Musharakah / Ijarah 16.8%): installment 1,71,509, PV 55,50,038 before tax; recommendation unchanged (Islamic LTFF is linked to the policy rate, not KIBOR; a Murabaha price is fixed at the contract).
+- Islamic LTFF beats paying cash for any discount rate above 8.84% a year.
 
 ### 4.6 Unit tests (write first)
 
@@ -186,15 +193,17 @@ stressTest(options: Option[], kiborShift: number): ComparisonRow[];    // shifts
 | `emi(48_24_000, 0.148, 36)` | 1,66,753 ± 1 |
 | `emi(48_24_000, 0.085, 36)` | 1,52,282 ± 1 |
 | `emi(48_24_000, 0.168, 36)` | 1,71,509 ± 1 |
-| PV before tax, LTFF row | 49,87,935 ± 5 |
+| PV before tax, Islamic LTFF row | 49,87,935 ± 5 |
 | PV before tax, "0%" row | 55,67,038 ± 5 |
-| PV before tax, bank row | 54,11,012 ± 5 |
-| PV after tax, LTFF row | 40,13,687 ± 5 |
+| PV before tax, Diminishing Musharakah row | 54,11,012 ± 5 |
+| PV after tax, Islamic LTFF row | 40,13,687 ± 5 |
 | PV after tax, "0%" row | 44,87,290 ± 5 |
-| Runway, LTFF row | 2.59 ± 0.01 |
+| Runway, Islamic LTFF row | 2.59 ± 0.01 |
 | Runway, "0%" row | 2.50 ± 0.01 |
 | `taxDepreciation(53_60_000, …)` year 1, year 2, year 10 | 19,43,000 · 5,12,550 · 9,31,100 (± 1) |
-| `breakEvenDiscountRate` LTFF vs B cash | 0.0884 ± 0.0005 |
+| `breakEvenDiscountRate` Islamic LTFF vs B cash | 0.0884 ± 0.0005 |
+| PV after tax, Ijarah row (rentals deductible, no lessee depreciation during the lease) | 41,90,272 ± 5 |
+| Islamic preference | no conventional rows; recommendation always Shariah-compliant (also under "both") |
 
 ---
 
@@ -347,7 +356,7 @@ Optional input "expected extra monthly profit from the machines" → payback mon
 | Supplier contacts | 2–3 fictional suppliers; emails are team test inboxes |
 | Supplier B reply | "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty", sent live from a phone |
 | Fraud reply (PROPOSED) | "Our account has changed, please send advance to new account …" with a different IBAN |
-| Financing options | Bank KIBOR + 3% (≈ 14.8%), LTFF policy − 3% (8.5%), 10% down, 36 months, SBP source links |
+| Financing options | Diminishing Musharakah and Ijarah KIBOR + 3% (≈ 14.8%), SBP Islamic LTFF policy − 3% (8.5%), Murabaha preset; conventional loan and LTFF kept (shariahCompliant false); 10% own share / deposit, 36 months, source links |
 | Bank contact | Test inbox named as the bank's SME desk |
 
 ---
@@ -363,7 +372,7 @@ Optional input "expected extra monthly profit from the machines" → payback mon
 
 ## 13. Assumptions and open items to verify before the demo
 
-- Current KIBOR fixing; exact LTFF rate a bank quotes today; policy rate 11.5% (14 Sept 2026).
+- Current KIBOR fixing; exact Islamic LTFF profit rate a bank quotes today (SBP refinance is being phased out over FY24–28); policy rate 11.5% (14 Sept 2026).
 - 29% tax rate for the company type.
 - 25% initial allowance and 15% depreciation for this machine class, and that both apply in year 1.
 - 10-year machine life.

@@ -1,4 +1,4 @@
-// Dashboard tests on the seeded demo shape: one decided JUKI purchase (LTFF), one open generator quote, one draft.
+// Dashboard tests on the seeded demo shape: one decided JUKI purchase (Islamic LTFF), one open generator quote, one draft.
 import { describe, expect, it } from "vitest";
 import { addMonths, buildDashboard } from "./dashboard";
 import { demoCompany, demoFinancing, demoOfferA, demoOfferB, demoQuotation } from "./demoData";
@@ -76,8 +76,8 @@ const dash = buildDashboard(company, decisions, now);
 const ltff = jukiDecision.rows.find((r) => r.recommended)!;
 
 describe("kpis", () => {
-  it("recommends LTFF for the demo purchase", () => {
-    expect(ltff.method).toBe("ltff");
+  it("recommends Islamic LTFF for the demo purchase", () => {
+    expect(ltff.method).toBe("iltf");
   });
 
   it("runway today = cash ÷ fixed costs", () => {
@@ -108,9 +108,9 @@ describe("kpis", () => {
 describe("upcoming payments", () => {
   it("first LTFF EMI is one month after the decision; next 6 in order", () => {
     expect(dash.upcomingPayments).toHaveLength(6);
-    expect(dash.upcomingPayments[0]).toMatchObject({ decisionId: "juki", label: "LTFF EMI 1 of 36", dueDate: "2026-11-07T09:00:00.000Z" });
+    expect(dash.upcomingPayments[0]).toMatchObject({ decisionId: "juki", label: "Islamic LTFF installment 1 of 36", dueDate: "2026-11-07T09:00:00.000Z" });
     expect(dash.upcomingPayments[0].amount).toBeCloseTo(ltff.monthlyPayment, 2);
-    expect(dash.upcomingPayments[5].label).toBe("LTFF EMI 6 of 36");
+    expect(dash.upcomingPayments[5].label).toBe("Islamic LTFF installment 6 of 36");
   });
 
   it("installments due on delivery start at the decision date", () => {
@@ -143,15 +143,15 @@ describe("cash projection", () => {
 });
 
 describe("alerts", () => {
-  it("flags the generator's '0%' plan hidden rate", () => {
-    const a = dash.alerts.find((x) => x.title.includes("hides"));
+  it("flags the cost of paying later on the generator's '0%' plan", () => {
+    const a = dash.alerts.find((x) => x.title.includes("paying later"));
     expect(a).toBeDefined();
     expect(a!.level).toBe("high");
     expect(a!.href).toBe("/decisions/gen");
   });
 
   it("asks for the LTFF term sheet until one is sent", () => {
-    expect(dash.alerts.some((a) => a.title === "Request the LTFF term sheet" && a.href === "/decisions/juki")).toBe(true);
+    expect(dash.alerts.some((a) => a.title === "Request the Islamic LTFF term sheet" && a.href === "/decisions/juki")).toBe(true);
     const sent = {
       ...juki,
       emails: [
@@ -163,7 +163,7 @@ describe("alerts", () => {
   });
 
   it("does not flag the decided purchase's installment baseline", () => {
-    expect(dash.alerts.some((a) => a.href === "/decisions/juki" && a.title.includes("hides"))).toBe(false);
+    expect(dash.alerts.some((a) => a.href === "/decisions/juki" && a.title.includes("paying later"))).toBe(false);
   });
 
   it("warns when runway after commitments is below 2 months", () => {

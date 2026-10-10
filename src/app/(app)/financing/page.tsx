@@ -1,4 +1,4 @@
-// Financing: SBP reference rates and the company's loan options (bank, LTFF) used in every comparison.
+// Financing: Islamic-first preference, Islamic modes explained, SBP reference rates and the company's financing options.
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth/session";
 import { getCompany } from "@/lib/server/repo";
@@ -16,8 +16,8 @@ export default async function FinancingPage() {
       <div className="space-y-1 border-b border-foreground/80 pb-4">
         <h1 className="text-[1.75rem] leading-tight font-bold">Financing</h1>
         <p className="text-sm text-muted-foreground">
-          The loan options every decision compares against cash and supplier installments. Changes apply to new
-          comparisons.
+          The Shariah-compliant financing every decision compares against cash and the supplier&apos;s deferred-price
+          plan. Changes apply to new comparisons.
         </p>
       </div>
       {company ? (

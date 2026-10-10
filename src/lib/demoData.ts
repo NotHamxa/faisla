@@ -14,6 +14,7 @@ export const demoCompany: Company = {
   monthlyFixedCosts: 35_00_000,
   taxRate: 0.29,
   discountRate: 0.15,
+  financingPreference: "islamic",
 };
 
 // What extraction should return for the printed Supplier A quotation.
@@ -108,36 +109,113 @@ export const DEMO_SUPPLIER_B_REPLY =
   "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty";
 
 export const POLICY_RATE = 0.115; // SBP policy rate since 14 Sept 2026
-export const KIBOR = 0.118; // 1-year KIBOR (verify before demo)
+export const KIBOR = 0.118; // 1-year KIBOR, benchmark for Islamic profit rates too (verify before demo)
 
+// Islamic-first financing set (docs/ISLAMIC_FINANCE.md). Diminishing Musharakah, Islamic LTFF and Murabaha use the same
+// cash-flow maths as a term facility (10% customer contribution, 36 equal monthly installments, profit on the outstanding
+// amount at rate ÷ 12), so the demo numbers match TECHNICAL_SPEC §4.5. Ijarah: 10% security deposit, rentals at the same
+// benchmark, deposit adjusted against the purchase price when ownership transfers at the end.
+export const diminishingMusharakah: FinancingOption = {
+  id: "dm",
+  name: "Islamic bank Diminishing Musharakah (KIBOR + 3%)",
+  type: "diminishing_musharakah",
+  shariahCompliant: true,
+  annualRate: 0.148,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: true,
+  requiresExporter: false,
+  sourceLink: "https://www.meezanbank.com/commercial-banking/",
+  note: "Co-ownership: monthly rent on the bank's share + purchase of its units. Profit rate = KIBOR ≈ 11.8% + 3%",
+};
+
+export const ijarah: FinancingOption = {
+  id: "ijarah",
+  name: "Islamic bank Ijarah (KIBOR + 3%)",
+  type: "ijarah",
+  shariahCompliant: true,
+  annualRate: 0.148,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: true,
+  requiresExporter: false,
+  sourceLink: "https://www.meezanbank.com/commercial-banking/",
+  note: "Lease: 10% security deposit, monthly rentals; ownership transferred at the end by a separate sale",
+};
+
+export const islamicLtff: FinancingOption = {
+  id: "iltf",
+  name: "SBP Islamic LTFF (ILTFF) via Diminishing Musharakah",
+  type: "iltf",
+  shariahCompliant: true,
+  annualRate: 0.085,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: false,
+  requiresExporter: true,
+  sourceLink: "https://www.abl.com/business-banking/trade-services/export-finances/",
+  note: "SBP Islamic Long-Term Financing Facility for exporters buying new machinery; end-user rate = policy rate − 3%",
+};
+
+export const murabaha: FinancingOption = {
+  id: "murabaha",
+  name: "Islamic bank Murabaha (fixed price)",
+  type: "murabaha",
+  shariahCompliant: true,
+  annualRate: 0.148,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: false,
+  requiresExporter: false,
+  sourceLink: "https://www.meezanbank.com/commercial-banking/",
+  note: "Cost-plus sale: the bank buys the machines and sells them to you at a deferred price fixed at the contract",
+};
+
+export const conventionalBankLoan: FinancingOption = {
+  id: "bank",
+  name: "Conventional bank term loan (KIBOR + 3%)",
+  type: "bank",
+  shariahCompliant: false,
+  annualRate: 0.148,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: true,
+  requiresExporter: false,
+  sourceLink: "https://www.sbp.org.pk/ecodata/kibor_index.asp",
+  note: "Interest-based; shown only when the preference includes conventional financing",
+};
+
+export const conventionalLtff: FinancingOption = {
+  id: "ltff",
+  name: "SBP LTFF, conventional (policy rate − 3%)",
+  type: "ltff",
+  shariahCompliant: false,
+  annualRate: 0.085,
+  tenorMonths: 36,
+  downPaymentPct: 0.1,
+  feePct: 0,
+  kiborLinked: false,
+  requiresExporter: true,
+  sourceLink: "https://www.sbp.org.pk/smefd/circulars/",
+  note: "Interest-based Long-Term Financing Facility for exporters buying new machinery",
+};
+
+// Default set for every company: Islamic modes first, conventional kept for the "both" preference.
 export const demoFinancing: FinancingOption[] = [
-  {
-    id: "bank",
-    name: "Bank term loan (KIBOR + 3%)",
-    type: "bank",
-    annualRate: 0.148,
-    tenorMonths: 36,
-    downPaymentPct: 0.1,
-    feePct: 0,
-    kiborLinked: true,
-    requiresExporter: false,
-    sourceLink: "https://www.sbp.org.pk/ecodata/kibor_index.asp",
-    note: "KIBOR ≈ 11.8% + 3% bank spread",
-  },
-  {
-    id: "ltff",
-    name: "SBP LTFF (policy rate − 3%)",
-    type: "ltff",
-    annualRate: 0.085,
-    tenorMonths: 36,
-    downPaymentPct: 0.1,
-    feePct: 0,
-    kiborLinked: false,
-    requiresExporter: true,
-    sourceLink: "https://www.sbp.org.pk/smefd/circulars/",
-    note: "Long-Term Financing Facility for exporters buying new machinery",
-  },
+  diminishingMusharakah,
+  ijarah,
+  islamicLtff,
+  conventionalBankLoan,
+  conventionalLtff,
 ];
+
+// Presets offered on the Financing page ("Add option").
+export const financingPresets: FinancingOption[] = [diminishingMusharakah, ijarah, murabaha, islamicLtff, conventionalBankLoan, conventionalLtff];
 
 // Fictional suppliers; emails must point at team test inboxes (set in env, see lib/email.ts).
 export const demoSuppliers: Supplier[] = [

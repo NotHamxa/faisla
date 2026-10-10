@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { demoCompany } from "@/lib/demoData";
 import { formatLakh, groupPKR } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import type { Company } from "@/lib/types";
+import type { Company, FinancingPreference } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,7 @@ type Draft = {
   monthlyFixedCosts: number;
   taxPct: string; // "29"
   discountPct: string; // "15"
+  financingPreference: FinancingPreference;
 };
 
 function toDraft(c: Company): Draft {
@@ -34,6 +35,7 @@ function toDraft(c: Company): Draft {
     monthlyFixedCosts: c.monthlyFixedCosts,
     taxPct: pctText(c.taxRate),
     discountPct: pctText(c.discountRate),
+    financingPreference: c.financingPreference ?? "islamic",
   };
 }
 
@@ -100,6 +102,7 @@ export default function ProfileForm() {
       monthlyFixedCosts: draft.monthlyFixedCosts,
       taxRate: taxRate!,
       discountRate: discountRate!,
+      financingPreference: draft.financingPreference,
     };
     awaitingSave.current = "Company profile saved";
     // Company feeds the comparison, so any earlier decision/memo is stale.
@@ -160,7 +163,7 @@ export default function ProfileForm() {
             <MoneyField
               id="pf-fixed"
               label="Monthly fixed costs"
-              hint="Salaries, rent, utilities, loan payments"
+              hint="Salaries, rent, utilities, existing installments"
               value={draft.monthlyFixedCosts}
               onChange={(v) => set("monthlyFixedCosts", v)}
             />
@@ -175,7 +178,7 @@ export default function ProfileForm() {
             <PctField
               id="pf-discount"
               label="Discount rate (cost of money)"
-              hint="≈ your bank borrowing rate, KIBOR + 3%"
+              hint="≈ your cost of financing, KIBOR + 3%"
               value={draft.discountPct}
               invalid={discountRate === null}
               onChange={(v) => set("discountPct", v)}
@@ -185,9 +188,18 @@ export default function ProfileForm() {
               <Switch id="pf-exporter" checked={draft.isExporter} onCheckedChange={(v) => set("isExporter", v)} />
               <FieldContent>
                 <FieldLabel htmlFor="pf-exporter">We are an exporter</FieldLabel>
-                <FieldDescription>Eligible for SBP LTFF cheap machinery loans (policy rate − 3%).</FieldDescription>
+                <FieldDescription>
+                  Eligible for SBP Islamic LTFF (and conventional LTFF) machinery financing at policy rate − 3%.
+                </FieldDescription>
               </FieldContent>
             </Field>
+
+            <div className="sm:col-span-2">
+              <FinancingPreferenceToggle
+                value={draft.financingPreference}
+                onChange={(v) => set("financingPreference", v)}
+              />
+            </div>
           </FieldGroup>
         </CardContent>
 
@@ -286,5 +298,48 @@ function PctField(props: {
         {props.invalid ? "Enter a percentage between 0 and 100" : props.hint}
       </FieldDescription>
     </Field>
+  );
+}
+
+// Islamic finance first: Shariah-compliant only by default; "both" adds conventional rows for comparison.
+export function FinancingPreferenceToggle({
+  value,
+  onChange,
+  id = "pf-preference",
+}: {
+  value: FinancingPreference;
+  onChange: (v: FinancingPreference) => void;
+  id?: string;
+}) {
+  const options: { value: FinancingPreference; label: string; hint: string }[] = [
+    { value: "islamic", label: "Shariah-compliant only", hint: "Diminishing Musharakah, Ijarah, Murabaha, Islamic LTFF" },
+    { value: "both", label: "Islamic and conventional", hint: "Conventional loans shown for comparison, never recommended" },
+  ];
+  return (
+    <div className="rounded-lg border p-3">
+      <div id={`${id}-label`} className="text-sm font-medium">
+        Financing preference
+      </div>
+      <p className="text-xs text-muted-foreground">Which bank financing every comparison includes.</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby={`${id}-label`}>
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            data-preference={o.value}
+            onClick={() => onChange(o.value)}
+            className={
+              "rounded-[2px] border p-2.5 text-left transition-colors " +
+              (value === o.value ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/60")
+            }
+          >
+            <span className="block text-sm font-medium">{o.label}</span>
+            <span className="block text-xs text-muted-foreground">{o.hint}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

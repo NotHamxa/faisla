@@ -89,7 +89,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
       email: parsed.data.email,
       name: parsed.data.name,
       passwordHash: await hashPassword(parsed.data.password),
-      // Not the demo profile: no exporter/LTFF assumption; the owner sets cash and costs in Settings.
+      // Not the demo profile: no exporter/Islamic LTFF assumption; the owner sets cash and costs in Settings.
       company: { name: parsed.data.companyName, city: "", isExporter: false },
     });
     userId = user._id;

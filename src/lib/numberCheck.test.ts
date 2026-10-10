@@ -140,9 +140,9 @@ describe("with the real finance engine", () => {
 
   it("builds the same headline facts as the spec fixture", () => {
     const byKey = new Map(memoFacts(real, undefined, { offers }).map((f) => [f.key, f.value]));
-    expect(byKey.get("row.offer-b:ltff.pvBeforeTax")).toBe("Rs 49,87,935");
-    expect(byKey.get("row.offer-b:ltff.principal")).toBe("Rs 48,24,000");
-    expect(byKey.get("row.offer-b:ltff.rate")).toBe("8.5%");
+    expect(byKey.get("row.offer-b:iltf.pvBeforeTax")).toBe("Rs 49,87,935");
+    expect(byKey.get("row.offer-b:iltf.principal")).toBe("Rs 48,24,000");
+    expect(byKey.get("row.offer-b:iltf.rate")).toBe("8.5%");
     expect(byKey.get("savings.afterTax")).toBe("Rs 4,73,603");
   });
 
@@ -153,5 +153,26 @@ describe("with the real finance engine", () => {
       const check = checkMemoNumbers(memo, allowedNumbers(memoFacts(decision, reputations, { offers, financing: demoFinancing })));
       expect(check).toEqual({ passed: true, unknownNumbers: [] });
     }
+  });
+});
+
+describe("Islamic wording in the template memo", () => {
+  it("uses Islamic finance terms and never interest / loan / EMI / markup for Islamic rows", () => {
+    const offers = [demoOfferA, demoOfferB];
+    const decision = decide({ company: demoCompany, offers, financing: demoFinancing });
+    const memo = memoTemplate(decision, reputations, { offers, financing: demoFinancing });
+    expect(memo).toContain("SBP Islamic LTFF through an Islamic bank");
+    expect(memo).toContain("paying later costs 16.9% a year");
+    expect(memo).toContain("Shariah board approval");
+    expect(memo).not.toMatch(/interest|\bloans?\b|\bEMI\b|markup/i);
+  });
+
+  it("with the 'both' preference, conventional rows are named as interest-based and not recommended", () => {
+    const offers = [demoOfferA, demoOfferB];
+    const decision = decide({ company: demoCompany, offers, financing: demoFinancing, preference: "both" });
+    const memo = memoTemplate(decision, reputations, { offers, financing: demoFinancing });
+    expect(memo).toContain("| B, conventional loan 14.8% |");
+    expect(memo).toContain("Conventional (interest-based) options are shown for comparison only");
+    expect(memo).toContain("| **B, Islamic LTFF 8.5%** |");
   });
 });

@@ -1,12 +1,15 @@
 // GET → the signed-in user's company; PATCH → update profile and/or financing options.
 import { z } from "zod";
 import { userOr401 } from "@/lib/auth/session";
+import { isIslamicType } from "@/lib/finance";
 import { getCompany, updateCompany } from "@/lib/server/repo";
 
 const financingSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(["bank", "ltff"]),
+  type: z.enum(["diminishing_musharakah", "murabaha", "ijarah", "iltf", "bank", "ltff"]),
+  // Options saved before the flag existed are classified by type.
+  shariahCompliant: z.boolean().optional(),
   annualRate: z.number().min(0).max(1),
   tenorMonths: z.number().int().min(1).max(240),
   downPaymentPct: z.number().min(0).max(1),
@@ -15,7 +18,7 @@ const financingSchema = z.object({
   requiresExporter: z.boolean(),
   sourceLink: z.string().nullable(),
   note: z.string().optional(),
-});
+}).transform((f) => ({ ...f, shariahCompliant: f.shariahCompliant ?? isIslamicType(f.type) }));
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -25,6 +28,7 @@ const patchSchema = z.object({
   monthlyFixedCosts: z.number().min(0).optional(),
   taxRate: z.number().min(0).max(1).optional(),
   discountRate: z.number().min(0).max(1).optional(),
+  financingPreference: z.enum(["islamic", "both"]).optional(),
   financing: z.array(financingSchema).optional(),
 });
 

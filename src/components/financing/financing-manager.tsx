@@ -1,5 +1,6 @@
 "use client";
-// Financing page body: SBP rates, editable loan options (saved to the company via the store) and an EMI calculator.
+// Financing page body: financing preference (Islamic first), Islamic modes explained, SBP reference rates, editable
+// financing options (saved to the company via the store) and a monthly installment calculator.
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   CircleAlertIcon,
   ExternalLinkIcon,
   LandmarkIcon,
+  MoonStarIcon,
   PlusIcon,
   RotateCcwIcon,
   SaveIcon,
@@ -16,11 +18,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { KIBOR, POLICY_RATE, demoFinancing } from "@/lib/demoData";
-import { emi, isEligible } from "@/lib/finance";
+import { KIBOR, POLICY_RATE, demoFinancing, financingPresets } from "@/lib/demoData";
+import {
+  FINANCING_NAMES,
+  SHARIAH_NOTES,
+  emi,
+  financingForPreference,
+  isEligible,
+  isIslamicType,
+  paymentWord,
+} from "@/lib/finance";
 import { formatLakh, formatPKR, formatPct, groupPKR } from "@/lib/format";
 import { type SaveStatus, useStore } from "@/lib/store";
-import type { Company, FinancingOption, FinancingType } from "@/lib/types";
+import type { Company, FinancingOption, FinancingPreference, FinancingType } from "@/lib/types";
+import { FinancingPreferenceToggle } from "@/components/ProfileForm";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,15 +43,69 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const BANK_SPREAD = 0.03; // typical SME spread over KIBOR (spec §4.4)
-const LTFF_DISCOUNT = 0.03; // LTFF end-user rate ≈ policy rate − 3%
-const SAMPLE_PRINCIPAL = 48_24_000; // the demo loan: Rs 53.6 lakh less 10% down
+const LTFF_DISCOUNT = 0.03; // Islamic LTFF / LTFF end-user rate = policy rate − 3%
+const SAMPLE_PRINCIPAL = 48_24_000; // the demo: Rs 53.6 lakh less your 10% share
 const KIBOR_STRESS = 0.02;
 
 const LINKS = {
   kibor: "https://www.sbp.org.pk/ecodata/kibor_index.asp",
   policy: "https://www.sbp.org.pk/m_policy/index.htm",
-  ltff: "https://www.sbp.org.pk/smefd/circulars/",
+  ltff: "https://www.abl.com/business-banking/trade-services/export-finances/",
+  islamic: "https://www.meezanbank.com/commercial-banking/",
 };
+
+const TYPE_ORDER: FinancingType[] = ["diminishing_musharakah", "ijarah", "murabaha", "iltf", "bank", "ltff"];
+
+const TYPE_BUTTON: Record<FinancingType, string> = {
+  diminishing_musharakah: "Diminishing Musharakah",
+  ijarah: "Ijarah",
+  murabaha: "Murabaha",
+  iltf: "Islamic LTFF",
+  bank: "Conventional loan",
+  ltff: "Conventional LTFF",
+};
+
+// Field wording per mode: Islamic modes never say "loan", "interest" or "down payment".
+function fieldWords(type: FinancingType): { rate: string; down: string; downHint: string } {
+  if (type === "ijarah") return { rate: "Rental rate", down: "Security deposit", downHint: "Adjusted against the purchase price at the end" };
+  if (type === "murabaha") return { rate: "Profit rate", down: "Your advance", downHint: "Paid at delivery" };
+  if (type === "diminishing_musharakah" || type === "iltf") return { rate: "Profit rate", down: "Your share", downHint: "Your co-ownership share at delivery" };
+  return { rate: "Interest rate", down: "Down payment", downHint: "Paid at delivery" };
+}
+
+// Sensible defaults when switching mode; both switches stay editable.
+function typeDefaults(type: FinancingType): { kiborLinked: boolean; requiresExporter: boolean } {
+  if (type === "iltf" || type === "ltff") return { kiborLinked: false, requiresExporter: true };
+  if (type === "murabaha") return { kiborLinked: false, requiresExporter: false };
+  return { kiborLinked: true, requiresExporter: false };
+}
+
+export const ISLAMIC_MODES: { name: string; how: string; cost: string; tax: string }[] = [
+  {
+    name: "Diminishing Musharakah",
+    how: "You and the bank co-own the machines. Each month you pay rent on the bank's share and buy a few of its units, until you own everything.",
+    cost: "Profit rate benchmarked to KIBOR + spread, repriced periodically.",
+    tax: "Rent (profit) is deductible; you claim depreciation as the owner.",
+  },
+  {
+    name: "Ijarah",
+    how: "The bank buys and leases the machines to you. You pay a security deposit and monthly rentals; at the end ownership passes to you by a separate sale or gift.",
+    cost: "Rentals benchmarked to KIBOR + spread. The bank, as owner, arranges takaful.",
+    tax: "Rentals are deductible as paid; no depreciation for you during the lease.",
+  },
+  {
+    name: "Murabaha",
+    how: "The bank buys the machines and sells them to you at cost plus an agreed profit, paid in installments. Banks use it mostly for raw materials and working capital.",
+    cost: "The deferred price is fixed at the contract and never increased.",
+    tax: "The profit part is deductible; you depreciate the machines as the owner.",
+  },
+  {
+    name: "Islamic LTFF (ILTFF)",
+    how: "SBP's Shariah-compliant counterpart of LTFF for exporters buying new machinery, offered through Islamic banks (for example by Diminishing Musharakah).",
+    cost: "End-user profit rate set by SBP at policy rate − 3%.",
+    tax: "Same as the mode the bank uses (Diminishing Musharakah here).",
+  },
+];
 
 // ---------- draft <-> option ----------
 
@@ -107,6 +172,7 @@ function fromDraft(d: OptionDraft): FinancingOption | null {
     id: d.id,
     name: d.name.trim(),
     type: d.type,
+    shariahCompliant: isIslamicType(d.type),
     annualRate: Number(d.ratePct) / 100,
     tenorMonths: Number(d.tenor),
     downPaymentPct: Number(d.downPct) / 100,
@@ -144,7 +210,7 @@ export function FinancingManager() {
       toast.success(awaitingSave.current);
       awaitingSave.current = null;
     } else if (saveStatus === "error") {
-      toast.error("Could not save the financing options. Try again.");
+      toast.error("Could not save the financing settings. Try again.");
       awaitingSave.current = null;
     }
   }, [saveStatus]);
@@ -167,58 +233,75 @@ export function FinancingManager() {
   function resetDefaults() {
     const previous = financing;
     update({ financing: demoFinancing });
-    toast("Reset to SBP defaults", {
-      description: "Bank KIBOR + 3% and LTFF policy − 3%, 10% down, 36 months.",
+    toast("Reset to Islamic defaults", {
+      description:
+        "Diminishing Musharakah and Ijarah at KIBOR + 3%, SBP Islamic LTFF at policy − 3%; conventional kept for comparison.",
       action: { label: "Undo", onClick: () => update({ financing: previous }) },
     });
   }
 
-  function addOption() {
-    setDrafts((ds) => [
-      ...ds,
-      {
-        id: `custom-${Date.now().toString(36)}`,
-        name: "New bank loan",
-        type: "bank",
-        ratePct: pctText(KIBOR + BANK_SPREAD),
-        tenor: "36",
-        downPct: "10",
-        feePct: "0",
-        kiborLinked: true,
-        requiresExporter: false,
-        sourceLink: "",
-        note: "",
-      },
-    ]);
+  function addOption(preset: FinancingOption) {
+    setDrafts((ds) => [...ds, { ...toDraft(preset), id: `custom-${Date.now().toString(36)}` }]);
   }
+
+  function setPreference(financingPreference: FinancingPreference) {
+    if (financingPreference === company.financingPreference) return;
+    awaitingSave.current =
+      financingPreference === "islamic" ? "Showing Shariah-compliant financing only" : "Conventional financing added for comparison";
+    update({ company: { ...company, financingPreference } });
+  }
+
+  const preference: FinancingPreference = company.financingPreference ?? "islamic";
+  const hiddenConventional = preference === "islamic" ? drafts.filter((d) => !isIslamicType(d.type)).length : 0;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-3">
-        <RatesCard className="lg:col-span-2" />
+        <Card className="lg:col-span-2" id="preference">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MoonStarIcon className="size-4 text-muted-foreground" />
+              Islamic finance first
+            </CardTitle>
+            <CardDescription>
+              Comparisons include Shariah-compliant financing by default. Pakistan&apos;s 26th Amendment sets eliminating
+              riba before 1 January 2028.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FinancingPreferenceToggle id="fin-preference" value={preference} onChange={setPreference} />
+          </CardContent>
+        </Card>
         <EligibilityCard company={company} options={valid} />
       </div>
+
+      <IslamicModesCard />
+      <RatesCard />
 
       <Card>
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
             <LandmarkIcon className="size-4 text-muted-foreground" />
-            Loan options
+            Financing options
           </CardTitle>
           <CardDescription>
-            Each decision offers these loans on the cheapest supplier&apos;s price. LTFF is skipped for non-exporters.
+            Each decision offers these on the cheapest supplier&apos;s price. Islamic LTFF is skipped for non-exporters
+            {hiddenConventional > 0
+              ? `; ${hiddenConventional} conventional option${hiddenConventional === 1 ? " is" : "s are"} left out while the preference is Shariah-compliant only`
+              : ""}
+            .
           </CardDescription>
           <CardAction>
             <Button variant="outline" size="sm" onClick={resetDefaults}>
               <RotateCcwIcon data-icon="inline-start" />
-              Reset to SBP defaults
+              Reset to Islamic defaults
             </Button>
           </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           {drafts.length === 0 && (
             <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No loan options. Comparisons will only show cash and supplier installments.
+              No financing options. Comparisons will only show cash and the supplier&apos;s deferred-price plan.
             </p>
           )}
           {drafts.map((d, i) => (
@@ -227,14 +310,20 @@ export function FinancingManager() {
               index={i}
               draft={d}
               company={company}
+              preference={preference}
               onChange={(patch) => patchDraft(d.id, patch)}
               onRemove={() => setDrafts((ds) => ds.filter((x) => x.id !== d.id))}
             />
           ))}
-          <Button variant="outline" size="sm" onClick={addOption}>
-            <PlusIcon data-icon="inline-start" />
-            Add loan option
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Add:</span>
+            {financingPresets.map((preset) => (
+              <Button key={preset.id} variant="outline" size="sm" onClick={() => addOption(preset)}>
+                <PlusIcon data-icon="inline-start" />
+                {TYPE_BUTTON[preset.type]}
+              </Button>
+            ))}
+          </div>
         </CardContent>
         <CardFooter className="justify-between gap-3">
           <SaveState dirty={dirty} valid={allValid} status={saveStatus} />
@@ -252,7 +341,7 @@ export function FinancingManager() {
         </CardFooter>
       </Card>
 
-      <EmiCalculator options={valid} company={company} />
+      <InstallmentCalculator options={financingForPreference(valid, preference)} company={company} />
     </div>
   );
 }
@@ -308,7 +397,10 @@ function RatesCard({ className }: { className?: string }) {
     <Card className={className}>
       <CardHeader>
         <CardTitle>Reference rates</CardTitle>
-        <CardDescription>Where the loan rates come from. Code uses these; AI never sets a rate.</CardDescription>
+        <CardDescription>
+          KIBOR is the benchmark Islamic banks use to price profit and rentals; the SBP policy rate sets Islamic LTFF.
+          Code uses these; AI never sets a rate.
+        </CardDescription>
         <CardAction>
           <Badge variant="warning">
             <TriangleAlertIcon data-icon="inline-start" />
@@ -318,14 +410,14 @@ function RatesCard({ className }: { className?: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <RateTile label="1-year KIBOR" value={formatPct(KIBOR)} href={LINKS.kibor} source="SBP KIBOR fixings" />
+          <RateTile label="KIBOR (benchmark)" value={formatPct(KIBOR)} href={LINKS.kibor} source="SBP KIBOR fixings" />
           <RateTile label="SBP policy rate" value={formatPct(POLICY_RATE)} href={LINKS.policy} source="SBP monetary policy" />
         </div>
         <div className="divide-y rounded-lg border text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 p-3">
             <span>
-              <span className="font-medium">Bank term loan</span>
-              <span className="text-muted-foreground"> = KIBOR + bank spread; moves when KIBOR moves</span>
+              <span className="font-medium">Diminishing Musharakah / Ijarah</span>
+              <span className="text-muted-foreground"> = KIBOR + bank spread; repriced when KIBOR moves</span>
             </span>
             <span className="font-mono tabular-nums">
               {formatPct(KIBOR)} + {formatPct(BANK_SPREAD, 0)} ={" "}
@@ -334,8 +426,8 @@ function RatesCard({ className }: { className?: string }) {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 p-3">
             <span>
-              <span className="font-medium">SBP LTFF</span>
-              <span className="text-muted-foreground"> = policy rate − 3%; fixed for exporters buying new machinery</span>
+              <span className="font-medium">SBP Islamic LTFF</span>
+              <span className="text-muted-foreground"> = policy rate − 3%; for exporters buying new machinery</span>
             </span>
             <span className="font-mono tabular-nums">
               {formatPct(POLICY_RATE)} − {formatPct(LTFF_DISCOUNT, 0)} ={" "}
@@ -344,12 +436,62 @@ function RatesCard({ className }: { className?: string }) {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          LTFF terms and eligibility:{" "}
+          Islamic LTFF and LTFF end-user rate:{" "}
           <a href={LINKS.ltff} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">
-            SBP SME finance circulars
+            &ldquo;3% less than the SBP policy rate&rdquo;
           </a>
-          . The exact rate and approval time are confirmed by the bank.
+          . SBP refinance schemes are being phased out over FY24–28, so the bank confirms the exact rate and approval time.
+          Conventional loans use the same KIBOR + spread and are shown only when the preference includes them.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IslamicModesCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>How Islamic machinery financing works</CardTitle>
+        <CardDescription>
+          Asset-backed: the bank buys, co-owns or leases the machines and earns profit or rent on them, instead of lending money.
+        </CardDescription>
+        <CardAction>
+          <a
+            href={LINKS.islamic}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+          >
+            Example: Meezan Bank <ExternalLinkIcon className="size-3" />
+          </a>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {ISLAMIC_MODES.map((m) => (
+            <div key={m.name} className="rounded-[2px] border border-t-[3px] border-t-primary p-3 text-sm">
+              <div className="font-medium">{m.name}</div>
+              <p className="mt-1 text-muted-foreground">{m.how}</p>
+              <p className="mt-2 text-xs">
+                <span className="font-medium">Cost: </span>
+                <span className="text-muted-foreground">{m.cost}</span>
+              </p>
+              <p className="mt-1 text-xs">
+                <span className="font-medium">Tax: </span>
+                <span className="text-muted-foreground">{m.tax}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="ledger-label">Shariah notes</div>
+          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            {SHARIAH_NOTES.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
       </CardContent>
     </Card>
   );
@@ -367,7 +509,7 @@ function EligibilityCard({ company, options }: { company: Company; options: Fina
         {company.isExporter ? (
           <Alert className="border-success/40 border-l-success">
             <BadgeCheckIcon className="text-success" />
-            <AlertTitle className="text-success">Exporter: LTFF eligible</AlertTitle>
+            <AlertTitle className="text-success">Exporter: Islamic LTFF eligible</AlertTitle>
             <AlertDescription>
               Exporter-only options ({exporterOnly.length}) are included in every comparison. The bank confirms
               eligibility on the term sheet.
@@ -378,7 +520,7 @@ function EligibilityCard({ company, options }: { company: Company; options: Fina
             <TriangleAlertIcon className="text-warning" />
             <AlertTitle className="text-warning">Not marked as an exporter</AlertTitle>
             <AlertDescription>
-              LTFF requires export business, so exporter-only options ({exporterOnly.length}) are skipped in
+              Islamic LTFF requires export business, so exporter-only options ({exporterOnly.length}) are skipped in
               comparisons.
             </AlertDescription>
           </Alert>
@@ -397,12 +539,14 @@ function OptionEditor({
   index,
   draft: d,
   company,
+  preference,
   onChange,
   onRemove,
 }: {
   index: number;
   draft: OptionDraft;
   company: Company;
+  preference: FinancingPreference;
   onChange: (patch: Partial<OptionDraft>) => void;
   onRemove: () => void;
 }) {
@@ -410,10 +554,11 @@ function OptionEditor({
   const id = (field: string) => `fin-${d.id}-${field}`;
   const option = fromDraft(d);
   const eligible = option ? isEligible(company, option) : true;
+  const islamic = isIslamicType(d.type);
+  const words = fieldWords(d.type);
 
   function setType(type: FinancingType) {
-    // Sensible defaults when switching; both switches stay editable.
-    onChange(type === "ltff" ? { type, kiborLinked: false, requiresExporter: true } : { type, kiborLinked: true, requiresExporter: false });
+    onChange({ type, ...typeDefaults(type) });
   }
 
   return (
@@ -422,8 +567,8 @@ function OptionEditor({
         <span className="flex size-6 items-center justify-center rounded-[2px] border font-mono text-xs tabular-nums">
           {index + 1}
         </span>
-        <div className="inline-flex rounded-lg border p-0.5" role="radiogroup" aria-label="Loan type">
-          {(["bank", "ltff"] as const).map((t) => (
+        <div className="inline-flex flex-wrap rounded-lg border p-0.5" role="radiogroup" aria-label="Financing mode">
+          {TYPE_ORDER.map((t) => (
             <Button
               key={t}
               size="xs"
@@ -432,10 +577,16 @@ function OptionEditor({
               aria-checked={d.type === t}
               onClick={() => setType(t)}
             >
-              {t === "bank" ? "Bank" : "LTFF"}
+              {TYPE_BUTTON[t]}
             </Button>
           ))}
         </div>
+        {islamic ? (
+          <Badge variant="success">Shariah-compliant</Badge>
+        ) : (
+          <Badge variant="muted">Conventional · interest-based</Badge>
+        )}
+        {!islamic && preference === "islamic" && <Badge variant="warning">Left out: Shariah-compliant only</Badge>}
         {!eligible && <Badge variant="warning">Skipped: not an exporter</Badge>}
         <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" onClick={onRemove}>
           <Trash2Icon data-icon="inline-start" />
@@ -466,7 +617,7 @@ function OptionEditor({
 
         <NumberField
           id={id("rate")}
-          label="Annual rate"
+          label={words.rate}
           suffix="%"
           value={d.ratePct}
           error={errors.ratePct}
@@ -483,7 +634,8 @@ function OptionEditor({
         />
         <NumberField
           id={id("down")}
-          label="Down payment"
+          label={words.down}
+          hint={words.downHint}
           suffix="%"
           value={d.downPct}
           error={errors.downPct}
@@ -502,7 +654,7 @@ function OptionEditor({
           <Switch id={id("kibor")} checked={d.kiborLinked} onCheckedChange={(v) => onChange({ kiborLinked: v })} />
           <FieldContent>
             <FieldLabel htmlFor={id("kibor")}>KIBOR-linked</FieldLabel>
-            <FieldDescription className="text-xs">Moves in the stress test</FieldDescription>
+            <FieldDescription className="text-xs">Repriced in the KIBOR stress test</FieldDescription>
           </FieldContent>
         </Field>
         <Field orientation="horizontal" className="sm:col-span-2 lg:col-span-1">
@@ -520,7 +672,7 @@ function OptionEditor({
           <FieldLabel htmlFor={id("note")}>Note</FieldLabel>
           <Input
             id={id("note")}
-            placeholder="Optional, e.g. KIBOR ≈ 11.8% + 3% bank spread"
+            placeholder="Optional, e.g. KIBOR ≈ 11.8% + 3% spread, takaful by the bank"
             value={d.note}
             onChange={(e) => onChange({ note: e.target.value })}
           />
@@ -535,6 +687,7 @@ function NumberField(props: {
   label: string;
   suffix: string;
   value: string;
+  hint?: string;
   error?: string;
   integer?: boolean;
   onChange: (v: string) => void;
@@ -555,14 +708,18 @@ function NumberField(props: {
           {props.suffix}
         </span>
       </div>
-      {props.error && <FieldDescription className="text-xs text-destructive">{props.error}</FieldDescription>}
+      {props.error ? (
+        <FieldDescription className="text-xs text-destructive">{props.error}</FieldDescription>
+      ) : (
+        props.hint && <FieldDescription className="text-xs">{props.hint}</FieldDescription>
+      )}
     </Field>
   );
 }
 
 // ---------- calculator ----------
 
-function EmiCalculator({ options, company }: { options: FinancingOption[]; company: Company }) {
+function InstallmentCalculator({ options, company }: { options: FinancingOption[]; company: Company }) {
   const [principal, setPrincipal] = useState(SAMPLE_PRINCIPAL);
 
   const rows = useMemo(
@@ -574,7 +731,7 @@ function EmiCalculator({ options, company }: { options: FinancingOption[]; compa
         return {
           option: o,
           monthly,
-          markup: repaid - principal,
+          profit: repaid - principal,
           fee,
           cost: repaid - principal + fee,
           stressed: o.kiborLinked ? emi(principal, o.annualRate + KIBOR_STRESS, o.tenorMonths) : null,
@@ -588,20 +745,20 @@ function EmiCalculator({ options, company }: { options: FinancingOption[]; compa
     null,
   );
   const tenors = [...new Set(options.map((o) => o.tenorMonths))];
-  const title = `What does Rs ${formatLakh(principal, 2)}${tenors.length === 1 ? ` over ${tenors[0]} months` : ""} cost?`;
+  const title = `What does financing Rs ${formatLakh(principal, 2)}${tenors.length === 1 ? ` over ${tenors[0]} months` : ""} cost?`;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{principal > 0 ? title : "Loan cost calculator"}</CardTitle>
+        <CardTitle>{principal > 0 ? title : "Financing cost calculator"}</CardTitle>
         <CardDescription>
-          Monthly instalment (EMI, bank convention i = rate ÷ 12) and total markup for each option. Before tax; the
-          comparison in each decision adds tax savings and present value.
+          Monthly installment or rental (i = rate ÷ 12 on the outstanding amount, never compounded) and the bank&apos;s
+          total profit for each option. Before tax; each decision&apos;s comparison adds tax savings and present value.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Field className="max-w-xs">
-          <FieldLabel htmlFor="calc-principal">Loan amount (principal)</FieldLabel>
+          <FieldLabel htmlFor="calc-principal">Amount financed</FieldLabel>
           <div className="relative">
             <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
               Rs
@@ -619,12 +776,12 @@ function EmiCalculator({ options, company }: { options: FinancingOption[]; compa
             />
           </div>
           <FieldDescription className="text-xs">
-            {principal > 0 ? `= ${formatLakh(principal, 2)} · ` : ""}Demo: Rs 53.6 lakh less 10% down
+            {principal > 0 ? `= ${formatLakh(principal, 2)} · ` : ""}Demo: Rs 53.6 lakh less your 10% share
           </FieldDescription>
         </Field>
 
         {rows.length === 0 || principal <= 0 ? (
-          <p className="text-sm text-muted-foreground">Enter a loan amount and at least one valid loan option.</p>
+          <p className="text-sm text-muted-foreground">Enter an amount and at least one valid financing option.</p>
         ) : (
           <div className="overflow-hidden rounded-lg border">
             <Table className="min-w-[640px]">
@@ -632,33 +789,38 @@ function EmiCalculator({ options, company }: { options: FinancingOption[]; compa
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-4">Option</TableHead>
                   <TableHead className="text-right">Rate · tenor</TableHead>
-                  <TableHead className="text-right">EMI / month</TableHead>
-                  <TableHead className="text-right">Total markup</TableHead>
-                  <TableHead className="pr-4 text-right">Markup + fee</TableHead>
+                  <TableHead className="text-right">Per month</TableHead>
+                  <TableHead className="text-right">Total profit</TableHead>
+                  <TableHead className="pr-4 text-right">Profit + fee</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r) => {
                   const best = cheapest?.option.id === r.option.id && rows.length > 1;
+                  const conventional = !isIslamicType(r.option.type);
                   return (
                     <TableRow key={r.option.id} className={cn(best && "bg-muted/60 hover:bg-muted", !r.eligible && "opacity-60")}>
                       <TableCell className="py-3 pl-4 whitespace-normal">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-medium">{r.option.name}</span>
                           {best && <Badge>Cheapest</Badge>}
+                          {conventional && <Badge variant="muted">Conventional · interest-based</Badge>}
                           {!r.eligible && <Badge variant="warning">Not eligible</Badge>}
                         </div>
-                        {r.stressed !== null && (
-                          <div className="text-xs text-muted-foreground">
-                            If KIBOR +2%: EMI <span className="font-mono tabular-nums">{groupPKR(r.stressed)}</span>
-                          </div>
-                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {FINANCING_NAMES[r.option.type]}, monthly {paymentWord(r.option.type)}
+                          {r.stressed !== null && (
+                            <>
+                              {" "}· if KIBOR +2%: <span className="font-mono tabular-nums">{groupPKR(r.stressed)}</span>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="py-3 text-right font-mono tabular-nums">
                         {formatPct(r.option.annualRate)} · {r.option.tenorMonths} mo
                       </TableCell>
                       <TableCell className="py-3 text-right font-mono font-semibold tabular-nums">{groupPKR(r.monthly)}</TableCell>
-                      <TableCell className="py-3 text-right font-mono tabular-nums">{groupPKR(r.markup)}</TableCell>
+                      <TableCell className="py-3 text-right font-mono tabular-nums">{groupPKR(r.profit)}</TableCell>
                       <TableCell className={cn("py-3 pr-4 text-right font-mono tabular-nums", best && "font-semibold text-primary")}>
                         {formatPKR(r.cost)}
                       </TableCell>

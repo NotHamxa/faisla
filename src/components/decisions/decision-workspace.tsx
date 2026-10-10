@@ -326,7 +326,7 @@ function CompanyLine({ company }: { company: FaislaState["company"] }) {
       <span>
         Fixed costs <span className="font-mono text-foreground tabular-nums">{formatPKR(company.monthlyFixedCosts)}</span>/month
       </span>
-      <span>{company.isExporter ? "Exporter · LTFF eligible" : "Not an exporter"}</span>
+      <span>{company.isExporter ? "Exporter · Islamic LTFF eligible" : "Not an exporter"}</span>
       <Link href="/settings" className="ml-auto text-primary underline-offset-4 hover:underline">
         Edit in Settings
       </Link>

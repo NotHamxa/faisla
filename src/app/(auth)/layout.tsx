@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const VALUES = [
   { icon: ScanText, title: "Reads the quotation", text: "Photo in, every line item out. You confirm each field." },
-  { icon: Calculator, title: "Finds the hidden cost", text: "“0% markup” plans, bank loans and SBP LTFF, compared after tax." },
+  { icon: Calculator, title: "Islamic finance first", text: "Supplier “0%” plans, Diminishing Musharakah, Ijarah and SBP Islamic LTFF, compared after tax." },
   { icon: Landmark, title: "Protects your cash", text: "Shows how many months of salaries each option leaves in the bank." },
 ];
 

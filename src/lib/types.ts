@@ -1,6 +1,10 @@
 // Shared contracts for Faisla. Every module (finance engine, API routes, UI) builds on these.
 // Money is PKR (plain numbers, rounded only for display). Rates are decimals (0.148 = 14.8%).
 
+// "islamic": only Shariah-compliant financing is compared (default).
+// "both": conventional (interest-based) financing is shown too, labelled, for comparison only; never recommended.
+export type FinancingPreference = "islamic" | "both";
+
 export type Company = {
   name: string;
   city: string;
@@ -9,6 +13,7 @@ export type Company = {
   monthlyFixedCosts: number;
   taxRate: number; // 0.29
   discountRate: number; // 0.15, pre-tax yearly
+  financingPreference: FinancingPreference;
 };
 
 export type QuotationItem = {
@@ -65,15 +70,24 @@ export type Offer = {
   summary?: string | null;
 };
 
-export type FinancingType = "bank" | "ltff";
+// Islamic modes (docs/ISLAMIC_FINANCE.md):
+// - diminishing_musharakah: bank and customer co-own the asset; monthly rent on the bank's share + purchase of its units.
+// - murabaha: bank sells the asset at cost + profit; the deferred price is fixed at the contract, paid in installments.
+// - ijarah: bank leases the asset; security deposit + monthly rentals; ownership transferred at the end by a separate sale.
+// - iltf: SBP Islamic Long-Term Financing Facility for exporters' new machinery, through an Islamic bank.
+export type IslamicFinancingType = "diminishing_musharakah" | "murabaha" | "ijarah" | "iltf";
+// Conventional (interest-based) financing, shown only when the preference is "both".
+export type ConventionalFinancingType = "bank" | "ltff";
+export type FinancingType = IslamicFinancingType | ConventionalFinancingType;
 
 export type FinancingOption = {
   id: string;
   name: string;
   type: FinancingType;
-  annualRate: number; // 0.148
+  shariahCompliant: boolean; // Islamic modes true, conventional false
+  annualRate: number; // 0.148 (profit rate / rental benchmark for Islamic modes)
   tenorMonths: number;
-  downPaymentPct: number; // 0.10
+  downPaymentPct: number; // 0.10 (customer's contribution; security deposit for Ijarah)
   feePct: number; // upfront processing fee on principal, default 0
   kiborLinked: boolean; // stress test shifts only these
   requiresExporter: boolean;
@@ -81,18 +95,19 @@ export type FinancingOption = {
   note?: string;
 };
 
-export type PaymentMethod = "cash" | "installments" | "bank" | "ltff";
+// "installments" = the supplier's own deferred-price plan (bay' muajjal), not bank financing.
+export type PaymentMethod = "cash" | "installments" | FinancingType;
 
 export type CalculationStep = {
-  label: string; // "Hidden yearly rate"
+  label: string; // "Effective yearly cost"
   formula: string; // "(1 + r)^12 − 1"
   inputs: Record<string, number | string>;
   result: number | string;
 };
 
 export type ComparisonRow = {
-  id: string; // e.g. "offer-a:installments", "offer-b:ltff"
-  label: string; // 'A, "0%" installments'
+  id: string; // e.g. "offer-a:installments", "offer-b:iltf"
+  label: string; // 'A, deferred-price plan ("0%")'
   offerId: string;
   supplierName: string;
   method: PaymentMethod;
@@ -105,8 +120,9 @@ export type ComparisonRow = {
   pvBeforeTax: number;
   pvAfterTax: number;
   runwayMonths: number;
-  hiddenYearlyRate: number | null; // installments only
+  hiddenYearlyRate: number | null; // installments only: effective yearly cost of paying later
   hiddenSimpleRate: number | null; // r × 12, installments only
+  shariahCompliant?: boolean; // optional: comparisons saved before Islamic modes lack it (see isShariahRow)
   verdict: string;
   recommended: boolean;
   calculation: CalculationStep[]; // "show calculation"
@@ -117,6 +133,7 @@ export type DecideInput = {
   offers: Offer[];
   financing: FinancingOption[];
   kiborShift?: number; // 0.02 = +2%, for the stress slider
+  preference?: FinancingPreference; // defaults to company.financingPreference, then "islamic"
 };
 
 export type DecideResult = {
@@ -128,6 +145,7 @@ export type DecideResult = {
   breakEvenDiscountRate: number | null; // recommended (financed) vs cheapest cash
   afterTaxDiscountRate: number;
   kiborShift: number;
+  financingPreference?: FinancingPreference; // optional for comparisons saved before it existed
   assumptions: string[];
   company: Company;
 };

@@ -1,6 +1,6 @@
 // The only numbers the memo may use, preformatted by code. The memo prompt, the fallback template
 // and the number check all read from this list, so a number is either here or it is rejected.
-import { SAFE_RUNWAY } from "./finance";
+import { SAFE_RUNWAY, isFinancedMethod, isShariahRow } from "./finance";
 import { formatLakh, formatMonths, formatPKR, formatPct, groupPKR } from "./format";
 import { extractNumbers } from "./numberCheck";
 import type { ComparisonRow, DecideResult, FinancingOption, Offer, ReputationResult } from "./types";
@@ -24,17 +24,35 @@ export const MIN_SAFE_RUNWAY_MONTHS = SAFE_RUNWAY;
 
 const methodNames: Record<ComparisonRow["method"], string> = {
   cash: "cash",
-  installments: "supplier installments",
-  bank: "bank term loan",
-  ltff: "SBP LTFF loan",
+  installments: "the supplier's deferred-price plan (credit sale at a fixed higher price)",
+  diminishing_musharakah: "Diminishing Musharakah (Islamic co-ownership financing)",
+  murabaha: "Murabaha (Islamic cost-plus sale)",
+  ijarah: "Ijarah (Islamic lease)",
+  iltf: "SBP Islamic LTFF (Shariah-compliant export machinery financing)",
+  bank: "conventional bank loan (interest-based)",
+  ltff: "conventional SBP LTFF loan (interest-based)",
 };
 
 export function methodName(row: ComparisonRow): string {
-  return methodNames[row.method];
+  return methodNames[row.method] ?? row.method;
 }
 
 export function isFinanced(row: ComparisonRow): boolean {
-  return row.method === "bank" || row.method === "ltff";
+  return isFinancedMethod(row.method);
+}
+
+// Wording for a financed row's facts: Islamic rows never say "loan" or "interest".
+export function financeTerms(row: ComparisonRow): { rate: string; principal: string; down: string; monthly: string } {
+  if (row.method === "ijarah") {
+    return { rate: "yearly rental rate (KIBOR benchmark)", principal: "bank's cost recovered through rentals", down: "security deposit", monthly: "monthly rental" };
+  }
+  if (!isShariahRow(row)) {
+    return { rate: "yearly interest rate", principal: "loan amount", down: "down payment", monthly: "monthly installment" };
+  }
+  if (row.method === "murabaha") {
+    return { rate: "yearly profit rate", principal: "amount financed", down: "your advance", monthly: "monthly installment" };
+  }
+  return { rate: "yearly profit rate", principal: "bank's share financed", down: "your share (contribution)", monthly: "monthly installment" };
 }
 
 function money(value: number): { value: string; alt: string[] } {
@@ -61,18 +79,18 @@ function parseAmount(input: number | string | null): number | null {
   return m ? Number(m[0].replace(/,/g, "")) : null;
 }
 
-// Yearly loan rate of a financed row. The row label and calculation carry any KIBOR stress shift,
+// Yearly rate (profit rate / rental rate / interest rate) of a financed row. The row label and calculation carry any KIBOR stress shift,
 // so they win over the (unshifted) financing table.
 export function rowYearlyRate(row: ComparisonRow, financing?: FinancingOption[]): number | null {
   return (
-    parseRate(calcInput(row, /^(yearly ?rate|annual ?rate|yearlyRate|annualRate)$/i)) ??
+    parseRate(calcInput(row, /^(yearly ?rate|annual ?rate|yearlyRate|annualRate|profit rate|rental rate)$/i)) ??
     parseRate(row.label) ??
     financing?.find((f) => f.id === row.financingId)?.annualRate ??
     null
   );
 }
 
-// Loan principal: "show calculation" input (P / principal), else the financing's down-payment share,
+// Amount financed: "show calculation" input (P / principal), else the financing's down-payment share,
 // else cash price less the upfront payment (exact when there is no processing fee).
 export function rowPrincipal(row: ComparisonRow, financing?: FinancingOption[]): number {
   const fromCalc = parseAmount(calcInput(row, /^(p|principal)$/i));
@@ -157,8 +175,15 @@ export function memoFacts(
     );
   }
   if (decision.kiborShift) {
-    add("kiborShift", "Stress test: KIBOR shift applied to bank loans", `+${formatPct(decision.kiborShift, 1)}`);
+    add("kiborShift", "Stress test: KIBOR shift applied to KIBOR-linked financing", `+${formatPct(decision.kiborShift, 1)}`);
   }
+  add(
+    "financingPreference",
+    "Financing preference",
+    decision.financingPreference === "both"
+      ? "Islamic and conventional (conventional rows are for comparison only, never recommended)"
+      : "Shariah-compliant only",
+  );
   add("count.options", "Ways to pay compared", String(rows.length));
   add("count.suppliers", "Suppliers compared", String(offerIds.length));
 
@@ -166,32 +191,39 @@ export function memoFacts(
   for (const row of rows) {
     const p = `row.${row.id}`;
     add(`${p}.option`, "Option", row.label);
+    add(`${p}.kind`, `${row.label}: what it is`, methodName(row));
+    add(`${p}.shariah`, `${row.label}: Shariah-compliant`, isShariahRow(row) ? "yes" : "no (conventional, interest-based)");
     add(`${p}.pay`, `${row.label}: how it is paid`, payDescription(row));
     addMoney(`${p}.cashPrice`, `${row.label}: cash price of the machines`, row.cashPrice);
     if (row.months > 0) {
       if (row.upfront > 0) addMoney(`${p}.upfront`, `${row.label}: paid at delivery`, row.upfront);
-      addMoney(`${p}.monthly`, `${row.label}: monthly payment`, row.monthlyPayment);
+      addMoney(`${p}.monthly`, `${row.label}: ${isFinanced(row) ? financeTerms(row).monthly : "monthly installment"}`, row.monthlyPayment);
       add(`${p}.months`, `${row.label}: number of monthly payments`, String(row.months));
       addMoney(`${p}.totalPaid`, `${row.label}: total paid over time`, row.totalPaid);
     }
     if (isFinanced(row)) {
+      const terms = financeTerms(row);
       const rate = rowYearlyRate(row, context.financing);
-      if (rate != null) add(`${p}.rate`, `${row.label}: yearly loan rate`, formatPct(rate, 1));
+      if (rate != null) add(`${p}.rate`, `${row.label}: ${terms.rate}`, formatPct(rate, 1));
       const principal = rowPrincipal(row, context.financing);
-      addMoney(`${p}.principal`, `${row.label}: loan amount`, principal);
+      addMoney(`${p}.principal`, `${row.label}: ${terms.principal}`, principal);
       if (row.cashPrice > 0 && principal < row.cashPrice) {
-        addMoney(`${p}.down`, `${row.label}: down payment`, row.cashPrice - principal);
-        add(`${p}.downPct`, `${row.label}: down payment share`, formatPct(1 - principal / row.cashPrice, 0));
+        addMoney(`${p}.down`, `${row.label}: ${terms.down}`, row.cashPrice - principal);
+        add(`${p}.downPct`, `${row.label}: ${terms.down} as a share of the price`, formatPct(1 - principal / row.cashPrice, 0));
       }
     }
     addMoney(`${p}.pvBeforeTax`, `${row.label}: true cost in today's money, before tax`, row.pvBeforeTax);
     addMoney(`${p}.pvAfterTax`, `${row.label}: true cost in today's money, after tax`, row.pvAfterTax);
     add(`${p}.runway`, `${row.label}: runway after buying (months of fixed costs covered by cash)`, formatMonths(row.runwayMonths));
     if (row.hiddenYearlyRate != null) {
-      add(`${p}.hiddenRate`, `${row.label}: hidden interest rate a year`, formatPct(row.hiddenYearlyRate, 1));
+      add(
+        `${p}.hiddenRate`,
+        `${row.label}: effective yearly cost of paying later instead of cash (a deferred-price sale at a fixed price)`,
+        formatPct(row.hiddenYearlyRate, 1),
+      );
     }
     if (row.hiddenSimpleRate != null) {
-      add(`${p}.hiddenSimpleRate`, `${row.label}: hidden rate as a simple yearly quote`, formatPct(row.hiddenSimpleRate, 1));
+      add(`${p}.hiddenSimpleRate`, `${row.label}: effective cost of paying later as a simple yearly figure`, formatPct(row.hiddenSimpleRate, 1));
     }
     add(`${p}.verdict`, `${row.label}: verdict`, row.verdict);
   }

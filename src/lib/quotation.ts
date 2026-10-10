@@ -71,7 +71,10 @@ export function checkArithmetic(q: Quotation): ArithmeticIssue[] {
     const installmentTotal = q.installmentMonths * q.installmentAmount;
     const cashPrice = quotationCashPrice(q);
     if (installmentTotal - cashPrice > TOLERANCE) {
-      const claim = q.markupClaimedPct !== null ? ` The "${q.markupClaimedPct}% markup" claim hides a cost.` : "";
+      const claim =
+        q.markupClaimedPct !== null
+          ? ` Despite the "${q.markupClaimedPct}% markup" claim, paying later costs more than cash (a deferred-price sale).`
+          : "";
       issues.push({
         field: "installmentAmount",
         message: `${q.installmentMonths} × ${formatPKR(q.installmentAmount)} = ${formatPKR(installmentTotal)}, which is ${formatPKR(installmentTotal - cashPrice)} more than the cash price of ${formatPKR(cashPrice)}.${claim}`,

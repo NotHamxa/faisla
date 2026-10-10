@@ -2,6 +2,7 @@
 import "server-only";
 import { ObjectId, type WithId } from "mongodb";
 import { demoCompany, demoFinancing } from "@/lib/demoData";
+import { isShariahCompliant } from "@/lib/finance";
 import type {
   Company,
   CompanyRecord,
@@ -9,6 +10,7 @@ import type {
   DecisionRecord,
   DecisionStatus,
   FinancingOption,
+  FinancingPreference,
 } from "@/lib/types";
 import { getDb } from "./db";
 
@@ -20,7 +22,13 @@ export type UserDoc = {
   createdAt: Date;
 };
 
-type CompanyDoc = Company & { ownerId: ObjectId; financing: FinancingOption[]; updatedAt: Date };
+// Docs written before Islamic finance support lack financingPreference and FinancingOption.shariahCompliant.
+type CompanyDoc = Omit<Company, "financingPreference"> & {
+  financingPreference?: FinancingPreference;
+  ownerId: ObjectId;
+  financing: (Omit<FinancingOption, "shariahCompliant"> & { shariahCompliant?: boolean })[];
+  updatedAt: Date;
+};
 
 type DecisionDoc = Omit<DecisionRecord, "id" | "createdAt" | "updatedAt" | "decidedAt"> & {
   companyId: ObjectId;
@@ -78,7 +86,22 @@ export async function createUserWithCompany(input: {
 
 // ---- company ----
 
+// Old company docs: options are classified by type (bank/ltff = conventional). A doc saved before the preference
+// existed that has no Shariah-compliant option gets the Islamic defaults added in front of its own options, so it
+// opens Islamic-first without losing anything; nothing is written until the owner saves.
+export function normaliseCompanyFinancing(doc: Pick<CompanyDoc, "financing" | "financingPreference">): {
+  financing: FinancingOption[];
+  financingPreference: FinancingPreference;
+} {
+  const own: FinancingOption[] = (doc.financing ?? demoFinancing).map((f) => ({ ...f, shariahCompliant: isShariahCompliant(f) }));
+  if (doc.financingPreference) return { financing: own, financingPreference: doc.financingPreference };
+  const islamicDefaults = demoFinancing.filter((f) => f.shariahCompliant && !own.some((o) => o.id === f.id));
+  const financing = own.some((f) => f.shariahCompliant) ? own : [...islamicDefaults, ...own];
+  return { financing, financingPreference: "islamic" };
+}
+
 function companyRecord(doc: WithId<CompanyDoc>): CompanyRecord {
+  const { financing, financingPreference } = normaliseCompanyFinancing(doc);
   return {
     id: doc._id.toHexString(),
     name: doc.name,
@@ -88,7 +111,8 @@ function companyRecord(doc: WithId<CompanyDoc>): CompanyRecord {
     monthlyFixedCosts: doc.monthlyFixedCosts,
     taxRate: doc.taxRate,
     discountRate: doc.discountRate,
-    financing: doc.financing ?? demoFinancing,
+    financingPreference,
+    financing,
     updatedAt: doc.updatedAt.toISOString(),
   };
 }
@@ -114,11 +138,17 @@ export async function updateCompany(companyId: string, patch: CompanyPatch): Pro
     "monthlyFixedCosts",
     "taxRate",
     "discountRate",
+    "financingPreference",
     "financing",
   ];
   const set: Record<string, unknown> = { updatedAt: new Date() };
   for (const key of allowed) if (patch[key] !== undefined) set[key] = patch[key];
   const db = await getDb();
+  // First preference save on an old doc: persist the financing it was shown with (Islamic defaults included).
+  if (patch.financingPreference !== undefined && patch.financing === undefined) {
+    const current = await db.collection<CompanyDoc>("companies").findOne({ _id });
+    if (current && !current.financingPreference) set.financing = normaliseCompanyFinancing(current).financing;
+  }
   const doc = await db
     .collection<CompanyDoc>("companies")
     .findOneAndUpdate({ _id }, { $set: set }, { returnDocument: "after" });

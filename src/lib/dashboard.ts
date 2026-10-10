@@ -1,7 +1,15 @@
 // Dashboard figures for one company, built from its profile and decisions. Pure: no I/O, no AI.
 // Every rupee here comes from finance.ts results already stored on the decisions.
 import { assessPaymentRisks, blockingRisks } from "./fraud";
-import { hiddenMonthlyRate, offerCashPrice, runwayMonths, SAFE_RUNWAY, yearlyFromMonthly } from "./finance";
+import {
+  FINANCING_NAMES,
+  hiddenMonthlyRate,
+  isFinancedMethod,
+  offerCashPrice,
+  runwayMonths,
+  SAFE_RUNWAY,
+  yearlyFromMonthly,
+} from "./finance";
 import { formatLakh, formatPct } from "./format";
 import type { CompanyRecord, ComparisonRow, DecisionRecord, DecisionStatus } from "./types";
 
@@ -21,7 +29,7 @@ export type DashboardKpis = {
 export type UpcomingPayment = {
   decisionId: string;
   title: string;
-  label: string; // "LTFF EMI 2 of 36"
+  label: string; // "Islamic LTFF installment 2 of 36"
   dueDate: string; // ISO
   amount: number;
 };
@@ -82,9 +90,16 @@ export function recommendedRow(d: DecisionRecord): ComparisonRow | null {
   return result.rows.find((r) => r.id === result.recommendedId) ?? result.rows.find((r) => r.recommended) ?? null;
 }
 
+// Short product name for alerts and payment labels ("Islamic LTFF", "Ijarah", "conventional loan").
+function facilityName(row: ComparisonRow): string {
+  if (row.method === "bank") return "conventional loan";
+  if (row.method === "ltff") return "LTFF";
+  return isFinancedMethod(row.method) ? FINANCING_NAMES[row.method] : "supplier";
+}
+
 function paymentName(row: ComparisonRow): string {
-  if (row.method === "ltff") return "LTFF EMI";
-  if (row.method === "bank") return "Bank EMI";
+  if (row.method === "ijarah") return "Ijarah rental";
+  if (isFinancedMethod(row.method)) return `${facilityName(row)} installment`;
   return "Installment";
 }
 
@@ -109,7 +124,7 @@ function paymentSchedule(d: DecisionRecord): UpcomingPayment[] {
   return out;
 }
 
-// Hidden yearly rate of each installment plan in a decision: from the comparison rows if computed, else from the offers.
+// Effective yearly cost of paying later on each supplier deferred-price plan in a decision: from the comparison rows if computed, else from the offers.
 function hiddenRates(d: DecisionRecord): { label: string; supplierName: string; rate: number }[] {
   if (d.decision) {
     return d.decision.rows
@@ -120,7 +135,7 @@ function hiddenRates(d: DecisionRecord): { label: string; supplierName: string; 
     .filter((o) => (o.installmentMonths ?? 0) > 0 && (o.installmentAmount ?? 0) > 0)
     .map((o) => {
       const monthly = hiddenMonthlyRate(offerCashPrice(o), o.installmentAmount!, o.installmentMonths!, o.firstInstallmentOnDelivery);
-      return { label: `${o.supplierName} installments`, supplierName: o.supplierName, rate: yearlyFromMonthly(monthly) };
+      return { label: `${o.supplierName} deferred-price plan`, supplierName: o.supplierName, rate: yearlyFromMonthly(monthly) };
     });
 }
 
@@ -158,8 +173,8 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
         if (plan.rate <= 0.005) continue;
         alerts.push({
           level: "high",
-          title: `‘0%’ plan hides ${formatPct(plan.rate)} a year`,
-          detail: `${d.title}: ${plan.supplierName}'s installments cost more than paying cash.`,
+          title: `‘0%’ plan: paying later costs ${formatPct(plan.rate)} a year`,
+          detail: `${d.title}: ${plan.supplierName}'s deferred-price plan costs more than paying cash.`,
           href,
         });
       }
@@ -178,14 +193,15 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
       });
     }
 
-    if (!open && rec && (rec.method === "ltff" || rec.method === "bank")) {
+    if (!open && rec && isFinancedMethod(rec.method)) {
       const asked = d.emails.some((e) => e.direction === "out" && /term sheet/i.test(e.subject));
       if (!asked) {
-        const name = rec.method === "ltff" ? "LTFF" : "bank";
+        const name = facilityName(rec);
+        const rate = rec.method === "bank" || rec.method === "ltff" ? "rate" : rec.method === "ijarah" ? "rental" : "profit rate";
         alerts.push({
           level: "medium",
           title: `Request the ${name} term sheet`,
-          detail: `${d.title}: the bank must confirm the ${name} rate, fees and approval time.`,
+          detail: `${d.title}: the bank must confirm the ${name} ${rate}, fees, takaful and approval time.`,
           href,
         });
       }

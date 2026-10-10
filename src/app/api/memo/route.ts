@@ -13,7 +13,7 @@ type MemoRequest = {
   decision: DecideResult;
   reputations?: Record<string, ReputationResult>;
   offers?: Offer[]; // optional: adds qty / unit price facts
-  financing?: FinancingOption[]; // optional: exact loan rates
+  financing?: FinancingOption[]; // optional: exact profit / rental / interest rates
   paymentRisks?: MemoContext["paymentRisks"]; // optional: payment-fraud warnings for Risks
 };
 
@@ -26,6 +26,20 @@ Format: markdown only.
 - Start with "# Decision memo: <company name>".
 - Sections, in order: "## Recommendation", "## Why" (exactly 3 bullets), "## Comparison", "## Risks" (bullets), "## Next steps" (numbered list).
 - Under "## Comparison", include the comparison table you are given exactly as written.
+
+Islamic finance first (the owner wants Shariah-compliant financing):
+- For Islamic rows (Diminishing Musharakah, Ijarah, Murabaha, Islamic LTFF) use Islamic finance terms: financing, profit rate,
+  rental, installment, the bank's share, security deposit, takaful. Never call them a "loan", never say "interest", "markup"
+  or "EMI" for them.
+- Explain the recommended mode in one plain line (Diminishing Musharakah: you and the bank co-own the machines and you buy the
+  bank's share monthly while paying rent on it; Ijarah: the bank leases the machines and ownership passes to you at the end;
+  Murabaha: the bank sells the machines to you at a fixed deferred price; Islamic LTFF: SBP's Shariah-compliant scheme for
+  exporters buying new machinery, offered through an Islamic bank).
+- The supplier's installment plan is a deferred-price sale (a credit sale at a fixed higher price). It is permissible; do not
+  call it interest or "hidden interest". Describe its cost as "paying later costs X a year" using the facts.
+- Rows marked conventional (interest-based) are shown for comparison only: say so and never recommend them.
+- Under Risks or Next steps, mention confirming the bank's Shariah board approval, takaful and the late-payment charity
+  undertaking when an Islamic financing row is recommended.
 
 Numbers (strict, checked by code):
 - Use ONLY the numbers in the facts list, written exactly as given (e.g. "Rs 49,87,935", "5.8 lakh", "16.9%", "2.59 months").

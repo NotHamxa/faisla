@@ -1,8 +1,10 @@
 // Fallback decision memo (markdown), filled only from the decision. Used when the AI is off or its
 // draft fails the number check. Every number here goes through lib/format.ts, same as the facts list.
+import { isShariahRow } from "./finance";
 import { formatLakh, formatMonths, formatPKR, formatPct } from "./format";
 import {
   MIN_SAFE_RUNWAY_MONTHS,
+  financeTerms,
   findOffer,
   isFinanced,
   payDescription,
@@ -13,10 +15,28 @@ import type { ComparisonRow, DecideResult, ReputationResult } from "./types";
 
 const methodPhrases: Record<ComparisonRow["method"], string> = {
   cash: "cash at delivery",
-  installments: "the supplier's installment plan",
-  bank: "a bank term loan",
-  ltff: "an SBP LTFF loan",
+  installments: "the supplier's deferred-price plan",
+  diminishing_musharakah: "Diminishing Musharakah from an Islamic bank",
+  murabaha: "Murabaha from an Islamic bank",
+  ijarah: "Ijarah (lease) from an Islamic bank",
+  iltf: "SBP Islamic LTFF through an Islamic bank",
+  bank: "a conventional bank loan",
+  ltff: "a conventional SBP LTFF loan",
 };
+
+// "an Islamic LTFF" / "a Diminishing Musharakah" … for "Request … term sheet".
+const facilityPhrases: Record<ComparisonRow["method"], string> = {
+  cash: "a financing",
+  installments: "a financing",
+  diminishing_musharakah: "a Diminishing Musharakah",
+  murabaha: "a Murabaha",
+  ijarah: "an Ijarah",
+  iltf: "an Islamic LTFF",
+  bank: "a bank term-loan",
+  ltff: "an LTFF",
+};
+
+const isSbpFacility = (row: ComparisonRow) => row.method === "iltf" || row.method === "ltff";
 
 // Markdown comparison table, rows in the decision's order, recommended row in bold.
 export function comparisonTable(decision: DecideResult): string {
@@ -71,9 +91,12 @@ export function memoTemplate(
   const cashRows = rows.filter((r) => r.method === "cash");
   const cheapestCash = cashRows.length ? cashRows.reduce((a, b) => (b.pvBeforeTax < a.pvBeforeTax ? b : a)) : null;
   const nextBest = rows.find((r) => r.id !== rec.id) ?? null;
-  // If LTFF falls through: the next option that is not LTFF and keeps a safe runway.
+  // If the SBP facility falls through: the next Shariah-compliant option that is not an SBP facility and keeps a safe runway.
   const fallback =
-    rows.find((r) => r.id !== rec.id && r.method !== "ltff" && r.runwayMonths >= MIN_SAFE_RUNWAY_MONTHS) ?? nextBest;
+    rows.find(
+      (r) => r.id !== rec.id && !isSbpFacility(r) && isShariahRow(r) && r.runwayMonths >= MIN_SAFE_RUNWAY_MONTHS,
+    ) ?? nextBest;
+  const conventionalShown = rows.some((r) => !isShariahRow(r));
   const recOffer = findOffer(rec, context.offers);
   const recRate = isFinanced(rec) ? rowYearlyRate(rec, context.financing) : null;
 
@@ -108,11 +131,12 @@ export function memoTemplate(
   }
   if (baseline?.hiddenYearlyRate != null) {
     out.push(
-      `- The original plan (${baseline.label}) is not free: paying ${payDescription(baseline)} instead of ${formatPKR(baseline.cashPrice)} in cash ` +
-        `means a **hidden interest rate of ${formatPct(baseline.hiddenYearlyRate, 1)} a year**.`,
+      `- The original plan (${baseline.label}) is a deferred-price sale: paying ${payDescription(baseline)} instead of ${formatPKR(baseline.cashPrice)} in cash ` +
+        `means **paying later costs ${formatPct(baseline.hiddenYearlyRate, 1)} a year**. That is permissible, but dearer than the alternatives.`,
     );
   } else if (recRate != null && recRate < company.discountRate) {
-    out.push(`- The loan rate is ${formatPct(recRate, 1)} a year, below the ${formatPct(company.discountRate, 0)} the business pays to borrow.`);
+    const rateName = isShariahRow(rec) ? (rec.method === "ijarah" ? "rental rate" : "profit rate") : "interest rate";
+    out.push(`- The ${rateName} is ${formatPct(recRate, 1)} a year, below the ${formatPct(company.discountRate, 0)} the business pays for financing.`);
   }
   if (cheapestCash && cheapestCash.id !== rec.id) {
     out.push(
@@ -151,14 +175,29 @@ export function memoTemplate(
     const reasons = rep.reasons.length ? `: ${rep.reasons.join("; ")}` : "";
     out.push(`- **${label} for ${rep.supplierName}**${reasons}. Reviews do not change the money figures above.`);
   }
-  if (rec.method === "ltff") {
+  if (isSbpFacility(rec)) {
+    const name = rec.method === "iltf" ? "Islamic LTFF" : "LTFF";
+    const rateWord = rec.method === "iltf" ? "profit rate" : "rate";
     out.push(
-      `- **LTFF approval and rate:** the ${recRate != null ? formatPct(recRate, 1) + " " : ""}rate is set by SBP and must be confirmed by the bank; ` +
+      `- **${name} approval and rate:** the ${recRate != null ? formatPct(recRate, 1) + " " : ""}${rateWord} is set by SBP and must be confirmed by the bank; ` +
         `approval takes time and needs exporter eligibility for new machinery.` +
-        (fallback ? ` If LTFF is not approved, the next safe option is ${fallback.label} at ${formatPKR(fallback.pvAfterTax)} after tax.` : ""),
+        (fallback ? ` If ${name} is not approved, the next safe option is ${fallback.label} at ${formatPKR(fallback.pvAfterTax)} after tax.` : ""),
     );
+  } else if (rec.method === "diminishing_musharakah" || rec.method === "ijarah") {
+    const what = rec.method === "ijarah" ? "rental" : "profit rate";
+    out.push(`- **Rate risk:** the ${what} is benchmarked to KIBOR and can be repriced during the term; confirm the spread, takaful and fees with the bank.`);
+  } else if (rec.method === "murabaha") {
+    out.push(`- **Fixed price:** the Murabaha deferred price is fixed at the contract, so KIBOR moves do not change it; confirm the price and fees with the bank.`);
   } else if (rec.method === "bank") {
     out.push(`- **Rate risk:** a KIBOR-linked bank rate can rise during the loan; confirm the rate and fees with the bank.`);
+  }
+  if (isFinanced(rec) && isShariahRow(rec)) {
+    out.push(
+      `- **Shariah compliance:** confirm the bank's Shariah board approval, takaful on the machines and the late-payment charity undertaking on the term sheet.`,
+    );
+  }
+  if (conventionalShown) {
+    out.push(`- Conventional (interest-based) options are shown for comparison only and are not recommended.`);
   }
   if (decision.breakEvenDiscountRate != null && isFinanced(rec)) {
     out.push(
@@ -173,10 +212,19 @@ export function memoTemplate(
   out.push("## Next steps");
   const steps: string[] = [];
   if (isFinanced(rec)) {
-    const facility = rec.method === "ltff" ? "an LTFF" : "a bank term-loan";
-    steps.push(`Request ${facility} term sheet from the bank: exact rate today, processing fees, collateral, insurance and approval time.`);
-    if (rec.method === "ltff") {
-      steps.push("Confirm LTFF eligibility with the bank and prepare the documents (export registration, quotation for new machinery).");
+    const facility = facilityPhrases[rec.method];
+    if (isShariahRow(rec)) {
+      const terms = financeTerms(rec);
+      steps.push(
+        `Request ${facility} term sheet from the Islamic bank's SME desk: ${terms.rate.replace("yearly ", "")} today, ` +
+          `${terms.down}, takaful, processing fees, collateral, the late-payment charity undertaking, Shariah board approval and approval time.`,
+      );
+    } else {
+      steps.push(`Request ${facility} term sheet from the bank: exact rate today, processing fees, collateral, insurance and approval time.`);
+    }
+    if (isSbpFacility(rec)) {
+      const name = rec.method === "iltf" ? "Islamic LTFF" : "LTFF";
+      steps.push(`Confirm ${name} eligibility with the bank and prepare the documents (export registration, quotation for new machinery).`);
     }
   }
   const priceNote = recOffer ? ` at ${formatPKR(recOffer.unitPrice)} per machine` : "";
@@ -191,9 +239,9 @@ export function memoTemplate(
   return out.join("\n");
 }
 
-// A one-page memo keeps the assumptions an owner acts on (fees, collateral, LTFF, stress); the full
+// A one-page memo keeps the assumptions an owner acts on (fees, collateral, LTFF, Shariah notes, stress); the full
 // list stays on the Assumptions card. Falls back to every assumption if none match.
 function keyAssumptions(assumptions: string[]): string[] {
-  const key = assumptions.filter((a) => /fee|insurance|collateral|LTFF|stress/i.test(a));
+  const key = assumptions.filter((a) => /fee|insurance|collateral|LTFF|stress|Shariah notes|Ijarah:/i.test(a));
   return key.length ? key : assumptions;
 }

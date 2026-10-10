@@ -12,7 +12,7 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { decide } from "@/lib/finance";
+import { FINANCING_NAMES, SHARIAH_NOTES, decide, isFinancedMethod, isShariahRow, paymentWord } from "@/lib/finance";
 import { formatLakh, formatPKR, formatPct, groupPKR } from "@/lib/format";
 import { type FaislaState, useStore } from "@/lib/store";
 import type { ComparisonRow, DecideResult } from "@/lib/types";
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import Link from "next/link";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -48,7 +49,13 @@ function payText(r: ComparisonRow): string {
 function verdictTone(r: ComparisonRow): Tone {
   if (r.recommended) return TONE.success;
   if (r.verdict.startsWith("Salaries")) return TONE.danger;
-  if (r.verdict.startsWith("Hidden") || r.verdict.includes("drains") || r.verdict.startsWith("Tight")) return TONE.warning;
+  if (
+    r.verdict.startsWith("Paying later") ||
+    r.verdict.startsWith("Hidden") ||
+    r.verdict.includes("drains") ||
+    r.verdict.startsWith("Tight")
+  )
+    return TONE.warning;
   return TONE.muted;
 }
 
@@ -63,10 +70,10 @@ function runwayText(m: number | null): string {
 }
 
 function methodName(r: ComparisonRow): string {
-  if (r.method === "ltff") return "LTFF";
-  if (r.method === "bank") return "The bank loan";
-  if (r.method === "installments") return "The installment plan";
-  return "Cash";
+  if (r.method === "installments") return "The deferred-price plan";
+  if (r.method === "cash") return "Cash";
+  if (r.method === "bank") return "The conventional loan";
+  return FINANCING_NAMES[r.method] ?? "This financing";
 }
 
 function feeText(feePct: number): string {
@@ -123,7 +130,7 @@ export default function ComparisonTable() {
           <CardTitle>Compare every way to pay</CardTitle>
           <CardDescription>
             Confirm a quotation first. Once there is at least one offer, Faisla compares cash, the supplier&apos;s
-            installments, a bank loan and LTFF here.
+            deferred-price plan and Shariah-compliant financing (Diminishing Musharakah, Ijarah, Islamic LTFF) here.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -134,13 +141,18 @@ export default function ComparisonTable() {
   const baseline = decision?.rows.find((r) => r.id === decision.baselineId) ?? null;
   const baseRec = base?.rows.find((r) => r.recommended) ?? null;
   const recChanged = !!rec && !!baseRec && rec.id !== baseRec.id;
-  const shiftedLoans = decision?.rows.filter((r) => r.method === "bank") ?? [];
-  // A saved comparison goes stale when the company profile changes after it was calculated.
+  const kiborLinkedIds = new Set(state.financing.filter((f) => f.kiborLinked).map((f) => f.id));
+  const shiftedLoans = decision?.rows.filter((r) => r.financingId !== null && kiborLinkedIds.has(r.financingId)) ?? [];
+  const preference = state.company.financingPreference ?? "islamic";
+  const conventionalRows = decision?.rows.filter((r) => !isShariahRow(r)).length ?? 0;
+  const hasIslamicFinancing = !!decision?.rows.some((r) => isFinancedMethod(r.method) && isShariahRow(r));
+  // A saved comparison goes stale when the company profile or financing preference changes after it was calculated.
   const profileChanged =
     !!decision &&
-    (["isExporter", "cashBalance", "monthlyFixedCosts", "taxRate", "discountRate"] as const).some(
+    ((["isExporter", "cashBalance", "monthlyFixedCosts", "taxRate", "discountRate"] as const).some(
       (key) => decision.company[key] !== state.company[key],
-    );
+    ) ||
+      (decision.financingPreference ?? "both") !== preference);
 
   function toggle(id: string) {
     setOpen((prev) => {
@@ -157,10 +169,23 @@ export default function ComparisonTable() {
         <CardHeader className="border-b">
           <CardTitle className="text-xl font-bold">Compare every way to pay</CardTitle>
           <CardDescription>
-            Present value (PV) = today&apos;s cost of every future payment. After tax counts markup and depreciation
-            savings{decision ? `, discounted at ${formatPct(decision.afterTaxDiscountRate, 2)}` : ""}. All maths by
-            code, none by AI.
+            Present value (PV) = today&apos;s cost of every future payment. After tax counts profit, rental and
+            depreciation savings{decision ? `, discounted at ${formatPct(decision.afterTaxDiscountRate, 2)}` : ""}. All
+            maths by code, none by AI.
           </CardDescription>
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground" data-testid="preference-note">
+            <Badge variant="success">
+              {preference === "islamic" ? "Shariah-compliant only" : "Islamic + conventional for comparison"}
+            </Badge>
+            <span>
+              {preference === "islamic"
+                ? "Conventional (interest-based) financing is left out."
+                : "Conventional rows are labelled and never recommended."}{" "}
+              <Link href="/financing#preference" className="text-primary underline-offset-2 hover:underline">
+                Change preference
+              </Link>
+            </span>
+          </div>
           <CardAction>
             <Button onClick={() => recompute(shift)}>
               <RefreshCwIcon data-icon="inline-start" />
@@ -175,7 +200,7 @@ export default function ComparisonTable() {
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-[2px] border border-l-[3px] border-warning/50 border-l-warning bg-card px-3 py-2 text-sm">
                 <span className="flex items-center gap-2 text-warning">
                   <AlertTriangleIcon className="size-4 shrink-0" />
-                  Your company profile changed since this comparison was calculated.
+                  Your company profile or financing preference changed since this comparison was calculated.
                 </span>
                 <Button size="sm" variant="outline" onClick={() => recompute(shift)}>
                   Recalculate
@@ -203,7 +228,8 @@ export default function ComparisonTable() {
                       <Fragment key={r.id}>
                         <TableRow
                           data-recommended={r.recommended || undefined}
-                          className="align-top"
+                          data-conventional={!isShariahRow(r) || undefined}
+                          className={cn("align-top", !isShariahRow(r) && "text-muted-foreground")}
                         >
                           <TableCell
                             className={cn(
@@ -219,12 +245,13 @@ export default function ComparisonTable() {
                                   Recommended
                                 </Badge>
                               )}
+                              {!isShariahRow(r) && <Badge variant="muted">Conventional · interest-based</Badge>}
                             </div>
                             <div className="text-xs text-muted-foreground">{r.supplierName}</div>
                             {r.hiddenYearlyRate !== null && r.hiddenYearlyRate > 0 && (
                               <Badge variant={TONE.warning} className="mt-1.5">
                                 <AlertTriangleIcon data-icon="inline-start" />
-                                hidden {formatPct(r.hiddenYearlyRate)} a year
+                                paying later costs {formatPct(r.hiddenYearlyRate)} a year
                               </Badge>
                             )}
                             <Button
@@ -272,6 +299,13 @@ export default function ComparisonTable() {
               </Table>
             </div>
 
+            {conventionalRows > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {conventionalRows} conventional (interest-based) row{conventionalRows === 1 ? " is" : "s are"} shown for
+                comparison only; the recommendation is always Shariah-compliant.
+              </p>
+            )}
+
             <div className="grid gap-4 lg:grid-cols-5">
               <div className="lg:col-span-3">
                 <PvChart rows={decision.rows} />
@@ -290,7 +324,7 @@ export default function ComparisonTable() {
         )}
       </Card>
 
-      {decision && <AssumptionsCard decision={decision} recompute={recompute} />}
+      {decision && <AssumptionsCard decision={decision} recompute={recompute} shariahNotes={hasIslamicFinancing} />}
     </div>
   );
 }
@@ -431,7 +465,7 @@ function PvChart({ rows }: { rows: ComparisonRow[] }) {
           <YAxis
             type="category"
             dataKey="label"
-            width={150}
+            width={210}
             tick={{ fontSize: 12 }}
             axisLine={false}
             tickLine={false}
@@ -506,7 +540,7 @@ function StressTest({
       </div>
 
       {shift === 0 ? (
-        <p className="text-sm text-muted-foreground">Move the slider to see what happens if KIBOR rises.</p>
+        <p className="text-sm text-muted-foreground">Move the slider to see what happens if KIBOR, the benchmark, rises.</p>
       ) : recChanged ? (
         <div className="flex items-start gap-2 border-l-[3px] border-destructive py-1 pl-3 text-sm font-medium text-destructive">
           <ShieldAlertIcon className="mt-0.5 size-4 shrink-0" />
@@ -525,7 +559,8 @@ function StressTest({
             <li key={r.id} className="flex flex-wrap justify-between gap-x-3">
               <span className="text-muted-foreground">{r.label}</span>
               <span>
-                EMI <span className="font-mono tabular-nums">{groupPKR(r.monthlyPayment)}</span>, PV{" "}
+                {paymentWord(r.method) === "rental" ? "Rental" : "Installment"}{" "}
+                <span className="font-mono tabular-nums">{groupPKR(r.monthlyPayment)}</span>, PV{" "}
                 <span className="font-mono tabular-nums">{groupPKR(r.pvBeforeTax)}</span> before tax
               </span>
             </li>
@@ -533,7 +568,8 @@ function StressTest({
         </ul>
       )}
       <p className="mt-auto text-xs text-muted-foreground">
-        Only KIBOR-linked loans move; LTFF follows the SBP policy rate.
+        Only KIBOR-linked financing moves (Diminishing Musharakah, Ijarah); Islamic LTFF follows the SBP policy rate and
+        a Murabaha price is fixed at the contract.
       </p>
     </div>
   );
@@ -542,9 +578,11 @@ function StressTest({
 function AssumptionsCard({
   decision,
   recompute,
+  shariahNotes,
 }: {
   decision: DecideResult;
   recompute: (kiborShift: number, patch?: Partial<FaislaState>) => void;
+  shariahNotes: boolean;
 }) {
   const { state } = useStore();
   const current = state.financing[0]?.feePct ?? 0;
@@ -570,13 +608,27 @@ function AssumptionsCard({
         <CardDescription>What the comparison takes as given. Edit the fee to see it flow through.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-[1fr_200px]">
-        <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-          {decision.assumptions.map((a) => (
-            <li key={a}>{a}</li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+            {decision.assumptions
+              .filter((a) => !(shariahNotes && a.startsWith("Shariah notes:")))
+              .map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+          </ul>
+          {shariahNotes && (
+            <div className="rounded-[2px] border border-l-[3px] border-l-primary p-3" data-testid="shariah-notes">
+              <div className="ledger-label text-primary">Shariah notes</div>
+              <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                {SHARIAH_NOTES.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
         <Field data-invalid={draftPct === null || undefined}>
-          <FieldLabel htmlFor="fee-pct">Bank processing fee %</FieldLabel>
+          <FieldLabel htmlFor="fee-pct">Processing fee %</FieldLabel>
           <Input
             id="fee-pct"
             className="font-mono tabular-nums"
@@ -586,7 +638,7 @@ function AssumptionsCard({
             onChange={(e) => onFee(e.target.value)}
           />
           <FieldDescription className="text-xs">
-            {draftPct === null ? "Enter 0 to 10" : "Applied to every loan option"}
+            {draftPct === null ? "Enter 0 to 10" : "Applied to every financing option"}
           </FieldDescription>
         </Field>
       </CardContent>

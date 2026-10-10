@@ -57,7 +57,16 @@ const DECISION_KEYS = [
   "paymentConfirmations",
 ] as const satisfies readonly (keyof FaislaState & keyof DecisionPatch)[];
 
-const COMPANY_KEYS = ["name", "city", "isExporter", "cashBalance", "monthlyFixedCosts", "taxRate", "discountRate"] as const;
+const COMPANY_KEYS = [
+  "name",
+  "city",
+  "isExporter",
+  "cashBalance",
+  "monthlyFixedCosts",
+  "taxRate",
+  "discountRate",
+  "financingPreference",
+] as const;
 
 type Store = {
   state: FaislaState;
@@ -73,9 +82,18 @@ type Store = {
 const StoreContext = createContext<Store | null>(null);
 
 function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): FaislaState {
-  const { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate, financing } = company;
+  const { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate, financingPreference, financing } = company;
   return {
-    company: { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate },
+    company: {
+      name,
+      city,
+      isExporter,
+      cashBalance,
+      monthlyFixedCosts,
+      taxRate,
+      discountRate,
+      financingPreference: financingPreference ?? "islamic",
+    },
     financing,
     title: decision?.title ?? "",
     origin: decision?.origin ?? "quotation",

@@ -1,5 +1,7 @@
 // Faisla finance engine (TECHNICAL_SPEC.md §4). Pure maths: no AI, no I/O.
 // Faithful port of reference/finance_reference.py — every number on screen comes from here.
+// Islamic finance first (docs/ISLAMIC_FINANCE.md): Shariah-compliant financing is compared by default; conventional
+// (interest-based) rows appear only when the company's preference is "both", and are never recommended.
 import { formatPKR, formatPct } from "./format";
 import type {
   CalculationStep,
@@ -8,6 +10,8 @@ import type {
   DecideInput,
   DecideResult,
   FinancingOption,
+  FinancingPreference,
+  FinancingType,
   Offer,
   PaymentMethod,
 } from "./types";
@@ -55,9 +59,12 @@ export function hiddenMonthlyRate(
   return r;
 }
 
-// ---------- loan ----------
+// ---------- installment schedule (financing) ----------
 
-// Bank convention: i = yearlyRate / 12.
+// Equal monthly installment on an amount financed, bank convention i = yearlyRate / 12. Islamic modes use the same
+// schedule: Diminishing Musharakah = rent on the bank's remaining share + purchase of its units; Murabaha / Islamic LTFF
+// = equal installments of a price fixed at the contract; Ijarah = rentals that recover the bank's cost net of the
+// security deposit. Profit accrues on the outstanding amount only, never compounded on late payments.
 export function emi(principal: number, yearlyRate: number, months: number): number {
   if (months <= 0) return principal;
   const i = yearlyRate / 12;
@@ -119,7 +126,29 @@ export function taxDepreciation(cost: number, opts: DepreciationOpts = DEPRECIAT
   return out;
 }
 
-// Tax saved in year y = (markup_y + depreciation_y) × taxRate, received at month 12y (as negative cash out).
+// Ijarah: the lessee claims no depreciation during the lease. After ownership transfers (by a separate sale at the end),
+// the purchase price is depreciated from the next tax year at the normal 15% reducing balance; no initial allowance
+// (the machine has already been used in Pakistan). Remainder written off in the final year of the same 10-year horizon.
+export function postTransferDepreciation(
+  purchasePrice: number,
+  tenorMonths: number,
+  opts: DepreciationOpts = DEPRECIATION,
+): number[] {
+  const out = new Array<number>(opts.lifeYears).fill(0);
+  if (purchasePrice <= 0) return out;
+  const startYear = Math.min(Math.floor(tenorMonths / 12) + 1, opts.lifeYears);
+  let wdv = purchasePrice;
+  for (let y = startYear; y <= opts.lifeYears; y++) {
+    const d = y === opts.lifeYears ? wdv : wdv * opts.rate;
+    out[y - 1] = d;
+    wdv -= d;
+  }
+  return out;
+}
+
+// Tax saved in year y = (deductible finance cost_y + depreciation_y) × taxRate, received at month 12y (as negative
+// cash out). Deductible finance cost = profit (Diminishing Musharakah, Murabaha, Islamic LTFF), rentals (Ijarah) or
+// interest (conventional), plus any processing fee.
 export function afterTaxFlows(
   flows: Flow[],
   markupByMonth: Map<number, number>,
@@ -127,10 +156,14 @@ export function afterTaxFlows(
   taxRate: number,
   opts: DepreciationOpts = DEPRECIATION,
 ): Flow[] {
+  return afterTaxFlowsWith(flows, markupByMonth, taxDepreciation(depreciableCost, opts), taxRate);
+}
+
+function afterTaxFlowsWith(flows: Flow[], deductibleByMonth: Map<number, number>, depreciation: number[], taxRate: number): Flow[] {
   const byMonth = new Map<number, number>();
   const add = (month: number, amount: number) => byMonth.set(month, (byMonth.get(month) ?? 0) + amount);
   for (const f of flows) add(f.month, f.amount);
-  for (const [y, saved] of taxSavingsByYear(markupByMonth, depreciableCost, taxRate, opts)) add(12 * y, -saved);
+  for (const [y, saved] of taxSavingsWith(deductibleByMonth, depreciation, taxRate)) add(12 * y, -saved);
   return [...byMonth.entries()].sort((a, b) => a[0] - b[0]).map(([month, amount]) => ({ month, amount }));
 }
 
@@ -140,13 +173,17 @@ export function taxSavingsByYear(
   taxRate: number,
   opts: DepreciationOpts = DEPRECIATION,
 ): Map<number, number> {
+  return taxSavingsWith(markupByMonth, taxDepreciation(depreciableCost, opts), taxRate);
+}
+
+function taxSavingsWith(deductibleByMonth: Map<number, number>, depreciation: number[], taxRate: number): Map<number, number> {
   const deductible = new Map<number, number>();
-  for (const [m, mk] of markupByMonth) {
+  for (const [m, mk] of deductibleByMonth) {
     const y = Math.floor((m - 1) / 12) + 1;
     deductible.set(y, (deductible.get(y) ?? 0) + mk);
   }
-  taxDepreciation(depreciableCost, opts).forEach((dep, idx) => {
-    deductible.set(idx + 1, (deductible.get(idx + 1) ?? 0) + dep);
+  depreciation.forEach((dep, idx) => {
+    if (dep !== 0) deductible.set(idx + 1, (deductible.get(idx + 1) ?? 0) + dep);
   });
   const saved = new Map<number, number>();
   for (const [y, amount] of [...deductible.entries()].sort((a, b) => a[0] - b[0])) saved.set(y, amount * taxRate);
@@ -162,6 +199,64 @@ export function runwayMonths(cash: number, upfront: number, monthlyFixedCosts: n
   return (cash - upfront) / burn;
 }
 
+
+// ---------- financing kinds & names ----------
+
+export const ISLAMIC_FINANCING_TYPES = ["diminishing_musharakah", "murabaha", "ijarah", "iltf"] as const satisfies readonly FinancingType[];
+export const CONVENTIONAL_FINANCING_TYPES = ["bank", "ltff"] as const satisfies readonly FinancingType[];
+
+export function isIslamicType(type: string): boolean {
+  return (ISLAMIC_FINANCING_TYPES as readonly string[]).includes(type);
+}
+
+export function isFinancedMethod(method: PaymentMethod): method is FinancingType {
+  return method !== "cash" && method !== "installments";
+}
+
+// The flag wins; options saved before it existed fall back to their type.
+export function isShariahCompliant(f: Pick<FinancingOption, "type"> & { shariahCompliant?: boolean }): boolean {
+  return typeof f.shariahCompliant === "boolean" ? f.shariahCompliant : isIslamicType(f.type);
+}
+
+// Cash and the supplier's deferred-price plan (bay' muajjal: price fixed at the contract) are Shariah-compliant;
+// financed rows follow their financing. Rows saved before the flag existed: conventional types are bank/ltff.
+export function isShariahRow(row: Pick<ComparisonRow, "method"> & { shariahCompliant?: boolean }): boolean {
+  if (typeof row.shariahCompliant === "boolean") return row.shariahCompliant;
+  return !(CONVENTIONAL_FINANCING_TYPES as readonly string[]).includes(row.method);
+}
+
+// Plain-English product names (used in labels, verdicts, memo and emails).
+export const FINANCING_NAMES: Record<FinancingType, string> = {
+  diminishing_musharakah: "Diminishing Musharakah",
+  murabaha: "Murabaha",
+  ijarah: "Ijarah",
+  iltf: "Islamic LTFF",
+  bank: "conventional bank loan",
+  ltff: "conventional LTFF",
+};
+
+const LABEL_NAMES: Record<FinancingType, string> = {
+  diminishing_musharakah: "Diminishing Musharakah",
+  murabaha: "Murabaha",
+  ijarah: "Ijarah",
+  iltf: "Islamic LTFF",
+  bank: "conventional loan",
+  ltff: "conventional LTFF",
+};
+
+// What one monthly payment is called: Ijarah pays rentals, everything else installments.
+export function paymentWord(method: PaymentMethod): string {
+  return method === "ijarah" ? "rental" : "installment";
+}
+
+export const SHARIAH_NOTES: string[] = [
+  "Asset-backed: the bank buys, co-owns or leases the machines and earns profit or rent on them, not a return on lent money.",
+  "Profit is charged only on the bank's outstanding share or cost and is never compounded; the deferred price or rental schedule is agreed upfront.",
+  "Late payment: the customer undertakes to pay a fixed amount to charity; it is not income for the bank.",
+  "Takaful (Islamic insurance) instead of conventional insurance on the machines.",
+  "The bank's Shariah board must approve the product; confirm the approval on the term sheet.",
+];
+
 // ---------- options ----------
 
 export type PayOption = {
@@ -170,21 +265,23 @@ export type PayOption = {
   letter: string; // A, B, C… from offer order
   offer: Offer;
   method: PaymentMethod;
+  shariahCompliant: boolean;
   cashPrice: number; // offer's cash price after discount
   upfront: number; // paid at delivery (month 0)
   monthlyPayment: number;
-  months: number; // number of installments / EMIs
+  months: number; // number of installments / rentals
   flows: Flow[];
-  markupByMonth: Map<number, number>; // tax-deductible finance cost by month
+  markupByMonth: Map<number, number>; // tax-deductible finance cost by month (profit, rentals or interest, plus fee)
   depreciableCost: number;
+  depreciationByYear?: number[]; // overrides the standard schedule on depreciableCost (Ijarah: after transfer only)
   firstDueOnDelivery: boolean;
   loan: null | {
     financing: FinancingOption; // unshifted, as configured
     annualRate: number; // after any KIBOR shift
-    downPayment: number;
-    principal: number;
+    downPayment: number; // customer's contribution (Ijarah: security deposit)
+    principal: number; // amount financed (Ijarah: bank's cost net of the deposit)
     fee: number;
-    totalMarkup: number;
+    totalMarkup: number; // profit / interest part of the installments
   };
 };
 
@@ -208,6 +305,7 @@ function cashOption(offer: Offer, letter: string): PayOption {
     letter,
     offer,
     method: "cash",
+    shariahCompliant: true,
     cashPrice,
     upfront: cashPrice,
     monthlyPayment: 0,
@@ -220,6 +318,8 @@ function cashOption(offer: Offer, letter: string): PayOption {
   };
 }
 
+// The supplier's credit sale at a higher deferred price (bay' muajjal). Permissible when the price is fixed at the
+// contract and nothing is added for late payment, so Faisla reports its effective yearly cost, not "interest".
 function installmentOption(offer: Offer, letter: string): PayOption {
   const n = offer.installmentMonths!;
   const amount = offer.installmentAmount!;
@@ -230,10 +330,11 @@ function installmentOption(offer: Offer, letter: string): PayOption {
   return {
     id: `${offer.id}:installments`,
     // The quotation's "0%" claim isn't on Offer; quotes with installments are the "0% markup" plans.
-    label: offer.source === "quote" ? `${letter}, "0%" installments` : `${letter}, installments`,
+    label: offer.source === "quote" ? `${letter}, deferred-price plan ("0%")` : `${letter}, deferred-price plan`,
     letter,
     offer,
     method: "installments",
+    shariahCompliant: true,
     cashPrice: offerCashPrice(offer),
     upfront: due ? amount : 0,
     monthlyPayment: amount,
@@ -246,7 +347,14 @@ function installmentOption(offer: Offer, letter: string): PayOption {
   };
 }
 
+function financedLabel(letter: string, financing: FinancingOption, annualRate: number): string {
+  return `${letter}, ${LABEL_NAMES[financing.type] ?? financing.type} ${formatPct(annualRate)}`;
+}
+
+// Diminishing Musharakah, Murabaha, Islamic LTFF and conventional loans: customer contribution at delivery, then
+// equal monthly installments; profit (or interest) part deductible, the buyer/co-owner depreciates the full cost.
 function loanOption(offer: Offer, letter: string, financing: FinancingOption, kiborShift: number): PayOption {
+  if (financing.type === "ijarah") return ijarahOption(offer, letter, financing, kiborShift);
   const cashPrice = offerCashPrice(offer);
   const annualRate = financing.annualRate + (financing.kiborLinked ? kiborShift : 0);
   const downPayment = cashPrice * financing.downPaymentPct;
@@ -259,13 +367,13 @@ function loanOption(offer: Offer, letter: string, financing: FinancingOption, ki
   if (fee > 0) markupByMonth.set(1, (markupByMonth.get(1) ?? 0) + fee);
   const payment = schedule[0]?.payment ?? 0;
   const flows: Flow[] = [{ month: 0, amount: downPayment + fee }, ...schedule.map((r) => ({ month: r.month, amount: r.payment }))];
-  const name = financing.type === "ltff" ? "LTFF" : "bank";
   return {
     id: `${offer.id}:${financing.id}`,
-    label: `${letter}, ${name} ${formatPct(annualRate)}`,
+    label: financedLabel(letter, financing, annualRate),
     letter,
     offer,
     method: financing.type,
+    shariahCompliant: isShariahCompliant(financing),
     cashPrice,
     upfront: downPayment + fee,
     monthlyPayment: payment,
@@ -285,12 +393,77 @@ function loanOption(offer: Offer, letter: string, financing: FinancingOption, ki
   };
 }
 
+// Ijarah (lease). Month 0: security deposit (+ fee). Months 1…n: rentals that recover the bank's cost net of the
+// deposit at the benchmark rate. Month n: ownership transfers by a separate sale at a residual price equal to the
+// deposit, and the deposit is adjusted against it (refund − price = 0). Tax: the lessee deducts every rental as paid
+// and claims no depreciation during the lease; after transfer it depreciates the purchase price (no initial allowance).
+function ijarahOption(offer: Offer, letter: string, financing: FinancingOption, kiborShift: number): PayOption {
+  const cashPrice = offerCashPrice(offer);
+  const annualRate = financing.annualRate + (financing.kiborLinked ? kiborShift : 0);
+  const deposit = cashPrice * financing.downPaymentPct;
+  const leased = cashPrice - deposit;
+  const fee = leased * financing.feePct;
+  const n = financing.tenorMonths;
+  const schedule = amortisation(leased, annualRate, n);
+  const rental = schedule[0]?.payment ?? 0;
+  const deductible = new Map<number, number>(schedule.map((r) => [r.month, r.payment]));
+  if (fee > 0) deductible.set(1, (deductible.get(1) ?? 0) + fee);
+  const purchasePrice = deposit;
+  const flows: Flow[] = [
+    { month: 0, amount: deposit + fee },
+    ...schedule.map((r) => ({ month: r.month, amount: r.payment })),
+    { month: n, amount: -deposit }, // security deposit returned…
+    { month: n, amount: purchasePrice }, // …and paid back as the purchase price of the machines
+  ];
+  return {
+    id: `${offer.id}:${financing.id}`,
+    label: financedLabel(letter, financing, annualRate),
+    letter,
+    offer,
+    method: "ijarah",
+    shariahCompliant: isShariahCompliant(financing),
+    cashPrice,
+    upfront: deposit + fee,
+    monthlyPayment: rental,
+    months: n,
+    flows,
+    markupByMonth: deductible,
+    depreciableCost: purchasePrice,
+    depreciationByYear: postTransferDepreciation(purchasePrice, n),
+    firstDueOnDelivery: false,
+    loan: {
+      financing,
+      annualRate,
+      downPayment: deposit,
+      principal: leased,
+      fee,
+      totalMarkup: schedule.reduce((s, r) => s + r.markup, 0),
+    },
+  };
+}
+
 export function isEligible(company: Company, financing: FinancingOption): boolean {
   return !financing.requiresExporter || company.isExporter;
 }
 
-// Cash (+ installments if quoted) for every offer; loans on the offer with the cheapest cash price.
-export function buildOptions(company: Company, offers: Offer[], financing: FinancingOption[], kiborShift = 0): PayOption[] {
+export function companyPreference(company: Partial<Pick<Company, "financingPreference">>): FinancingPreference {
+  return company.financingPreference === "both" ? "both" : "islamic";
+}
+
+// Financing offered under a preference: "islamic" keeps only Shariah-compliant options; "both" keeps all.
+export function financingForPreference(financing: FinancingOption[], preference: FinancingPreference): FinancingOption[] {
+  return preference === "both" ? financing : financing.filter(isShariahCompliant);
+}
+
+// Cash (+ the supplier's deferred-price plan if quoted) for every offer; financing on the offer with the cheapest
+// cash price. Preference defaults to the company's (then "islamic").
+export function buildOptions(
+  company: Company,
+  offers: Offer[],
+  financing: FinancingOption[],
+  kiborShift = 0,
+  preference: FinancingPreference = companyPreference(company),
+): PayOption[] {
   const options: PayOption[] = [];
   offers.forEach((offer, idx) => {
     const letter = offerLetter(idx);
@@ -302,7 +475,7 @@ export function buildOptions(company: Company, offers: Offer[], financing: Finan
   offers.forEach((o, idx) => {
     if (offerCashPrice(o) < offerCashPrice(offers[cheapestIdx])) cheapestIdx = idx;
   });
-  for (const fin of financing) {
+  for (const fin of financingForPreference(financing, preference)) {
     if (!isEligible(company, fin)) continue;
     options.push(loanOption(offers[cheapestIdx], offerLetter(cheapestIdx), fin, kiborShift));
   }
@@ -313,15 +486,132 @@ function afterTaxRate(company: Company): number {
   return company.discountRate * (1 - company.taxRate);
 }
 
-function shortName(row: { method: PaymentMethod; label: string; letter: string }): string {
-  if (row.method === "ltff") return "LTFF";
-  if (row.method === "bank") return "the bank loan";
+function shortName(row: { method: PaymentMethod; letter: string }): string {
   if (row.method === "cash") return `${row.letter} cash`;
-  return `${row.letter} installments`;
+  if (row.method === "installments") return `${row.letter} deferred-price plan`;
+  if (row.method === "bank") return "the conventional loan";
+  return FINANCING_NAMES[row.method];
 }
 
 function fmtMonths(m: number): string {
   return Number.isFinite(m) ? `${m.toFixed(2)} months` : "no limit";
+}
+
+function financingSteps(o: PayOption): CalculationStep[] {
+  const l = o.loan!;
+  const type = l.financing.type;
+  const pct = formatPct(l.financing.downPaymentPct, 0);
+  const steps: CalculationStep[] = [];
+  const feeStep = (base: string): CalculationStep => ({
+    label: "Processing fee",
+    formula: `fee % × ${base}, paid at delivery`,
+    inputs: { "fee %": formatPct(l.financing.feePct, 2), P: formatPKR(l.principal) },
+    result: formatPKR(l.fee),
+  });
+  const annuity = "P · i · (1 + i)^n ÷ ((1 + i)^n − 1)";
+
+  if (type === "ijarah") {
+    steps.push({
+      label: "Security deposit",
+      formula: "cash price × security deposit %, paid at delivery; adjusted against the purchase price at the end",
+      inputs: { "cash price": formatPKR(o.cashPrice), "security deposit": pct },
+      result: formatPKR(l.downPayment),
+    });
+    steps.push({
+      label: "Bank's cost to recover",
+      formula: "P = cash price − security deposit",
+      inputs: { "cash price": formatPKR(o.cashPrice), "security deposit": formatPKR(l.downPayment) },
+      result: formatPKR(l.principal),
+    });
+    if (l.fee > 0) steps.push(feeStep("P"));
+    steps.push({
+      label: "Monthly rental",
+      formula: `${annuity}, i = rental rate ÷ 12 (KIBOR-benchmarked); paid in arrears`,
+      inputs: { P: formatPKR(l.principal), "rental rate": formatPct(l.annualRate), n: o.months },
+      result: formatPKR(o.monthlyPayment),
+    });
+    steps.push({
+      label: "Total rentals (tax-deductible as paid)",
+      formula: "rental × n; the lessee deducts each rental, and claims no depreciation during the lease",
+      inputs: { rental: formatPKR(o.monthlyPayment), n: o.months },
+      result: formatPKR(o.monthlyPayment * o.months),
+    });
+    steps.push({
+      label: "End of lease",
+      formula: "ownership transferred by a separate sale; purchase price = security deposit, so the deposit is adjusted against it",
+      inputs: { "deposit returned": formatPKR(l.downPayment), "purchase price": formatPKR(l.downPayment) },
+      result: formatPKR(0),
+    });
+    return steps;
+  }
+
+  const islamic = isShariahCompliant(l.financing);
+  const rateKey = islamic ? "profit rate" : "yearly rate";
+  if (type === "diminishing_musharakah" || type === "iltf") {
+    steps.push({
+      label: "Bank's share of the machines",
+      formula: `P = cash price × (1 − your share %); you co-own the rest from day one`,
+      inputs: { "cash price": formatPKR(o.cashPrice), "your share": `${pct} = ${formatPKR(l.downPayment)}` },
+      result: formatPKR(l.principal),
+    });
+  } else if (type === "murabaha") {
+    steps.push({
+      label: "Amount financed",
+      formula: "P = cash price × (1 − your advance %); the bank buys the machines and sells them to you",
+      inputs: { "cash price": formatPKR(o.cashPrice), "your advance": `${pct} = ${formatPKR(l.downPayment)}` },
+      result: formatPKR(l.principal),
+    });
+  } else {
+    steps.push({
+      label: "Loan amount",
+      formula: "P = cash price × (1 − down payment %)",
+      inputs: { "cash price": formatPKR(o.cashPrice), "down payment": `${pct} = ${formatPKR(l.downPayment)}` },
+      result: formatPKR(l.principal),
+    });
+  }
+  if (l.fee > 0) steps.push(feeStep("P"));
+
+  if (type === "diminishing_musharakah" || type === "iltf") {
+    steps.push({
+      label: "Monthly installment",
+      formula: `${annuity}, i = ${rateKey} ÷ 12; each installment = rent on the bank's remaining share + purchase of its units`,
+      inputs: { P: formatPKR(l.principal), [rateKey]: formatPct(l.annualRate), n: o.months },
+      result: formatPKR(o.monthlyPayment),
+    });
+    steps.push({
+      label: "Total rent paid to the bank (profit)",
+      formula: "Σ bank's remaining share × i over the schedule (tax-deductible); never compounded",
+      inputs: { months: o.months },
+      result: formatPKR(l.totalMarkup),
+    });
+  } else if (type === "murabaha") {
+    steps.push({
+      label: "Monthly installment",
+      formula: `${annuity}, i = ${rateKey} ÷ 12; deferred price = installment × n, fixed at the contract`,
+      inputs: { P: formatPKR(l.principal), [rateKey]: formatPct(l.annualRate), n: o.months },
+      result: formatPKR(o.monthlyPayment),
+    });
+    steps.push({
+      label: "Bank's profit in the deferred price",
+      formula: "deferred price − amount financed (tax-deductible as it falls due); never increased for late payment",
+      inputs: { "deferred price": formatPKR(o.monthlyPayment * o.months), P: formatPKR(l.principal) },
+      result: formatPKR(l.totalMarkup),
+    });
+  } else {
+    steps.push({
+      label: "Monthly installment (interest-based)",
+      formula: `${annuity}, i = yearly rate ÷ 12`,
+      inputs: { P: formatPKR(l.principal), [rateKey]: formatPct(l.annualRate), n: o.months },
+      result: formatPKR(o.monthlyPayment),
+    });
+    steps.push({
+      label: "Total interest paid",
+      formula: "Σ balance × i over the schedule (tax-deductible)",
+      inputs: { months: o.months },
+      result: formatPKR(l.totalMarkup),
+    });
+  }
+  return steps;
 }
 
 function calculationSteps(o: PayOption, company: Company, c: Computed): CalculationStep[] {
@@ -337,7 +627,7 @@ function calculationSteps(o: PayOption, company: Company, c: Computed): Calculat
   }
   if (o.method === "installments" && c.hiddenMonthly !== null) {
     steps.push({
-      label: "Hidden monthly rate",
+      label: "Effective monthly cost of paying later",
       formula: o.firstDueOnDelivery
         ? "cash price = Σ installment ÷ (1 + r)^t, t = 0…n−1 (solved by bisection)"
         : "cash price = Σ installment ÷ (1 + r)^t, t = 1…n (solved by bisection)",
@@ -350,66 +640,54 @@ function calculationSteps(o: PayOption, company: Company, c: Computed): Calculat
       result: `${formatPct(c.hiddenMonthly, 4)} a month`,
     });
     steps.push({
-      label: "Hidden yearly rate",
-      formula: "(1 + r)^12 − 1   (simple quote: r × 12)",
+      label: "Effective yearly cost",
+      formula: "(1 + r)^12 − 1   (simple quote: r × 12); a deferred-price sale at a price fixed upfront",
       inputs: { r: formatPct(c.hiddenMonthly, 4), "simple quote r × 12": formatPct(c.hiddenMonthly * 12, 2) },
       result: formatPct(yearlyFromMonthly(c.hiddenMonthly), 2),
     });
   }
-  if (o.loan) {
-    const l = o.loan;
-    steps.push({
-      label: "Loan amount",
-      formula: "P = cash price × (1 − down payment %)",
-      inputs: { "cash price": formatPKR(o.cashPrice), "down payment": `${formatPct(l.financing.downPaymentPct, 0)} = ${formatPKR(l.downPayment)}` },
-      result: formatPKR(l.principal),
-    });
-    if (l.fee > 0) {
-      steps.push({
-        label: "Processing fee",
-        formula: "fee % × P, paid at delivery",
-        inputs: { "fee %": formatPct(l.financing.feePct, 2), P: formatPKR(l.principal) },
-        result: formatPKR(l.fee),
-      });
-    }
-    steps.push({
-      label: "Monthly payment (EMI)",
-      formula: "P · i · (1 + i)^n ÷ ((1 + i)^n − 1), i = yearly rate ÷ 12",
-      inputs: { P: formatPKR(l.principal), "yearly rate": formatPct(l.annualRate), n: o.months },
-      result: formatPKR(o.monthlyPayment),
-    });
-    steps.push({
-      label: "Total markup paid",
-      formula: "Σ balance × i over the schedule (tax-deductible)",
-      inputs: { months: o.months },
-      result: formatPKR(l.totalMarkup),
-    });
-  }
+  if (o.loan) steps.push(...financingSteps(o));
   steps.push({
     label: "PV before tax",
     formula: "Σ flow_t ÷ (1 + d)^t, d = (1 + yearly discount)^(1/12) − 1",
     inputs: {
       "paid at delivery": formatPKR(o.upfront),
-      ...(o.months > 0 ? { "monthly payment": formatPKR(o.monthlyPayment), months: o.months } : {}),
+      ...(o.months > 0 ? { [`monthly ${paymentWord(o.method)}`]: formatPKR(o.monthlyPayment), months: o.months } : {}),
       "discount rate": formatPct(company.discountRate),
       d: formatPct(monthlyFromYearly(company.discountRate), 4),
     },
     result: formatPKR(c.pvBeforeTax),
   });
-  steps.push({
-    label: "Tax depreciation",
-    formula: "25% initial allowance + 15% reducing balance (year 1 too), 10 years, rest in year 10",
-    inputs: {
-      "depreciation base": formatPKR(o.depreciableCost),
-      "year 1": formatPKR(c.depreciation[0] ?? 0),
-      "year 2": formatPKR(c.depreciation[1] ?? 0),
-      "year 10": formatPKR(c.depreciation[c.depreciation.length - 1] ?? 0),
-    },
-    result: formatPKR(c.depreciation.reduce((s, d) => s + d, 0)),
-  });
+  const firstDep = c.depreciation.findIndex((d) => d > 0);
+  steps.push(
+    o.method === "ijarah"
+      ? {
+          label: "Tax depreciation (after transfer)",
+          formula: "none during the lease; from the next tax year, 15% reducing balance on the purchase price (no initial allowance), rest in year 10",
+          inputs: {
+            "depreciation base": formatPKR(o.depreciableCost),
+            [`year ${firstDep + 1}`]: formatPKR(c.depreciation[firstDep] ?? 0),
+            "year 10": formatPKR(c.depreciation[c.depreciation.length - 1] ?? 0),
+          },
+          result: formatPKR(c.depreciation.reduce((s, d) => s + d, 0)),
+        }
+      : {
+          label: "Tax depreciation",
+          formula: "25% initial allowance + 15% reducing balance (year 1 too), 10 years, rest in year 10",
+          inputs: {
+            "depreciation base": formatPKR(o.depreciableCost),
+            "year 1": formatPKR(c.depreciation[0] ?? 0),
+            "year 2": formatPKR(c.depreciation[1] ?? 0),
+            "year 10": formatPKR(c.depreciation[c.depreciation.length - 1] ?? 0),
+          },
+          result: formatPKR(c.depreciation.reduce((s, d) => s + d, 0)),
+        },
+  );
+  const deductibleName =
+    o.method === "ijarah" ? "rentals_y" : o.loan && !isShariahCompliant(o.loan.financing) ? "interest_y" : "profit_y";
   steps.push({
     label: "PV after tax",
-    formula: "Σ (flow_t − tax saved_t) ÷ (1 + d′)^t; tax saved in year y = (markup_y + depreciation_y) × tax rate at month 12y; d′ from discount × (1 − tax rate)",
+    formula: `Σ (flow_t − tax saved_t) ÷ (1 + d′)^t; tax saved in year y = (${deductibleName} + depreciation_y) × tax rate at month 12y; d′ from discount × (1 − tax rate)`,
     inputs: {
       "tax rate": formatPct(company.taxRate, 0),
       "after-tax discount": formatPct(atRate, 2),
@@ -419,12 +697,12 @@ function calculationSteps(o: PayOption, company: Company, c: Computed): Calculat
   });
   steps.push({
     label: "Runway",
-    formula: "(cash − paid at delivery) ÷ (monthly fixed costs + new monthly payment)",
+    formula: `(cash − paid at delivery) ÷ (monthly fixed costs + new monthly ${paymentWord(o.method)})`,
     inputs: {
       cash: formatPKR(company.cashBalance),
       "paid at delivery": formatPKR(o.upfront),
       "fixed costs": formatPKR(company.monthlyFixedCosts),
-      "new monthly payment": formatPKR(o.monthlyPayment),
+      [`new monthly ${paymentWord(o.method)}`]: formatPKR(o.monthlyPayment),
     },
     result: fmtMonths(c.runway),
   });
@@ -441,15 +719,16 @@ type Computed = {
 };
 
 function compute(o: PayOption, company: Company): Computed {
-  const atFlows = afterTaxFlows(o.flows, o.markupByMonth, o.depreciableCost, company.taxRate);
-  const saved = taxSavingsByYear(o.markupByMonth, o.depreciableCost, company.taxRate);
+  const depreciation = o.depreciationByYear ?? taxDepreciation(o.depreciableCost);
+  const atFlows = afterTaxFlowsWith(o.flows, o.markupByMonth, depreciation, company.taxRate);
+  const saved = taxSavingsWith(o.markupByMonth, depreciation, company.taxRate);
   return {
     pvBeforeTax: presentValue(o.flows, company.discountRate),
     pvAfterTax: presentValue(atFlows, afterTaxRate(company)),
     runway: runwayMonths(company.cashBalance, o.upfront, company.monthlyFixedCosts, o.monthlyPayment),
     hiddenMonthly:
       o.method === "installments" ? hiddenMonthlyRate(o.cashPrice, o.monthlyPayment, o.months, o.firstDueOnDelivery) : null,
-    depreciation: taxDepreciation(o.depreciableCost),
+    depreciation,
     totalTaxSaved: [...saved.values()].reduce((s, v) => s + v, 0),
   };
 }
@@ -459,11 +738,14 @@ export function compareOptions(options: PayOption[], company: Company): Comparis
   const computed = options.map((o) => compute(o, company));
   if (options.length === 0) return [];
 
-  // Recommended = lowest after-tax PV among rows that keep ≥ 2 months of runway (fallback: lowest overall).
+  // Recommended = lowest after-tax PV among Shariah-compliant rows (cash, the supplier's deferred-price plan, Islamic
+  // financing) that keep ≥ 2 months of runway (fallback: lowest Shariah-compliant). Conventional rows never win.
   const byPv = (idxs: number[]) => idxs.reduce((best, i) => (computed[i].pvAfterTax < computed[best].pvAfterTax ? i : best));
   const all = options.map((_, i) => i);
-  const safe = all.filter((i) => computed[i].runway >= SAFE_RUNWAY);
-  const recIdx = byPv(safe.length ? safe : all);
+  const compliant = all.filter((i) => options[i].shariahCompliant);
+  const pool = compliant.length ? compliant : all;
+  const safe = pool.filter((i) => computed[i].runway >= SAFE_RUNWAY);
+  const recIdx = byPv(safe.length ? safe : pool);
   const rec = options[recIdx];
 
   const cashPrices = options.filter((o) => o.method === "cash").map((o) => o.cashPrice);
@@ -474,7 +756,8 @@ export function compareOptions(options: PayOption[], company: Company): Comparis
     const hiddenYearly = c.hiddenMonthly === null ? null : yearlyFromMonthly(c.hiddenMonthly);
     let verdict: string;
     if (i === recIdx) verdict = "Recommended";
-    else if (hiddenYearly !== null && hiddenYearly > 0.005) verdict = `Hidden ${formatPct(hiddenYearly)} a year`;
+    else if (!o.shariahCompliant) verdict = "Interest-based, for comparison only";
+    else if (hiddenYearly !== null && hiddenYearly > 0.005) verdict = `Paying later costs ${formatPct(hiddenYearly)} a year`;
     else if (o.method === "cash" && o.cashPrice === minCash)
       verdict = c.runway < SAFE_RUNWAY ? "Cheapest price, drains cash" : "Cheapest price";
     else if (c.runway < SALARIES_AT_RISK_RUNWAY) verdict = "Salaries at risk";
@@ -498,6 +781,7 @@ export function compareOptions(options: PayOption[], company: Company): Comparis
       runwayMonths: c.runway,
       hiddenYearlyRate: hiddenYearly,
       hiddenSimpleRate: c.hiddenMonthly === null ? null : c.hiddenMonthly * 12,
+      shariahCompliant: o.shariahCompliant,
       verdict,
       recommended: i === recIdx,
       calculation: calculationSteps(o, company, c),
@@ -522,7 +806,8 @@ export function breakEvenDiscountRate(option: PayOption, cashPrice: number): num
   return (lo + hi) / 2;
 }
 
-// Re-prices KIBOR-linked loans with the shift; everything else is unchanged.
+// Re-prices KIBOR-linked financing (Diminishing Musharakah, Ijarah, conventional loans) with the shift; Islamic LTFF
+// and LTFF follow the SBP rate and Murabaha's price is fixed at the contract, so they are unchanged.
 export function stressTest(options: PayOption[], kiborShift: number, company: Company): ComparisonRow[] {
   const shifted = options.map((o) =>
     o.loan && o.loan.financing.kiborLinked ? loanOption(o.offer, o.letter, o.loan.financing, kiborShift) : o,
@@ -530,28 +815,58 @@ export function stressTest(options: PayOption[], kiborShift: number, company: Co
   return compareOptions(shifted, company);
 }
 
-export function buildAssumptions(company: Company, financing: FinancingOption[], kiborShift: number): string[] {
-  const loans = financing.filter((f) => isEligible(company, f));
-  const fees = loans.map((f) => `${f.type === "ltff" ? "LTFF" : "bank"} ${formatPct(f.feePct, 2)}`).join(", ");
+function names(list: FinancingOption[]): string {
+  const unique = [...new Set(list.map((f) => FINANCING_NAMES[f.type] ?? f.type))];
+  if (unique.length <= 1) return unique.join("");
+  return `${unique.slice(0, -1).join(", ")} and ${unique[unique.length - 1]}`;
+}
+
+export function buildAssumptions(
+  company: Company,
+  financing: FinancingOption[],
+  kiborShift: number,
+  preference: FinancingPreference = companyPreference(company),
+): string[] {
+  const offered = financingForPreference(financing, preference).filter((f) => isEligible(company, f));
+  const fees = offered.map((f) => `${FINANCING_NAMES[f.type] ?? f.type} ${formatPct(f.feePct, 2)}`).join(", ");
+  const islamic = offered.filter(isShariahCompliant);
+  const hasIjarah = offered.some((f) => f.type === "ijarah");
   const out = [
-    `Discount rate ${formatPct(company.discountRate)} a year before tax (≈ bank borrowing rate, KIBOR + 3%); after-tax flows are discounted at ${formatPct(afterTaxRate(company), 2)} = ${formatPct(company.discountRate)} × (1 − ${formatPct(company.taxRate, 0)} tax).`,
-    `Processing fees default to 0% and are editable${fees ? ` (now: ${fees} of the loan)` : ""}; they are paid at delivery and deducted in tax year 1. Insurance and collateral costs are not included.`,
-    "Loan and installment payments are in arrears (first payment one month after delivery) unless the quotation says the first installment is due on delivery. Loan markup uses the bank convention i = yearly rate ÷ 12.",
-    `Tax savings (${formatPct(company.taxRate, 0)} of markup + depreciation) arrive at the end of each tax year (months 12, 24, …).`,
-    "Tax depreciation: 25% initial allowance in year 1, then 15% a year on the reducing balance (including year 1, on cost less the allowance), 10-year life, remainder written off in year 10. Base = what each option actually pays for the machines.",
-    "Scrap value is ignored (the same for every option).",
-    "Runway counts no sales income, so it is a floor (worst case), not a forecast.",
+    preference === "islamic"
+      ? "Financing preference: Shariah-compliant only. Conventional (interest-based) options are left out; switch to “Islamic and conventional” on the Financing page to see them for comparison."
+      : "Financing preference: Islamic and conventional. Conventional (interest-based) rows are shown for comparison only and are never recommended.",
+    `Discount rate ${formatPct(company.discountRate)} a year before tax (≈ the business's cost of financing, KIBOR + 3%); after-tax flows are discounted at ${formatPct(afterTaxRate(company), 2)} = ${formatPct(company.discountRate)} × (1 − ${formatPct(company.taxRate, 0)} tax).`,
+    `Processing fees default to 0% and are editable${fees ? ` (now: ${fees} of the amount financed)` : ""}; they are paid at delivery and deducted in tax year 1. Insurance (takaful) and collateral costs are not included.`,
+    "Installments and rentals are paid monthly in arrears (first payment one month after delivery) unless the quotation says the first installment is due on delivery. Profit uses the bank convention i = yearly rate ÷ 12 on the outstanding amount and is never compounded.",
+    `Tax savings (${formatPct(company.taxRate, 0)} of deductible ${preference === "both" ? "profit, rentals or interest" : "profit or rentals"} + depreciation) arrive at the end of each tax year (months 12, 24, …).`,
+    "Tax depreciation: 25% initial allowance in year 1, then 15% a year on the reducing balance (including year 1, on cost less the allowance), 10-year life, remainder written off in year 10. Base = what each option actually pays for the machines (cash, deferred-price plan, Diminishing Musharakah, Murabaha).",
+    "The supplier's deferred-price plan (bay' muajjal) is a permissible credit sale when the price is fixed at the contract and nothing is added for late payment; Faisla shows its effective yearly cost against the cash price.",
   ];
-  if (financing.some((f) => f.type === "ltff")) {
+  if (hasIjarah) {
+    out.push(
+      "Ijarah: the security deposit is held by the bank and adjusted against the purchase price when ownership transfers at the end by a separate sale, so the end-of-lease cash flow is nil. Rentals are deducted as paid; the lessee claims no depreciation during the lease, then 15% reducing balance on the purchase price (no initial allowance).",
+    );
+  }
+  if (islamic.length) {
+    out.push(`Shariah notes: ${SHARIAH_NOTES.join(" ")}`);
+  }
+  out.push("Scrap value is ignored (the same for every option).");
+  out.push("Runway counts no sales income, so it is a floor (worst case), not a forecast.");
+  const sbp = financingForPreference(financing, preference).filter((f) => f.type === "iltf" || f.type === "ltff");
+  if (sbp.length) {
+    const name = sbp.some((f) => f.type === "iltf") ? "Islamic LTFF" : "LTFF";
     out.push(
       company.isExporter
-        ? "LTFF approval usually takes about 4–8 weeks; eligibility (exporter buying new machinery) must be confirmed by the bank."
-        : "LTFF left out: it is only for exporters buying new machinery.",
+        ? `${name} approval usually takes about 4–8 weeks; eligibility (exporter buying new machinery) must be confirmed by the bank.`
+        : `${name} left out: it is only for exporters buying new machinery.`,
     );
   }
   if (kiborShift !== 0) {
+    const moved = offered.filter((f) => f.kiborLinked);
+    const fixed = offered.filter((f) => !f.kiborLinked);
     out.push(
-      `Stress test: KIBOR-linked rates shifted by ${kiborShift > 0 ? "+" : ""}${formatPct(kiborShift)}; LTFF follows the SBP policy rate and is not shifted.`,
+      `Stress test: KIBOR-linked rates${moved.length ? ` (${names(moved)})` : ""} shifted by ${kiborShift > 0 ? "+" : ""}${formatPct(kiborShift)}` +
+        (fixed.length ? `; ${names(fixed)} ${fixed.length === 1 ? "is" : "are"} not shifted (SBP-set rate or price fixed at the contract).` : "."),
     );
   }
   return out;
@@ -560,9 +875,10 @@ export function buildAssumptions(company: Company, financing: FinancingOption[],
 export function decide(input: DecideInput): DecideResult {
   const { company, offers, financing } = input;
   const kiborShift = input.kiborShift ?? 0;
+  const preference = input.preference ?? companyPreference(company);
   if (offers.length === 0) throw new Error("decide needs at least one offer");
 
-  const options = buildOptions(company, offers, financing, kiborShift);
+  const options = buildOptions(company, offers, financing, kiborShift, preference);
   const rows = compareOptions(options, company);
   const recommended = rows.find((r) => r.recommended)!;
 
@@ -595,7 +911,8 @@ export function decide(input: DecideInput): DecideResult {
     breakEvenDiscountRate: breakEven,
     afterTaxDiscountRate: afterTaxRate(company),
     kiborShift,
-    assumptions: buildAssumptions(company, financing, kiborShift),
+    financingPreference: preference,
+    assumptions: buildAssumptions(company, financing, kiborShift, preference),
     company,
   };
 }

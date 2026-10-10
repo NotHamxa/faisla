@@ -111,7 +111,8 @@ export default async function SettingsPage() {
                 Code calculates
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Every rupee: hidden installment rate, EMI, present value, after-tax cost, runway and the stress test.
+                Every rupee: the cost of paying later, monthly installments and rentals, present value, after-tax cost,
+                runway and the stress test.
                 Each memo number is checked against the calculation. The owner confirms.
               </p>
             </div>
@@ -130,8 +131,9 @@ export default async function SettingsPage() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            KIBOR and the SBP policy rate are reference values to verify before use; tax rate, depreciation and LTFF
-            eligibility are assumptions listed on every comparison. Not financial advice.
+            KIBOR and the SBP policy rate are reference values to verify before use; tax rate, depreciation and Islamic
+            LTFF eligibility are assumptions listed on every comparison. Shariah compliance of a product is confirmed by
+            the bank&apos;s Shariah board, not by Faisla. Not financial or religious advice.
           </p>
         </CardContent>
       </Card>

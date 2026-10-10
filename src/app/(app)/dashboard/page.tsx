@@ -80,7 +80,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {company.name} · {company.city}
-            {company.isExporter ? " · Exporter (LTFF eligible)" : ""} · figures as of {formatDate(now.toISOString())}
+            {company.isExporter ? " · Exporter (Islamic LTFF eligible)" : ""} · figures as of {formatDate(now.toISOString())}
           </p>
         </div>
         {decisions.length > 0 && (
@@ -273,7 +273,7 @@ function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
         {alerts.length === 0 ? (
           <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
             <CheckCircle2 className="size-6 text-success" />
-            All clear. No hidden rates, red flags or expiring quotes.
+            All clear. No costly deferred-price plans, red flags or expiring quotes.
           </div>
         ) : (
           <ul className="-mx-2 -my-1 divide-y">
@@ -316,7 +316,7 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
       <CardContent className="flex-1">
         {payments.length === 0 ? (
           <div className="flex min-h-32 items-center justify-center text-center text-sm text-muted-foreground">
-            No installments or EMIs scheduled.
+            No installments or rentals scheduled.
           </div>
         ) : (
           <ul className="divide-y">

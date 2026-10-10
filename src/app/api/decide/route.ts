@@ -1,7 +1,7 @@
 // POST /api/decide: company + offers + financing → comparison JSON. All maths in lib/finance.ts (no AI).
 import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
-import { decide } from "@/lib/finance";
+import { decide, isIslamicType } from "@/lib/finance";
 import type { DecideInput } from "@/lib/types";
 
 const money = z.number().finite().nonnegative();
@@ -15,6 +15,7 @@ const companySchema = z.object({
   monthlyFixedCosts: z.number().finite().positive(),
   taxRate: rate,
   discountRate: rate,
+  financingPreference: z.enum(["islamic", "both"]).default("islamic"),
 });
 
 const offerSchema = z.object({
@@ -41,7 +42,8 @@ const offerSchema = z.object({
 const financingSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
-  type: z.enum(["bank", "ltff"]),
+  type: z.enum(["diminishing_musharakah", "murabaha", "ijarah", "iltf", "bank", "ltff"]),
+  shariahCompliant: z.boolean().optional(),
   annualRate: rate,
   tenorMonths: z.number().int().positive(),
   downPaymentPct: rate,
@@ -50,13 +52,14 @@ const financingSchema = z.object({
   requiresExporter: z.boolean(),
   sourceLink: z.string().nullable(),
   note: z.string().optional(),
-});
+}).transform((f) => ({ ...f, shariahCompliant: f.shariahCompliant ?? isIslamicType(f.type) }));
 
 const decideInputSchema = z.object({
   company: companySchema,
   offers: z.array(offerSchema).min(1, "at least one offer is needed"),
   financing: z.array(financingSchema),
   kiborShift: z.number().min(-0.1).max(0.1).optional(),
+  preference: z.enum(["islamic", "both"]).optional(),
 });
 
 export async function POST(request: Request) {
