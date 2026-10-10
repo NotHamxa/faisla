@@ -33,6 +33,10 @@ export type Quotation = {
   firstInstallmentOnDelivery: boolean | null;
   markupClaimedPct: number | null; // the "0%" claim
   validityDays: number | null;
+  // Bank details printed on the quotation (for the payment-fraud check). Optional for older records.
+  bankName?: string | null;
+  accountTitle?: string | null;
+  iban?: string | null;
 };
 
 export type ArithmeticIssue = { field: string; message: string };
@@ -178,6 +182,15 @@ export type Supplier = {
   link: string | null;
 };
 
+// Bank details and warning language read from an email (payment-fraud check).
+export type PaymentDetails = {
+  iban: string | null;
+  accountTitle: string | null;
+  bankName: string | null;
+  urgency: boolean; // account-change or "pay today" language
+  urgencyQuote: string | null;
+};
+
 export type EmailRecord = {
   id: string;
   direction: "out" | "in";
@@ -187,6 +200,7 @@ export type EmailRecord = {
   offerId: string | null;
   sentAt: string;
   simulated: boolean;
+  payment?: PaymentDetails | null; // incoming emails: bank details / warning language found in the body
 };
 
 export type MemoResult = {
@@ -266,6 +280,7 @@ export type DecisionRecord = {
   emails: EmailRecord[];
   decision: DecideResult | null;
   memo: MemoResult | null;
+  paymentConfirmations: string[]; // payment-risk ids the owner confirmed by phone on a known number
 };
 
 // Workflow fields of a decision the client may change (everything except identity and timestamps).
@@ -284,6 +299,7 @@ export type DecisionPatch = Partial<
     | "emails"
     | "decision"
     | "memo"
+    | "paymentConfirmations"
   >
 >;
 

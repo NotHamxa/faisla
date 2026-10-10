@@ -153,6 +153,7 @@ function decisionRecord(doc: WithId<DecisionDoc>): DecisionRecord {
     emails: doc.emails ?? [],
     decision: doc.decision ?? null,
     memo: doc.memo ?? null,
+    paymentConfirmations: doc.paymentConfirmations ?? [],
   };
 }
 
@@ -193,6 +194,7 @@ export async function createDecision(
     emails: init.emails ?? [],
     decision: init.decision ?? null,
     memo: init.memo ?? null,
+    paymentConfirmations: init.paymentConfirmations ?? [],
   };
   const now = dates?.createdAt ?? new Date();
   const status = deriveStatus(base);
@@ -222,6 +224,7 @@ const PATCHABLE: (keyof DecisionPatch)[] = [
   "emails",
   "decision",
   "memo",
+  "paymentConfirmations",
 ];
 
 export async function updateDecision(companyId: string, id: string, patch: DecisionPatch): Promise<DecisionRecord | null> {

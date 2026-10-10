@@ -2,7 +2,7 @@
 // every number in its draft is checked against that list. Unknown numbers → retry (max 2) → template.
 import { aiEnabled, aiText } from "@/lib/ai";
 import { allowedNumbers, memoFacts, type MemoContext } from "@/lib/memoFacts";
-import { comparisonTable, memoTemplate } from "@/lib/memoTemplate";
+import { comparisonTable, ensurePaymentRisks, memoTemplate } from "@/lib/memoTemplate";
 import { checkMemoNumbers } from "@/lib/numberCheck";
 import type { DecideResult, FinancingOption, MemoResult, Offer, ReputationResult } from "@/lib/types";
 
@@ -13,6 +13,7 @@ type MemoRequest = {
   reputations?: Record<string, ReputationResult>;
   offers?: Offer[]; // optional: adds qty / unit price facts
   financing?: FinancingOption[]; // optional: exact loan rates
+  paymentRisks?: MemoContext["paymentRisks"]; // optional: payment-fraud warnings for Risks
 };
 
 const MAX_RETRIES = 2;
@@ -43,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "decision with at least one row is required" }, { status: 400 });
   }
 
-  const context: MemoContext = { offers: body.offers, financing: body.financing };
+  const context: MemoContext = { offers: body.offers, financing: body.financing, paymentRisks: body.paymentRisks };
   const facts = memoFacts(decision, reputations, context);
   const allowed = allowedNumbers(facts);
   const template = () => memoTemplate(decision, reputations, context);
@@ -80,7 +81,7 @@ export async function POST(request: Request): Promise<Response> {
           "Rewrite the memo without them. Use only values from the facts, copied exactly, or say it in words.";
     const draft = await aiText({ system: SYSTEM, prompt, maxTokens: 4000 });
     if (!draft) break; // AI failed: use the template
-    const memo = stripFence(draft);
+    const memo = ensurePaymentRisks(stripFence(draft), context);
     const check = checkMemoNumbers(memo, allowed);
     if (check.passed) {
       const result: MemoResult = { memo, numberCheck: { passed: true, unknownNumbers: [], attempts }, source: "llm" };

@@ -16,6 +16,7 @@ export type ReplyExtraction = {
   summary: string;
   source: "ai" | "parser";
   needsOwnerInput?: string; // set when unitPrice is null
+  warningQuote?: string | null; // AI: sentence asking to pay a new account / pay urgently (payment-fraud check)
 };
 
 export type ParsedAmount = { value: number; kind: "unit" | "total" | "unknown"; raw: string };
@@ -201,6 +202,10 @@ const aiReplySchema = z.object({
   warrantyMonths: z.number().int().nullable(),
   paymentTerms: z.string().nullable(),
   summary: z.string(),
+  accountChangeOrUrgency: z
+    .string()
+    .nullable()
+    .describe("Copy the sentence if the email says the bank account changed, gives a new account, or pressures to pay urgently; else null"),
 });
 
 // AI first, checked against the parser; parser alone when AI is unavailable.
@@ -217,7 +222,8 @@ export async function extractReply(input: {
       '("13.4 lakh per unit" = 1340000; "1 saal" = 12 months; "10 din" = 10 days; "2 hafte" = 14 days). ' +
       "From this supplier email, extract: unit_price (PKR integer or null), total (or null), qty, delivery_days, " +
       "warranty_months, payment_terms, and a one-line summary in English. " +
-      "If the price is unclear, set it to null and explain in summary. Never compute a total that is not written.",
+      "If the price is unclear, set it to null and explain in summary. Never compute a total that is not written. " +
+      "If the email says the bank account has changed, gives new bank details, or pushes to pay today/urgently, copy that sentence into accountChangeOrUrgency.",
     prompt: `Subject: ${input.subject ?? ""}\n\n${text}`,
     maxTokens: 1500,
   });
@@ -240,6 +246,8 @@ export async function extractReply(input: {
     paymentTerms: ai.paymentTerms ?? parsed.paymentTerms,
     summary: ai.summary || parsed.summary,
     source: aiPriceOk || unitPrice == null ? "ai" : "parser",
+    // Only keep the AI's warning if it quotes the email (so it can't invent one).
+    warningQuote: ai.accountChangeOrUrgency && text.includes(ai.accountChangeOrUrgency.slice(0, 30)) ? ai.accountChangeOrUrgency : null,
   };
   if (unitPrice == null) merged.needsOwnerInput = ai.summary || parsed.needsOwnerInput || "Price unclear.";
   return merged;

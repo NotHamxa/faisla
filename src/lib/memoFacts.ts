@@ -15,6 +15,8 @@ export type MemoFact = {
 export type MemoContext = {
   offers?: Offer[];
   financing?: FinancingOption[];
+  // Payment-fraud warnings (no numbers, so the number check is unaffected).
+  paymentRisks?: { supplierName: string; level: "high" | "medium" | "low"; confirmed: boolean }[];
 };
 
 // Runway the recommendation must keep (same rule as the finance engine), used in risks and next steps.

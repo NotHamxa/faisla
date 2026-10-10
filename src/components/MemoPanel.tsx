@@ -1,5 +1,6 @@
 "use client";
 // Step 6: decision memo (AI prose, code numbers, checked) + term-sheet request to the bank.
+import { usePaymentRisks } from "@/components/PaymentRisk";
 import { Fragment, useState, type ReactNode } from "react";
 import {
   CheckIcon,
@@ -54,6 +55,7 @@ const PRINT_CSS = `
 
 export default function MemoPanel() {
   const { state, update, addEmail } = useStore();
+  const { risks, blocking } = usePaymentRisks();
   const { decision, memo } = state;
   const [memoLoading, setMemoLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
@@ -88,6 +90,7 @@ export default function MemoPanel() {
           reputations: state.reputations,
           offers: state.offers,
           financing: state.financing,
+          paymentRisks: risks.map((r) => ({ supplierName: r.supplierName, level: r.level, confirmed: r.confirmed })),
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `Memo failed (${res.status})`);
@@ -153,7 +156,12 @@ export default function MemoPanel() {
               {memoLoading ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
               {memoLoading ? "Writing memo…" : memo ? "Rewrite memo" : "Write decision memo"}
             </Button>
-            <Button variant="outline" onClick={requestTermSheet} disabled={emailLoading}>
+            <Button
+              variant="outline"
+              onClick={requestTermSheet}
+              disabled={emailLoading || blocking.length > 0}
+              title={blocking.length ? "Blocked: confirm the flagged bank account by phone first (see the warning at the top)" : undefined}
+            >
               {emailLoading ? <Spinner data-icon="inline-start" /> : <MailIcon data-icon="inline-start" />}
               {emailLoading ? "Sending…" : "Request term sheet"}
             </Button>
@@ -168,6 +176,19 @@ export default function MemoPanel() {
             </Button>
           </div>
         </CardHeader>
+
+        {blocking.length > 0 && (
+          <CardContent>
+            <Alert variant="destructive">
+              <ShieldAlertIcon />
+              <AlertTitle>Term-sheet request blocked by the payment-fraud check</AlertTitle>
+              <AlertDescription>
+                {blocking.map((r) => r.supplierName).join(", ")}: confirm the bank account by phone on a known number (see the
+                warning at the top), then the request unlocks.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
 
         {(error || memo) && (
           <CardContent className="space-y-3">

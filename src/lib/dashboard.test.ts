@@ -14,6 +14,7 @@ function record(over: Partial<DecisionRecord> & Pick<DecisionRecord, "id" | "tit
     updatedAt: now.toISOString(),
     decidedAt: null,
     origin: "quotation",
+    paymentConfirmations: [],
     quotation: null,
     quotationConfirmed: false,
     sourcing: null,

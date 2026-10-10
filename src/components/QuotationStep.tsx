@@ -1,6 +1,7 @@
 "use client";
 // M2: upload a quotation → AI extraction → owner checks every field → confirmed offer.
 // Arithmetic checks run live in code on every edit; the AI never computes a total.
+import { formatIban, isValidIban, normalizeIban } from "@/lib/fraud";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -471,6 +472,39 @@ function ConfirmForm(props: {
                   />
                 </FormField>
               </div>
+            </FieldSet>
+
+            {/* Bank details: kept on file for the payment-fraud check */}
+            <FieldSet className="gap-3">
+              <FieldLegend variant="label">Bank details (for payment)</FieldLegend>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <FormField label="Bank" id="q-bank">
+                  <Input id="q-bank" value={draft.bankName ?? ""} onChange={(e) => patch({ bankName: e.target.value || null })} />
+                </FormField>
+                <FormField label="Account title" id="q-title">
+                  <Input
+                    id="q-title"
+                    value={draft.accountTitle ?? ""}
+                    onChange={(e) => patch({ accountTitle: e.target.value || null })}
+                  />
+                </FormField>
+                <FormField label="IBAN" id="q-iban">
+                  <Input
+                    id="q-iban"
+                    className="font-mono"
+                    value={draft.iban ? formatIban(draft.iban) : ""}
+                    onChange={(e) => patch({ iban: e.target.value.trim() ? normalizeIban(e.target.value) : null })}
+                    placeholder="PK00 BANK 0000 0000 0000 0000"
+                  />
+                </FormField>
+              </div>
+              {draft.iban && (
+                <p className={cn("text-xs", isValidIban(draft.iban) ? "text-success" : "text-destructive")}>
+                  {isValidIban(draft.iban)
+                    ? "IBAN checksum OK. Faisla will warn you if a later email asks you to pay a different account."
+                    : "This IBAN fails the checksum: check it against the paper quotation before paying."}
+                </p>
+              )}
             </FieldSet>
 
             {/* Items */}

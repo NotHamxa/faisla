@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  ShieldAlert,
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
@@ -26,7 +27,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { DEMO_ITEM, DEMO_MODEL, DEMO_SUPPLIER_B_REPLY } from "@/lib/demoData";
+import { DEMO_FRAUD_REPLY, DEMO_ITEM, DEMO_MODEL, DEMO_SUPPLIER_B_REPLY } from "@/lib/demoData";
+import { RiskBadge, usePaymentRisks } from "@/components/PaymentRisk";
 import { formatPKR } from "@/lib/format";
 import { type FaislaState, useStore } from "@/lib/store";
 import type { EmailRecord, Offer, Supplier } from "@/lib/types";
@@ -78,6 +80,8 @@ export default function SupplierPanel() {
     state.emails.find((e) => e.direction === "out" && e.subject.startsWith("RFQ") && e.subject.includes(s.name));
   const rfqs = state.emails.filter((e) => e.direction === "out" && e.subject.startsWith("RFQ"));
   const replies = state.emails.filter((e) => e.direction === "in");
+  const { risks } = usePaymentRisks();
+  const riskFor = (emailId: string) => risks.find((r) => r.emailId === emailId);
   const firstRfqAt = rfqs.length ? rfqs.map((e) => e.sentAt).sort()[0] : null;
   const anySending = Object.values(sending).some(Boolean);
 
@@ -213,39 +217,48 @@ export default function SupplierPanel() {
     };
   }, [polling, pollStartedAt, checkInbox]);
 
-  async function readPasted() {
-    if (!pasteText.trim()) return;
+  // Runs a pasted (or demo) email through the same reading + fraud check as inbox replies.
+  async function postReply(reply: { body: string; supplierName: string; from: string; subject: string }) {
     setPasting(true);
     setError(null);
-    const supplierName = pasteSupplier || suppliers[0]?.name || "";
     try {
       const res = await fetch("/api/rfq/replies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body: pasteText,
-          supplierName,
-          from: suppliers.find((s) => s.name === supplierName)?.email ?? "",
-          subject: `Re: RFQ for ${supplierName}`,
-          qty,
-          model,
-          item,
-          referenceUnitPrice,
-          suppliers,
-        }),
+        body: JSON.stringify({ ...reply, qty, model, item, referenceUnitPrice, suppliers }),
       });
       if (!res.ok) throw new Error(`Could not read the reply (${res.status})`);
       const data = (await res.json()) as RepliesResponse;
       const added = absorb(data.replies ?? []);
-      if (added === 0) toast.warning("Reply read, but no clear unit price", { description: "Check the reply below." });
-      setPasteText("");
+      const flagged = (data.replies ?? []).some((r) => r.email.payment?.iban || r.email.payment?.urgency);
+      if (flagged) toast.error("Payment-fraud check: this email asks for payment details to change", { description: "See the warning at the top." });
+      else if (added === 0) toast.warning("Reply read, but no clear unit price", { description: "Check the reply below." });
+      return true;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not read the reply";
       setError(message);
       toast.error(message);
+      return false;
     } finally {
       setPasting(false);
     }
+  }
+
+  async function readPasted() {
+    if (!pasteText.trim()) return;
+    const supplierName = pasteSupplier || suppliers[0]?.name || "";
+    const ok = await postReply({
+      body: pasteText,
+      supplierName,
+      from: suppliers.find((s) => s.name === supplierName)?.email ?? "",
+      subject: `Re: RFQ for ${supplierName}`,
+    });
+    if (ok) setPasteText("");
+  }
+
+  // Demo: an email that looks like it is from the quoting supplier but asks to pay a new account.
+  async function readDemoFraud() {
+    await postReply({ ...DEMO_FRAUD_REPLY, supplierName: state.quotation?.supplierName ?? "" });
   }
 
   return (
@@ -423,10 +436,20 @@ export default function SupplierPanel() {
           <ul className="flex flex-col gap-3">
             {replies.map((e) => {
               const offer = e.offerId ? state.offers.find((o) => o.id === e.offerId) : null;
+              const risk = riskFor(e.id);
               return (
-                <li key={e.id} className="rounded-lg border p-3 text-sm">
+                <li
+                  key={e.id}
+                  className={cn(
+                    "rounded-lg border p-3 text-sm",
+                    risk && !risk.confirmed && risk.level === "high" && "border-destructive/50",
+                  )}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium">{offer?.supplierName ?? e.toFrom}</p>
+                    <p className="flex items-center gap-2 font-medium">
+                      {offer?.supplierName ?? risk?.supplierName ?? e.toFrom}
+                      {risk && <RiskBadge risk={risk} />}
+                    </p>
                     <span className="text-xs text-muted-foreground">
                       {e.subject} · {formatDateTime(e.sentAt)}
                     </span>
@@ -449,6 +472,10 @@ export default function SupplierPanel() {
                         </Badge>
                       )}
                     </div>
+                  ) : risk ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      From {e.toFrom}. No price in this email; it asks about payment. See the payment-fraud warning at the top.
+                    </p>
                   ) : (
                     <WarningNote className="mt-3">
                       Price unclear, owner to confirm: {notes[e.id] ?? "no clear unit price in this reply."}
@@ -495,6 +522,18 @@ export default function SupplierPanel() {
                     <Sparkles data-icon="inline-start" />
                     Use demo reply
                   </Button>
+                  {state.quotation?.iban && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-destructive"
+                      onClick={() => void readDemoFraud()}
+                      disabled={pasting}
+                    >
+                      <ShieldAlert data-icon="inline-start" />
+                      Demo fraud email
+                    </Button>
+                  )}
                 </div>
                 <Textarea
                   aria-label="Supplier reply"

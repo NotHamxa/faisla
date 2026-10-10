@@ -36,6 +36,9 @@ export const demoQuotation: Quotation = {
   firstInstallmentOnDelivery: false,
   markupClaimedPct: 0,
   validityDays: 15,
+  bankName: "Meezan Bank Ltd",
+  accountTitle: "Al-Noor Industrial Machines",
+  iban: "PK76MEZN0002310104567890",
 };
 
 export const demoOfferA: Offer = {
@@ -76,6 +79,27 @@ export const demoOfferB: Offer = {
   deliveryDays: 10,
   warrantyMonths: 12,
   summary: "4 machines at Rs 13.4 lakh each, final price; delivery in 10 days; 1 year warranty.",
+};
+
+// Payment-fraud demo: looks like Supplier A, but from free webmail, new account, personal title, urgency.
+export const DEMO_FRAUD_REPLY = {
+  from: "alnoor.machines.fsd@gmail.com",
+  subject: "Re: Quotation ANIM/Q/2026/0412 - Al-Noor Industrial Machines",
+  body: [
+    "Dear Sir,",
+    "",
+    "Thank you for your order confirmation. Due to our annual audit our bank account has changed. Kindly transfer the 30% advance today to our new account so we can book your machines:",
+    "",
+    "Bank Alfalah, Gulberg Branch",
+    "Title: Imran Qureshi",
+    "IBAN: PK59 ALFH 0047 1200 9876 1234",
+    "",
+    "Please treat this as urgent; the old Meezan account is not in use.",
+    "",
+    "Regards,",
+    "M. Imran Qureshi",
+    "Sales Manager, Al-Noor Industrial Machines",
+  ].join("\n"),
 };
 
 export const DEMO_SUPPLIER_B_REPLY =

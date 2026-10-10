@@ -1,6 +1,7 @@
 "use client";
 // One decision's workspace: header (title, status, autosave, company context) and the five-step flow
 // as tabs. The open step lives in the URL (?step=compare) so a refresh keeps your place.
+import { PaymentRiskBanner } from "@/components/PaymentRisk";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -128,6 +129,8 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
         </div>
         <CompanyLine company={state.company} />
       </header>
+
+      <PaymentRiskBanner />
 
       <Tabs value={step} onValueChange={(v) => goTo(v as StepValue)} className="gap-5">
         <div ref={topRef} className="flex scroll-mt-20 flex-col gap-2">

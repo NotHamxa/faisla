@@ -1,6 +1,7 @@
 // POST /api/extract — quotation photo/PDF → Quotation draft for the confirm screen.
 // Accepts multipart form-data with `file`, or JSON { demo: true }. The AI only copies what is printed;
 // checkArithmetic (code) flags anything that doesn't add up.
+import { normalizeIban } from "@/lib/fraud";
 import { z } from "zod";
 import { aiEnabled, aiJson, type ImageInput } from "@/lib/ai";
 import { demoQuotation } from "@/lib/demoData";
@@ -47,6 +48,9 @@ const extractionSchema = z.object({
     .describe("true if the first installment is due on delivery/order, false if one month after delivery, null if not stated"),
   markupClaimedPct: z.number().nullable().describe('Markup/interest the supplier claims for installments, 0 for "0% markup"'),
   validityDays: z.number().nullable().describe("How many days the quotation is valid"),
+  bankName: z.string().nullable().describe("Bank name in the payment/bank details, or null"),
+  accountTitle: z.string().nullable().describe("Account title in the bank details, exactly as printed, or null"),
+  iban: z.string().nullable().describe("IBAN exactly as printed (e.g. PK76 MEZN 0002 3101 0456 7890), or null"),
 });
 
 type Extraction = z.infer<typeof extractionSchema>;
@@ -59,7 +63,8 @@ Rules:
 - Never fill a field by calculating it from other fields. If the line total or grand total is not printed, use null.
 - Percentages as plain numbers: 8% → 8. "0% markup" or "interest free" → markupClaimedPct 0.
 - Validity: "valid for 15 days" → 15; "2 weeks" → 14.
-- Dates as YYYY-MM-DD (08-Oct-2026 → 2026-10-08).`;
+- Dates as YYYY-MM-DD (08-Oct-2026 → 2026-10-08).
+- Bank details: copy bank name, account title and IBAN exactly as printed (character by character); null if absent.`;
 
 const PROMPT = "Extract this supplier quotation into the JSON schema.";
 
@@ -144,6 +149,9 @@ function clean(x: Extraction): Quotation {
     firstInstallmentOnDelivery: x.firstInstallmentOnDelivery,
     markupClaimedPct: finite(x.markupClaimedPct),
     validityDays: wholeNumber(x.validityDays),
+    bankName: text(x.bankName),
+    accountTitle: text(x.accountTitle),
+    iban: x.iban && x.iban.trim() ? normalizeIban(x.iban) : null, // the fraud check validates the checksum
   };
 }
 

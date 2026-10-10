@@ -38,6 +38,28 @@ export function comparisonTable(decision: DecideResult): string {
   return lines.join("\n");
 }
 
+// Payment-fraud lines for the Risks section (no numbers, so they never trip the number check).
+export function paymentRiskLines(context: MemoContext): string[] {
+  return (context.paymentRisks ?? [])
+    .filter((risk) => risk.level !== "low")
+    .map((risk) =>
+      risk.confirmed
+        ? `- **Payment details for ${risk.supplierName}:** an email asked to change where payment goes; the owner confirmed the account by phone.`
+        : `- **Payment-fraud warning (${risk.supplierName}):** an email asks for payment to different bank details. Do not pay until the account is confirmed by phone on a known number.`,
+    );
+}
+
+// The AI is asked to list payment risks; if it leaves them out, code puts them under "## Risks".
+export function ensurePaymentRisks(memo: string, context: MemoContext): string {
+  const lines = paymentRiskLines(context);
+  if (!lines.length || /fraud|payment details|bank details/i.test(memo)) return memo;
+  const heading = memo.match(/^##\s*Risks?.*$/im);
+  const block = lines.join("\n");
+  if (!heading || heading.index === undefined) return `${memo.trimEnd()}\n\n## Risks\n${block}\n`;
+  const at = heading.index + heading[0].length;
+  return `${memo.slice(0, at)}\n${block}${memo.slice(at)}`;
+}
+
 export function memoTemplate(
   decision: DecideResult,
   reputations?: Record<string, ReputationResult>,
@@ -122,6 +144,7 @@ export function memoTemplate(
     runwayLine += ` These options would leave less than ${MIN_SAFE_RUNWAY_MONTHS} months: ${thinRows.map((r) => r.label).join("; ")}.`;
   }
   out.push(runwayLine);
+  out.push(...paymentRiskLines(context));
   for (const rep of Object.values(reputations ?? {})) {
     if (rep.flag !== "red" && rep.flag !== "mixed") continue;
     const label = rep.flag === "red" ? "Red flags" : "Mixed reviews";

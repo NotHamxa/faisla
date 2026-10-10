@@ -155,7 +155,7 @@ export default function DemoQuotationPage() {
         <section className="mt-5 text-[12px] text-neutral-700">
           <p className="font-semibold text-neutral-900">Bank details</p>
           <p>Meezan Bank Ltd, Kotwali Road Branch, Faisalabad</p>
-          <p>Title: Al-Noor Industrial Machines · IBAN: PK36 MEZN 0002 3101 0456 7890</p>
+          <p>Title: Al-Noor Industrial Machines · IBAN: PK76 MEZN 0002 3101 0456 7890</p>
         </section>
 
         <p className="mt-5">We hope our offer meets your requirements and look forward to your valued order.</p>

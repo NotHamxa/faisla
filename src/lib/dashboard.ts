@@ -1,5 +1,6 @@
 // Dashboard figures for one company, built from its profile and decisions. Pure: no I/O, no AI.
 // Every rupee here comes from finance.ts results already stored on the decisions.
+import { assessPaymentRisks, blockingRisks } from "./fraud";
 import { hiddenMonthlyRate, offerCashPrice, runwayMonths, SAFE_RUNWAY, yearlyFromMonthly } from "./finance";
 import { formatLakh, formatPct } from "./format";
 import type { CompanyRecord, ComparisonRow, DecisionRecord, DecisionStatus } from "./types";
@@ -139,6 +140,18 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
     const href = `/decisions/${d.id}`;
     const open = d.status !== "decided";
     const rec = recommendedRow(d);
+
+    // Payment-fraud check: unconfirmed high-risk payment emails come first.
+    for (const risk of blockingRisks(
+      assessPaymentRisks({ quotation: d.quotation, emails: d.emails, suppliers: d.suppliers, confirmations: d.paymentConfirmations }),
+    )) {
+      alerts.push({
+        level: "high",
+        title: `Payment-fraud warning: ${risk.supplierName}`,
+        detail: `${d.title}: an email asks for payment to different bank details. Confirm by phone before paying.`,
+        href: `${href}?step=offers`,
+      });
+    }
 
     if (open) {
       for (const plan of hiddenRates(d)) {

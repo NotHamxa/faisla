@@ -4,6 +4,7 @@
 //      → same extraction on pasted text (demo fallback "Paste a reply").
 // Each reply: { email: EmailRecord, offer: Offer | null, needsOwnerInput?: string }.
 import { DEMO_ITEM, DEMO_MODEL } from "@/lib/demoData";
+import { extractPaymentDetails } from "@/lib/fraud";
 import { fetchReplies, inboxEnabled, type InboxMessage } from "@/lib/inbox";
 import { buildReplyOffer, extractReply, hashString } from "@/lib/replyParser";
 import { resolveDemoSuppliers, sameSupplier } from "@/lib/suppliers";
@@ -98,8 +99,17 @@ async function readReply(m: InboxMessage, ctx: Context, pasted: boolean, supplie
     offerId: offer?.id ?? null,
     sentAt: m.date,
     simulated: false,
+    payment: paymentDetails(m.text, extraction.warningQuote ?? null),
   };
   return offer ? { email, offer } : { email, offer: null, needsOwnerInput: extraction.needsOwnerInput ?? "Price unclear." };
+}
+
+// Bank details by code (regex + IBAN checksum later); the AI only adds a quoted warning sentence the regex missed.
+function paymentDetails(text: string, aiWarning: string | null) {
+  const found = extractPaymentDetails(text);
+  if (!found && !aiWarning) return null;
+  const base = found ?? { iban: null, accountTitle: null, bankName: null, urgency: false, urgencyQuote: null };
+  return aiWarning && !base.urgency ? { ...base, urgency: true, urgencyQuote: aiWarning } : base;
 }
 
 // Supplier inboxes may all be the same team test address, so names beat addresses:

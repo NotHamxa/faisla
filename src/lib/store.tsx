@@ -36,6 +36,7 @@ export type FaislaState = {
   emails: EmailRecord[];
   decision: DecideResult | null;
   memo: MemoResult | null;
+  paymentConfirmations: string[];
 };
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -53,6 +54,7 @@ const DECISION_KEYS = [
   "emails",
   "decision",
   "memo",
+  "paymentConfirmations",
 ] as const satisfies readonly (keyof FaislaState & keyof DecisionPatch)[];
 
 const COMPANY_KEYS = ["name", "city", "isExporter", "cashBalance", "monthlyFixedCosts", "taxRate", "discountRate"] as const;
@@ -87,6 +89,7 @@ function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): Fa
     emails: decision?.emails ?? [],
     decision: decision?.decision ?? null,
     memo: decision?.memo ?? null,
+    paymentConfirmations: decision?.paymentConfirmations ?? [],
   };
 }
 
@@ -219,6 +222,7 @@ export function StoreProvider({
       emails: [],
       decision: null,
       memo: null,
+      paymentConfirmations: [],
     });
   }, [update]);
 
