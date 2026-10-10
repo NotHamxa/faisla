@@ -2,6 +2,7 @@
 // M4 + M5: find other suppliers, email them an RFQ, then watch the test inbox for replies.
 // Replies (often Roman Urdu) are read by AI with a code fallback; each priced reply becomes an offer row.
 // "Paste a reply" runs the same extraction on pasted text when the inbox is slow or not connected.
+import { formatDateTime } from "@/lib/dateFormat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -173,7 +174,7 @@ export default function SupplierPanel() {
       try {
         const res = await fetch(`/api/rfq/replies?${params}`);
         const data = (await res.json()) as RepliesResponse;
-        setLastChecked(new Date().toLocaleTimeString());
+        setLastChecked(formatDateTime(new Date().toISOString()));
         if (data.simulated) {
           setInboxStatus("Inbox not connected (no Gmail credentials). Use “Paste a reply” below.");
           setPolling(false);
@@ -191,10 +192,11 @@ export default function SupplierPanel() {
     [absorb, firstRfqAt, item, model, qty, referenceUnitPrice],
   );
 
-  // Poll every 10 s after an RFQ is sent; stop when a priced reply arrives or after 5 minutes.
+  // Poll every 10 s after an RFQ is sent (first check almost at once, so an unconnected inbox shows
+  // the paste fallback immediately); stop when a priced reply arrives or after 5 minutes.
   useEffect(() => {
     if (!polling) return;
-    const timer = setInterval(async () => {
+    const tick = async () => {
       if (pollStartedAt && Date.now() - pollStartedAt > POLL_LIMIT_MS) {
         setPolling(false);
         setInboxStatus("Stopped waiting after 5 minutes. Use “Check inbox now” or paste the reply.");
@@ -202,8 +204,13 @@ export default function SupplierPanel() {
       }
       const added = await checkInbox();
       if (added > 0) setPolling(false);
-    }, POLL_MS);
-    return () => clearInterval(timer);
+    };
+    const first = setTimeout(() => void tick(), 1500);
+    const timer = setInterval(() => void tick(), POLL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
   }, [polling, pollStartedAt, checkInbox]);
 
   async function readPasted() {
@@ -421,7 +428,7 @@ export default function SupplierPanel() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium">{offer?.supplierName ?? e.toFrom}</p>
                     <span className="text-xs text-muted-foreground">
-                      {e.subject} · {new Date(e.sentAt).toLocaleTimeString()}
+                      {e.subject} · {formatDateTime(e.sentAt)}
                     </span>
                   </div>
                   <blockquote className="mt-2 border-l-2 border-primary/40 pl-3 whitespace-pre-wrap italic">{e.body}</blockquote>

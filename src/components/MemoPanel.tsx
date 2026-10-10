@@ -186,7 +186,7 @@ export default function MemoPanel() {
       {memo ? (
         <article
           className={cn(
-            "faisla-print-memo mx-auto w-full max-w-3xl rounded-xl border bg-card px-6 py-8 text-card-foreground shadow-sm transition-opacity sm:px-10 sm:py-10",
+            "faisla-print-memo mx-auto w-full max-w-4xl rounded-xl border bg-card px-6 py-8 text-card-foreground shadow-sm transition-opacity sm:px-10 sm:py-10",
             memoLoading && "opacity-50",
           )}
         >

@@ -1,6 +1,7 @@
 "use client";
 // Decisions list: status filter, search, table (cards on mobile), row actions (open, rename, delete).
 // "?new=1" in the URL opens the New decision dialog (the sidebar and top bar link there).
+import { formatDateTime } from "@/lib/dateFormat";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -209,7 +210,7 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
                           <Savings value={d.savingsAfterTax} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          <time dateTime={d.updatedAt} title={new Date(d.updatedAt).toLocaleString()} suppressHydrationWarning>
+                          <time dateTime={d.updatedAt} title={formatDateTime(d.updatedAt)} suppressHydrationWarning>
                             {formatRelative(d.updatedAt)}
                           </time>
                         </TableCell>
