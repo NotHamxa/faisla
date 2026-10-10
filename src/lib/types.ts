@@ -14,6 +14,7 @@ export type Company = {
   taxRate: number; // 0.29
   discountRate: number; // 0.15, pre-tax yearly
   financingPreference: FinancingPreference;
+  payInFullWhenAffordable?: boolean; // recommend buying outright when cash still leaves the safe runway
 };
 
 export type QuotationItem = {

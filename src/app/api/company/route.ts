@@ -29,6 +29,7 @@ const patchSchema = z.object({
   taxRate: z.number().min(0).max(1).optional(),
   discountRate: z.number().min(0).max(1).optional(),
   financingPreference: z.enum(["islamic", "both"]).optional(),
+  payInFullWhenAffordable: z.boolean().optional(),
   financing: z.array(financingSchema).optional(),
 });
 

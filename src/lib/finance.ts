@@ -745,7 +745,9 @@ export function compareOptions(options: PayOption[], company: Company): Comparis
   const compliant = all.filter((i) => options[i].shariahCompliant);
   const pool = compliant.length ? compliant : all;
   const safe = pool.filter((i) => computed[i].runway >= SAFE_RUNWAY);
-  const recIdx = byPv(safe.length ? safe : pool);
+  // Owner prefers to buy outright: the cheapest cash purchase wins if it still leaves the safe runway.
+  const cashSafe = safe.filter((i) => options[i].method === "cash");
+  const recIdx = company.payInFullWhenAffordable && cashSafe.length ? byPv(cashSafe) : byPv(safe.length ? safe : pool);
   const rec = options[recIdx];
 
   const cashPrices = options.filter((o) => o.method === "cash").map((o) => o.cashPrice);
@@ -835,6 +837,9 @@ export function buildAssumptions(
     preference === "islamic"
       ? "Financing preference: Shariah-compliant only. Conventional (interest-based) options are left out; switch to “Islamic and conventional” on the Financing page to see them for comparison."
       : "Financing preference: Islamic and conventional. Conventional (interest-based) rows are shown for comparison only and are never recommended.",
+    company.payInFullWhenAffordable
+      ? `Pay in full when affordable: on. Buying outright is recommended whenever it still leaves at least ${SAFE_RUNWAY} months of fixed costs in the bank.`
+      : `Pay in full when affordable: off. Buying outright is recommended only if it is also the cheapest option in today's money and leaves at least ${SAFE_RUNWAY} months of fixed costs (turn it on in Settings to always prefer paying in full when cash allows).`,
     `Discount rate ${formatPct(company.discountRate)} a year before tax (≈ the business's cost of financing, KIBOR + 3%); after-tax flows are discounted at ${formatPct(afterTaxRate(company), 2)} = ${formatPct(company.discountRate)} × (1 − ${formatPct(company.taxRate, 0)} tax).`,
     `Processing fees default to 0% and are editable${fees ? ` (now: ${fees} of the amount financed)` : ""}; they are paid at delivery and deducted in tax year 1. Insurance (takaful) and collateral costs are not included.`,
     "Installments and rentals are paid monthly in arrears (first payment one month after delivery) unless the quotation says the first installment is due on delivery. Profit uses the bank convention i = yearly rate ÷ 12 on the outstanding amount and is never compounded.",

@@ -112,6 +112,7 @@ function companyRecord(doc: WithId<CompanyDoc>): CompanyRecord {
     taxRate: doc.taxRate,
     discountRate: doc.discountRate,
     financingPreference,
+    payInFullWhenAffordable: doc.payInFullWhenAffordable ?? false,
     financing,
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -139,6 +140,7 @@ export async function updateCompany(companyId: string, patch: CompanyPatch): Pro
     "taxRate",
     "discountRate",
     "financingPreference",
+    "payInFullWhenAffordable",
     "financing",
   ];
   const set: Record<string, unknown> = { updatedAt: new Date() };

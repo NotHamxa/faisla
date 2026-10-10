@@ -24,6 +24,7 @@ type Draft = {
   taxPct: string; // "29"
   discountPct: string; // "15"
   financingPreference: FinancingPreference;
+  payInFullWhenAffordable: boolean;
 };
 
 function toDraft(c: Company): Draft {
@@ -36,6 +37,7 @@ function toDraft(c: Company): Draft {
     taxPct: pctText(c.taxRate),
     discountPct: pctText(c.discountRate),
     financingPreference: c.financingPreference ?? "islamic",
+    payInFullWhenAffordable: c.payInFullWhenAffordable ?? false,
   };
 }
 
@@ -103,6 +105,7 @@ export default function ProfileForm() {
       taxRate: taxRate!,
       discountRate: discountRate!,
       financingPreference: draft.financingPreference,
+      payInFullWhenAffordable: draft.payInFullWhenAffordable,
     };
     awaitingSave.current = "Company profile saved";
     // Company feeds the comparison, so any earlier decision/memo is stale.
@@ -190,6 +193,21 @@ export default function ProfileForm() {
                 <FieldLabel htmlFor="pf-exporter">We are an exporter</FieldLabel>
                 <FieldDescription>
                   Eligible for SBP Islamic LTFF (and conventional LTFF) machinery financing at policy rate − 3%.
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+
+            <Field orientation="horizontal" className="rounded-lg border p-3 sm:col-span-2">
+              <Switch
+                id="pf-payinfull"
+                checked={draft.payInFullWhenAffordable}
+                onCheckedChange={(v) => set("payInFullWhenAffordable", v)}
+              />
+              <FieldContent>
+                <FieldLabel htmlFor="pf-payinfull">Pay in full when we can afford it</FieldLabel>
+                <FieldDescription>
+                  Recommend buying outright (no financing) whenever paying cash still leaves at least 2 months of fixed costs in
+                  the bank, even if financing is slightly cheaper in today&apos;s money.
                 </FieldDescription>
               </FieldContent>
             </Field>

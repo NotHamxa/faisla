@@ -348,3 +348,22 @@ describe("Ijarah after-tax treatment", () => {
     );
   });
 });
+
+describe("pay in full when affordable", () => {
+  const rich = { ...demoCompany, cashBalance: 2_00_00_000 };
+  it("recommends buying outright when the owner prefers it and cash leaves the safe runway", () => {
+    const r = decide({ company: { ...rich, payInFullWhenAffordable: true }, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
+    const rec = r.rows.find((row) => row.recommended)!;
+    expect(rec.method).toBe("cash");
+    expect(rec.label).toBe("B, cash");
+    expect(rec.runwayMonths).toBeGreaterThanOrEqual(2);
+  });
+  it("keeps the cheapest-in-today's-money rule when the setting is off", () => {
+    const r = decide({ company: rich, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
+    expect(r.rows.find((row) => row.recommended)!.label).toBe("B, Islamic LTFF 8.5%");
+  });
+  it("does not push cash on a business that cannot afford it (demo company)", () => {
+    const r = decide({ company: { ...demoCompany, payInFullWhenAffordable: true }, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
+    expect(r.rows.find((row) => row.recommended)!.label).toBe("B, Islamic LTFF 8.5%");
+  });
+});

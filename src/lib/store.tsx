@@ -66,6 +66,7 @@ const COMPANY_KEYS = [
   "taxRate",
   "discountRate",
   "financingPreference",
+  "payInFullWhenAffordable",
 ] as const;
 
 type Store = {
@@ -82,7 +83,8 @@ type Store = {
 const StoreContext = createContext<Store | null>(null);
 
 function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): FaislaState {
-  const { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate, financingPreference, financing } = company;
+  const { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate, financingPreference, payInFullWhenAffordable, financing } =
+    company;
   return {
     company: {
       name,
@@ -93,6 +95,7 @@ function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): Fa
       taxRate,
       discountRate,
       financingPreference: financingPreference ?? "islamic",
+      payInFullWhenAffordable: payInFullWhenAffordable ?? false,
     },
     financing,
     title: decision?.title ?? "",
