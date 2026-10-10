@@ -11,6 +11,22 @@ describe("parseAmounts", () => {
     expect(parseAmounts("13.5 lac")[0]).toMatchObject({ value: 13_50_000, kind: "unknown" });
   });
 
+  it("reads compound amounts (lakh + hazar, crore + lakh)", () => {
+    expect(parseAmounts("total 53 lakh 60 hazar banega").map((a) => a.value)).toContain(53_60_000);
+    expect(parseAmounts("1 crore 20 lakh final").map((a) => a.value)).toContain(1_20_00_000);
+    expect(parseAmounts("advance 60 hazar").map((a) => a.value)).toContain(60_000);
+  });
+
+  it("reads a total-only Roman Urdu reply as a unit price", () => {
+    const x = parseReplyText(
+      "JUKI AMS-221F ki 4 units ka total 53 lakh 60 hazar banega, 30% advance baqi delivery pe. Delivery 2 hafte, warranty 6 mahine.",
+      { referenceUnitPrice: 15_00_000 },
+    );
+    expect(x.unitPrice).toBe(13_40_000);
+    expect(x.deliveryDays).toBe(14);
+    expect(x.warrantyMonths).toBe(6);
+  });
+
   it("ignores phone numbers", () => {
     expect(parseAmounts("Call 0300-1234567 or +92 42 3577 2210")).toEqual([]);
   });

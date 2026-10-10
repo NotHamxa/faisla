@@ -123,7 +123,7 @@ With no keys set, the app runs end to end on cached data, template memos and sim
 | Variable | Purpose |
 | --- | --- |
 | `OPENAI_API_KEY` | OpenAI API (extraction, cleaning, reviews, emails, memo) |
-| `OPENAI_MODEL` | Model id, default `gpt-5.5` |
+| `OPENAI_MODEL_VISION` / `_FAST` / `_WRITE` | Optional per-task model overrides (defaults `gpt-6-luna` / `gpt-4.1-nano` / `gpt-6-luna`, picked by `scripts/models.live.ts`) |
 | `DEMO_MODE` | `1` = never call external APIs (cached data only) |
 | `TAVILY_API_KEY` | Web search for market prices, reviews, suppliers |
 | `GMAIL_USER` | Team test Gmail account (sends RFQs and the bank email, inbox polled for replies) |
@@ -135,7 +135,7 @@ With no keys set, the app runs end to end on cached data, template memos and sim
 
 ## Third-party APIs and libraries
 
-- **OpenAI API** (`gpt-5.5` by default, Responses API via the `openai` SDK): vision extraction, structured output, prose
+- **OpenAI API** (Responses API via the `openai` SDK; `gpt-6-luna` for vision and writing, `gpt-4.1-nano` for quick extraction): vision extraction, structured output, prose
 - **Tavily**: web search
 - **Gmail** SMTP/IMAP via `nodemailer`, `imapflow`, `mailparser`
 - **Next.js 16** (App Router), **React 19**, **Tailwind CSS v4**

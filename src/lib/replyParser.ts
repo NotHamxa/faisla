@@ -74,7 +74,17 @@ export function parseAmounts(text: string): ParsedAmount[] {
         masked = masked.slice(0, start) + " ".repeat(end - start) + masked.slice(end);
       }
     };
+    // Compound amounts first: "53 lakh 60 hazar" = 53,60,000; "1 crore 20 lakh" = 1,20,00,000.
+    take(
+      /(?:rs\.?|pkr)?\s*(\d+(?:\.\d+)?)\s*(?:crores?|cr)\s*(?:aur\s+|and\s+)?(\d+(?:\.\d+)?)\s*(?:lakhs?|lacs?|lkh)\b/g,
+      (m) => parseFloat(m[1]) * 1_00_00_000 + parseFloat(m[2]) * 1_00_000,
+    );
+    take(
+      /(?:rs\.?|pkr)?\s*(\d+(?:\.\d+)?)\s*(?:lakhs?|lacs?|lkh)\s*(?:aur\s+|and\s+)?(\d+(?:\.\d+)?)\s*(?:hazaa?r|thousand|k)\b/g,
+      (m) => parseFloat(m[1]) * 1_00_000 + parseFloat(m[2]) * 1_000,
+    );
     take(/(?:rs\.?|pkr)?\s*(\d+(?:\.\d+)?)\s*(lakhs?|lacs?|lkh)\b/g, (m) => parseFloat(m[1]) * 1_00_000);
+    take(/(?:rs\.?|pkr)?\s*(\d+(?:\.\d+)?)\s*(hazaa?r|thousand)\b/g, (m) => parseFloat(m[1]) * 1_000);
     take(/(?:rs\.?|pkr)?\s*(\d+(?:\.\d+)?)\s*(crores?|cr)\b/g, (m) => parseFloat(m[1]) * 1_00_00_000);
     take(/(?:rs\.?|pkr|rupees?)\s*:?\s*(\d[\d,]*(?:\.\d+)?)(?:\s*\/-)?/g, (m) => parseFloat(m[1].replace(/,/g, "")));
     take(/(?<![\d.])(\d{1,3}(?:,\d{2,3})+|\d{5,})(?:\s*\/-)?(?![\d.])/g, (m) => {
