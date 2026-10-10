@@ -6,6 +6,9 @@ import { test } from "vitest";
 import { POST as extractPost } from "@/app/api/extract/route";
 import { POST as memoPost } from "@/app/api/memo/route";
 import { usageLog } from "@/lib/ai";
+import { INTERNAL_HEADER, INTERNAL_TOKEN } from "@/lib/auth/api";
+
+const internal = { [INTERNAL_HEADER]: INTERNAL_TOKEN };
 import { demoQuotation } from "@/lib/demoData";
 import { extractReply } from "@/lib/replyParser";
 import { demoDecision } from "@/lib/__fixtures__/demoDecision";
@@ -84,7 +87,7 @@ test("benchmark", async () => {
     let t = Date.now();
     const form = new FormData();
     form.append("file", new Blob([Buffer.from(image, "base64")], { type: "image/png" }), "quotation.png");
-    const exRes = await extractPost(new Request("http://localhost/api/extract", { method: "POST", body: form }));
+    const exRes = await extractPost(new Request("http://localhost/api/extract", { method: "POST", body: form, headers: internal }));
     const exBody = (await exRes.json()) as { quotation?: Quotation; source?: string };
     const q = scoreQuotation(exBody.source === "ai" ? (exBody.quotation ?? null) : null);
     const exCost = costSince(start);
@@ -108,7 +111,7 @@ test("benchmark", async () => {
     start = usageLog.length;
     t = Date.now();
     const mRes = await memoPost(
-      new Request("http://localhost/api/memo", { method: "POST", body: JSON.stringify({ decision: demoDecision }) }),
+      new Request("http://localhost/api/memo", { method: "POST", body: JSON.stringify({ decision: demoDecision }), headers: internal }),
     );
     const memo = (await mRes.json()) as MemoResult;
     const mCost = costSince(start);

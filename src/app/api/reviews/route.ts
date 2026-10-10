@@ -2,6 +2,7 @@
 // supplierName set → reviews of that supplier; supplierName empty → reviews of the machine model.
 // Cache first (demo-safe); on a miss with search + AI keys, the AI reads live results (spec §7.3).
 // The flag itself always comes from the code rules in lib/reputation.ts.
+import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import reviewsCache from "@/data/cache/reviews.json";
 import { aiEnabled, aiJson } from "@/lib/ai";
@@ -40,6 +41,8 @@ function lookupReviews(name: string, about: ReviewPoint["about"]): CachedReviews
 }
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const body = (await request.json().catch(() => ({}))) as { supplierName?: string; model?: string | null };
   const supplierName = body.supplierName?.trim() ?? "";
   const model = body.model?.trim() || null;

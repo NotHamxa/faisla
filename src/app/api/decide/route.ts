@@ -1,4 +1,5 @@
 // POST /api/decide: company + offers + financing → comparison JSON. All maths in lib/finance.ts (no AI).
+import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { decide } from "@/lib/finance";
 import type { DecideInput } from "@/lib/types";
@@ -59,6 +60,8 @@ const decideInputSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   let body: unknown;
   try {
     body = await request.json();

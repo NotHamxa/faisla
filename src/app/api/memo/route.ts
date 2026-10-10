@@ -1,5 +1,6 @@
 // POST /api/memo: decision → one-page memo. The AI writes prose from a facts list built by code;
 // every number in its draft is checked against that list. Unknown numbers → retry (max 2) → template.
+import { apiUser } from "@/lib/auth/api";
 import { aiEnabled, aiText } from "@/lib/ai";
 import { allowedNumbers, memoFacts, type MemoContext } from "@/lib/memoFacts";
 import { comparisonTable, ensurePaymentRisks, memoTemplate } from "@/lib/memoTemplate";
@@ -33,6 +34,8 @@ Numbers (strict, checked by code):
 - The supplier's "0%" claim may only appear inside quotation marks.`;
 
 export async function POST(request: Request): Promise<Response> {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   let body: MemoRequest;
   try {
     body = (await request.json()) as MemoRequest;

@@ -1,5 +1,6 @@
 // Demo account and sample decisions, so the dashboard has history on first login.
 // Market and reputation results come from the same cached pipelines the app uses; money from finance.ts.
+import { INTERNAL_HEADER, INTERNAL_TOKEN } from "@/lib/auth/api";
 import "server-only";
 import { POST as marketPost } from "@/app/api/market/route";
 import { POST as reviewsPost } from "@/app/api/reviews/route";
@@ -19,7 +20,11 @@ const DAY = 24 * 60 * 60 * 1000;
 async function callJson<T>(handler: (r: Request) => Promise<Response>, body: unknown): Promise<T | null> {
   try {
     const res = await handler(
-      new Request("http://localhost/seed", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+      new Request("http://localhost/seed", {
+        method: "POST",
+        headers: { "content-type": "application/json", [INTERNAL_HEADER]: INTERNAL_TOKEN },
+        body: JSON.stringify(body),
+      }),
     );
     return res.ok ? ((await res.json()) as T) : null;
   } catch {

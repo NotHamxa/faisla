@@ -1,5 +1,6 @@
 // POST /api/bank-email: chosen financing row → term-sheet request to the bank's SME desk (a test inbox).
 // The body is a code template: every number comes from the decision, none from AI.
+import { apiUser } from "@/lib/auth/api";
 import { sendEmail } from "@/lib/email";
 import { amortisation } from "@/lib/finance";
 import { formatPKR, formatPct, groupPKR } from "@/lib/format";
@@ -21,6 +22,8 @@ type BankEmailResponse = {
 };
 
 export async function POST(request: Request): Promise<Response> {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   let body: BankEmailRequest;
   try {
     body = (await request.json()) as BankEmailRequest;

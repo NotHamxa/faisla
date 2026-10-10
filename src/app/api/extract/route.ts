@@ -1,6 +1,7 @@
 // POST /api/extract — quotation photo/PDF → Quotation draft for the confirm screen.
 // Accepts multipart form-data with `file`, or JSON { demo: true }. The AI only copies what is printed;
 // checkArithmetic (code) flags anything that doesn't add up.
+import { apiUser } from "@/lib/auth/api";
 import { normalizeIban } from "@/lib/fraud";
 import { z } from "zod";
 import { aiEnabled, aiJson, type ImageInput } from "@/lib/ai";
@@ -69,6 +70,8 @@ Rules:
 const PROMPT = "Extract this supplier quotation into the JSON schema.";
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {

@@ -3,6 +3,7 @@
 // code checks each price is written in the listing, filters, dedupes, ranks and takes the median.
 // The rehearsed demo need (pattern sewer / JUKI AMS-221F) is answered from the cached, labelled
 // simulated listings without any network call.
+import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { aiEnabled, aiJson } from "@/lib/ai";
 import { DEMO_MODEL } from "@/lib/demoData";
@@ -66,6 +67,8 @@ function writtenBudget(need: string): number | null {
 }
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Describe what you need in a few words." }, { status: 400 });
   const { need } = parsed.data;

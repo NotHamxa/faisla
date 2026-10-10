@@ -3,10 +3,13 @@ import fs from "node:fs";
 import { test } from "vitest";
 import { POST } from "@/app/api/sourcing/route";
 import { usageLog } from "@/lib/ai";
+import { INTERNAL_HEADER, INTERNAL_TOKEN } from "@/lib/auth/api";
+
+const internal = { [INTERNAL_HEADER]: INTERNAL_TOKEN };
 
 test("live sourcing", async () => {
   const need = process.env.SOURCING_NEED ?? "2 industrial embroidery machines for my factory in Lahore, budget 20 lakh";
-  const res = await POST(new Request("http://localhost/api/sourcing", { method: "POST", body: JSON.stringify({ need }) }));
+  const res = await POST(new Request("http://localhost/api/sourcing", { method: "POST", body: JSON.stringify({ need }), headers: internal }));
   const body = await res.json();
   const lines = [
     `status ${res.status} cached=${body.cached} simulated=${body.simulated} note=${body.note ?? body.reason ?? ""}`,

@@ -3,6 +3,7 @@
 // POST { from, subject, body, supplierName?, qty, model, item, referenceUnitPrice, suppliers }
 //      → same extraction on pasted text (demo fallback "Paste a reply").
 // Each reply: { email: EmailRecord, offer: Offer | null, needsOwnerInput?: string }.
+import { apiUser } from "@/lib/auth/api";
 import { DEMO_ITEM, DEMO_MODEL } from "@/lib/demoData";
 import { extractPaymentDetails } from "@/lib/fraud";
 import { fetchReplies, inboxEnabled, type InboxMessage } from "@/lib/inbox";
@@ -16,6 +17,8 @@ type ReplyItem = { email: EmailRecord; offer: Offer | null; needsOwnerInput?: st
 type Context = { qty: number; model: string; item: string; referenceUnitPrice: number | null; suppliers: Supplier[] };
 
 export async function GET(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const params = new URL(request.url).searchParams;
   if (!inboxEnabled()) return Response.json({ replies: [], simulated: true });
 
@@ -44,6 +47,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const body = (await request.json().catch(() => ({}))) as {
     from?: string;
     subject?: string;

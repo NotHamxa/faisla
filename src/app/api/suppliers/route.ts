@@ -1,6 +1,7 @@
 // POST { item, model, city, excludeSupplier?, live? } → { suppliers: Supplier[] }.
 // The demo list always comes back instantly. With `live: true` and search + AI keys, up to two
 // web-found dealers are appended (contact email = TEST_INBOX, so nothing reaches a real company).
+import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { aiEnabled, aiJson } from "@/lib/ai";
 import { DEMO_ITEM, DEMO_MODEL } from "@/lib/demoData";
@@ -20,6 +21,8 @@ const dealerSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const body = (await request.json().catch(() => ({}))) as {
     item?: string;
     model?: string;

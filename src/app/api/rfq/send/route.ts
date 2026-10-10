@@ -1,6 +1,7 @@
 // POST { supplier, item, model, qty, company } → { email: EmailRecord, error? }.
 // AI writes the RFQ (spec §7.4, template if AI is unavailable); lib/email sends it to a test inbox.
 // The subject names the supplier so their "Re:" reply can be matched back to them.
+import { apiUser } from "@/lib/auth/api";
 import { aiText } from "@/lib/ai";
 import { DEMO_ITEM, DEMO_MODEL, demoCompany } from "@/lib/demoData";
 import { sendEmail } from "@/lib/email";
@@ -17,6 +18,8 @@ type Body = {
 };
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const body = (await request.json().catch(() => ({}))) as Body;
   const supplier = body.supplier;
   if (!supplier?.name || !supplier.email) {

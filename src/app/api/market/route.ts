@@ -2,6 +2,7 @@
 // Pipeline (spec §7.2): search (cache first) → AI reads listings → code filters → medians → % above.
 // Cached demo entries carry their pre-read cleaning, so the demo answers instantly without the web;
 // `fresh: true` forces the AI to re-read cached listings. Every number below is computed in code.
+import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { benchmarkFor } from "@/data/benchmarks";
 import { aiJson } from "@/lib/ai";
@@ -24,6 +25,8 @@ const cleaningSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const authed = await apiUser(request);
+  if (authed instanceof Response) return authed;
   const body = (await request.json().catch(() => ({}))) as {
     model?: string;
     quotedUnitPrice?: number | null;
