@@ -6,7 +6,7 @@ import { z } from "zod";
 import reviewsCache from "@/data/cache/reviews.json";
 import { aiEnabled, aiJson } from "@/lib/ai";
 import { scoreReputation, type ScorableReview } from "@/lib/reputation";
-import { normalizeQuery, searchEnabled, webSearch } from "@/lib/search";
+import { isSimulatedSeller, normalizeQuery, searchEnabled, webSearch } from "@/lib/search";
 import type { ReputationResult, ReviewPoint } from "@/lib/types";
 
 type CachedReviews = { name: string; about: ReviewPoint["about"]; simulated?: boolean; reviews: ScorableReview[] };
@@ -55,7 +55,10 @@ export async function POST(request: Request) {
   let note: string | null = null;
 
   if (!cached) {
-    if (searchEnabled() && aiEnabled()) {
+    if (about === "supplier" && isSimulatedSeller(subject)) {
+      // Sellers from the team-written demo listings are fictional: searching could match a real namesake.
+      note = "Simulated demo listing: this seller is fictional, so there are no reviews to search.";
+    } else if (searchEnabled() && aiEnabled()) {
       reviews = await readLiveReviews(subject, about, model);
     } else {
       note = "No cached reviews and live search is off.";

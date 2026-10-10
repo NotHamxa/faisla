@@ -54,6 +54,15 @@ export function lookupCacheByModel(model: string): SearchCacheEntry | null {
   return null;
 }
 
+// Sellers that only exist in team-written simulated listings (fictional), e.g. the demo JUKI sellers.
+export function isSimulatedSeller(name: string): boolean {
+  const key = normalizeQuery(name);
+  if (!key) return false;
+  return Object.values(fileEntries).some((entry) =>
+    (entry.cleaned ?? []).some((c) => entry.results[c.index]?.simulated && normalizeQuery(c.seller) === key),
+  );
+}
+
 // Cache first, then Tavily. Returns [] when nothing is cached and search is unavailable or fails.
 export async function webSearch(query: string, opts: { maxResults?: number } = {}): Promise<SearchResult[]> {
   const cached = lookupCache(query);
@@ -77,7 +86,8 @@ async function tavilySearch(query: string, maxResults: number): Promise<SearchRe
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
       },
-      body: JSON.stringify({ query, max_results: maxResults, search_depth: "basic" }),
+      // Pakistani results first: local marketplaces (OLX, Daraz) list prices in PKR.
+      body: JSON.stringify({ query, max_results: maxResults, search_depth: "basic", country: "pakistan" }),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {

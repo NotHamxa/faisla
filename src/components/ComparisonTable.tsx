@@ -354,7 +354,9 @@ function SummaryTiles({
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">This is the quoted plan itself.</p>
+          <p className="text-sm text-muted-foreground">
+            {decision.baselineId ? "This is the quoted plan itself." : "No supplier quotation to measure savings against."}
+          </p>
         )}
       </StatTile>
 

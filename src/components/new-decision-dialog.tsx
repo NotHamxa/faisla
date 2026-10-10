@@ -1,9 +1,11 @@
 "use client";
-// "New decision" dialog: name the purchase, create a draft, jump into its workspace.
+// "New decision" dialog: name the purchase, choose how to start (quotation or described need),
+// create a draft, jump into its workspace.
 // Works controlled (open/onOpenChange) or uncontrolled with an optional trigger element.
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FileText, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +20,13 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { DecisionRecord } from "@/lib/types";
+import type { DecisionOrigin, DecisionRecord } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const ORIGINS: { value: DecisionOrigin; label: string; hint: string; icon: typeof FileText }[] = [
+  { value: "quotation", label: "I have a supplier's quotation", hint: "Upload a photo or PDF", icon: FileText },
+  { value: "need", label: "Describe what I need", hint: "Faisla finds options on the web", icon: MessageSquareText },
+];
 
 export default function NewDecisionDialog({
   open,
@@ -32,13 +40,17 @@ export default function NewDecisionDialog({
   const router = useRouter();
   const [innerOpen, setInnerOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [origin, setOrigin] = useState<DecisionOrigin>("quotation");
   const [creating, setCreating] = useState(false);
   const isOpen = open ?? innerOpen;
 
   function setOpen(next: boolean) {
     if (open === undefined) setInnerOpen(next);
     onOpenChange?.(next);
-    if (!next) setTitle("");
+    if (!next) {
+      setTitle("");
+      setOrigin("quotation");
+    }
   }
 
   async function create(e: React.FormEvent) {
@@ -50,11 +62,13 @@ export default function NewDecisionDialog({
       const res = await fetch("/api/decisions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: clean }),
+        body: JSON.stringify({ title: clean, origin }),
       });
       const data = (await res.json().catch(() => null)) as { decision?: DecisionRecord; error?: string } | null;
       if (!res.ok || !data?.decision) throw new Error(data?.error ?? `Couldn't create the decision (${res.status})`);
-      toast.success("Decision created", { description: "Start by uploading the supplier's quotation." });
+      toast.success("Decision created", {
+        description: origin === "need" ? "Start by describing what you need." : "Start by uploading the supplier's quotation.",
+      });
       setOpen(false);
       router.push(`/decisions/${data.decision.id}`);
     } catch (err) {
@@ -72,7 +86,7 @@ export default function NewDecisionDialog({
           <DialogHeader>
             <DialogTitle>New purchase decision</DialogTitle>
             <DialogDescription>
-              Name what you&apos;re buying. You&apos;ll upload the quotation and compare every way to pay next.
+              Name what you&apos;re buying and how you want to start. Faisla then compares every way to pay.
             </DialogDescription>
           </DialogHeader>
           <Field>
@@ -86,6 +100,33 @@ export default function NewDecisionDialog({
               onChange={(e) => setTitle(e.target.value)}
             />
             <FieldDescription>You can rename it any time.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel id="new-decision-origin">How do you want to start?</FieldLabel>
+            <div role="radiogroup" aria-labelledby="new-decision-origin" className="grid gap-2 sm:grid-cols-2">
+              {ORIGINS.map((o) => {
+                const active = origin === o.value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setOrigin(o.value)}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                      active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                    )}
+                  >
+                    <o.icon className={cn("mt-0.5 size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium">{o.label}</span>
+                      <span className="text-xs text-muted-foreground">{o.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </Field>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>

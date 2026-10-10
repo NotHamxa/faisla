@@ -139,11 +139,13 @@ function decisionRecord(doc: WithId<DecisionDoc>): DecisionRecord {
     id: doc._id.toHexString(),
     title: doc.title,
     status: doc.status,
+    origin: doc.origin === "need" ? "need" : "quotation",
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
     decidedAt: doc.decidedAt ? doc.decidedAt.toISOString() : null,
     quotation: doc.quotation ?? null,
     quotationConfirmed: doc.quotationConfirmed ?? false,
+    sourcing: doc.sourcing ?? null,
     offers: doc.offers ?? [],
     market: doc.market ?? null,
     reputations: doc.reputations ?? {},
@@ -180,8 +182,10 @@ export async function createDecision(
   if (!companyObjectId) throw new Error("Invalid company id");
   const base = {
     title: init.title,
+    origin: init.origin ?? "quotation",
     quotation: init.quotation ?? null,
     quotationConfirmed: init.quotationConfirmed ?? false,
+    sourcing: init.sourcing ?? null,
     offers: init.offers ?? [],
     market: init.market ?? null,
     reputations: init.reputations ?? {},
@@ -207,8 +211,10 @@ export async function createDecision(
 
 const PATCHABLE: (keyof DecisionPatch)[] = [
   "title",
+  "origin",
   "quotation",
   "quotationConfirmed",
+  "sourcing",
   "offers",
   "market",
   "reputations",

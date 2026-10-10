@@ -4,17 +4,23 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 
-export type AiTier = "vision" | "fast" | "write";
+export type AiTier = "vision" | "fast" | "read" | "write";
 
 // Defaults chosen by scripts/models.live.ts: most accurate on our demo tasks, then cheapest.
 const TIER_DEFAULTS: Record<AiTier, string> = {
   vision: "gpt-6-luna", // quotation photos: 12/12 fields, ~$0.0004 a photo
   fast: "gpt-4.1-nano", // replies, search results, reviews: fastest; the code parser cross-checks prices
+  read: "gpt-6-luna", // messy multi-listing pages (marketplace search results) where nano misses items
   write: "gpt-6-luna", // RFQ email, memo: passes the number check first time
 };
 
 export function modelFor(tier: AiTier): string {
-  const env = { vision: process.env.OPENAI_MODEL_VISION, fast: process.env.OPENAI_MODEL_FAST, write: process.env.OPENAI_MODEL_WRITE }[tier];
+  const env = {
+    vision: process.env.OPENAI_MODEL_VISION,
+    fast: process.env.OPENAI_MODEL_FAST,
+    read: process.env.OPENAI_MODEL_READ,
+    write: process.env.OPENAI_MODEL_WRITE,
+  }[tier];
   return env || TIER_DEFAULTS[tier];
 }
 

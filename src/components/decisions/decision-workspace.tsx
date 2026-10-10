@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronLeft, CircleAlert, CloudCheck, Pen
 import ComparisonTable from "@/components/ComparisonTable";
 import MarketCard from "@/components/MarketCard";
 import MemoPanel from "@/components/MemoPanel";
+import NeedStep from "@/components/NeedStep";
 import QuotationStep from "@/components/QuotationStep";
 import ReputationCard from "@/components/ReputationCard";
 import SupplierPanel from "@/components/SupplierPanel";
@@ -41,6 +42,11 @@ const STEPS = [
 
 type StepValue = (typeof STEPS)[number]["value"];
 
+// Step 1 is the quotation, or "Your need" when the decision starts from a described need.
+function stepLabel(step: (typeof STEPS)[number], origin: FaislaState["origin"]): string {
+  return step.value === "quotation" && origin === "need" ? "Your need" : step.label;
+}
+
 function isStep(v: string | undefined): v is StepValue {
   return STEPS.some((s) => s.value === v);
 }
@@ -50,6 +56,7 @@ const KEEP_MOUNTED: StepValue[] = ["quotation", "market", "offers"];
 
 export default function DecisionWorkspace({ initialStep }: { initialStep?: string }) {
   const { state, status, saveStatus, reset } = useStore();
+  const labels = STEPS.map((s) => stepLabel(s, state.origin));
   const topRef = useRef<HTMLDivElement>(null);
   const done = STEPS.map((s) => s.done(state));
   const [step, setStep] = useState<StepValue>(() => {
@@ -98,7 +105,7 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
               <AlertDialogHeader>
                 <AlertDialogTitle>Start this decision over?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Clears the quotation, offers, supplier emails, comparison and memo. The title and your company profile stay.
+                  Clears the {state.origin === "need" ? "options found" : "quotation"}, offers, supplier emails, comparison and memo. The title and your company profile stay.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -108,7 +115,9 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
                   onClick={() => {
                     reset();
                     goTo("quotation");
-                    toast.success("Decision cleared", { description: "Upload a quotation to begin again." });
+                    toast.success("Decision cleared", {
+                      description: state.origin === "need" ? "Describe what you need to begin again." : "Upload a quotation to begin again.",
+                    });
                   }}
                 >
                   Start over
@@ -152,7 +161,7 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
                   >
                     {done[i] ? <Check className="size-3" strokeWidth={3} aria-label="done" /> : i + 1}
                   </span>
-                  {s.label}
+                  {labels[i]}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -161,12 +170,12 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
 
         {STEPS.map((s, i) => (
           <TabsContent key={s.value} value={s.value} keepMounted={KEEP_MOUNTED.includes(s.value)} className="flex flex-col gap-5">
-            <StepBody step={s.value} />
+            <StepBody step={s.value} origin={state.origin} />
             <div className="flex items-center justify-between gap-3 border-t pt-4">
               {i > 0 ? (
                 <Button variant="ghost" onClick={() => goTo(STEPS[i - 1].value, true)}>
                   <ArrowLeft data-icon="inline-start" />
-                  <span className="hidden sm:inline">{STEPS[i - 1].label}</span>
+                  <span className="hidden sm:inline">{labels[i - 1]}</span>
                   <span className="sm:hidden">Back</span>
                 </Button>
               ) : (
@@ -175,7 +184,7 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
               {i < STEPS.length - 1 && (
                 <Button variant={done[i] ? "default" : "outline"} onClick={() => goTo(STEPS[i + 1].value, true)}>
                   Next step
-                  <span className="hidden sm:inline">: {STEPS[i + 1].label}</span>
+                  <span className="hidden sm:inline">: {labels[i + 1]}</span>
                   <ArrowRight data-icon="inline-end" />
                 </Button>
               )}
@@ -187,10 +196,15 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
   );
 }
 
-function StepBody({ step }: { step: StepValue }) {
+function StepBody({ step, origin }: { step: StepValue; origin: FaislaState["origin"] }) {
   switch (step) {
     case "quotation":
-      return <QuotationStep />;
+      return (
+        <>
+          <OriginSwitch />
+          {origin === "need" ? <NeedStep /> : <QuotationStep />}
+        </>
+      );
     case "market":
       return (
         <div className="grid items-start gap-5 lg:grid-cols-2">
@@ -205,6 +219,26 @@ function StepBody({ step }: { step: StepValue }) {
     case "decide":
       return <MemoPanel />;
   }
+}
+
+// While step 1 is still empty, the owner can switch between uploading a quotation and describing a need.
+function OriginSwitch() {
+  const { state, update } = useStore();
+  const empty = !state.quotationConfirmed && !state.quotation && !state.sourcing && state.offers.length === 0;
+  if (!empty) return null;
+  const toNeed = state.origin !== "need";
+  return (
+    <p className="-mb-2 text-right text-xs text-muted-foreground">
+      {toNeed ? "No quotation yet? " : "Already have a quotation? "}
+      <button
+        type="button"
+        className="font-medium text-primary underline-offset-4 hover:underline"
+        onClick={() => update({ origin: toNeed ? "need" : "quotation" })}
+      >
+        {toNeed ? "Describe what you need" : "Upload it instead"}
+      </button>
+    </p>
+  );
 }
 
 function EditableTitle() {

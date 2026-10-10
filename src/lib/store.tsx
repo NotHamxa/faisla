@@ -6,6 +6,7 @@ import type {
   Company,
   CompanyRecord,
   DecideResult,
+  DecisionOrigin,
   DecisionPatch,
   DecisionRecord,
   DecisionStatus,
@@ -16,6 +17,7 @@ import type {
   Offer,
   Quotation,
   ReputationResult,
+  SourcingResult,
   Supplier,
 } from "./types";
 
@@ -23,8 +25,10 @@ export type FaislaState = {
   company: Company;
   financing: FinancingOption[];
   title: string;
-  quotation: Quotation | null; // confirmed quotation
+  origin: DecisionOrigin; // started from a quotation or from a described need
+  quotation: Quotation | null; // confirmed quotation (for a need: built from the chosen listing)
   quotationConfirmed: boolean;
+  sourcing: SourcingResult | null; // web listings found for a described need
   offers: Offer[];
   market: MarketResult | null;
   reputations: Record<string, ReputationResult>; // keyed by supplier name (or model for the product)
@@ -38,8 +42,10 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 const DECISION_KEYS = [
   "title",
+  "origin",
   "quotation",
   "quotationConfirmed",
+  "sourcing",
   "offers",
   "market",
   "reputations",
@@ -70,8 +76,10 @@ function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): Fa
     company: { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate },
     financing,
     title: decision?.title ?? "",
+    origin: decision?.origin ?? "quotation",
     quotation: decision?.quotation ?? null,
     quotationConfirmed: decision?.quotationConfirmed ?? false,
+    sourcing: decision?.sourcing ?? null,
     offers: decision?.offers ?? [],
     market: decision?.market ?? null,
     reputations: decision?.reputations ?? {},
@@ -203,6 +211,7 @@ export function StoreProvider({
     update({
       quotation: null,
       quotationConfirmed: false,
+      sourcing: null,
       offers: [],
       market: null,
       reputations: {},

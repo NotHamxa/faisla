@@ -198,20 +198,67 @@ export type MemoResult = {
 // Returned by any AI route when the model output fails validation or no key is set and no cache exists.
 export type NeedsOwnerInput = { needsOwnerInput: true; reason: string };
 
+// ---- "Describe what you need" sourcing (second way to start a decision) ----
+
+// The owner's need in plain words, structured: what to search for and the limits that matter.
+export type NeedRequest = {
+  need: string; // the owner's own words
+  item: string; // "Computer-controlled pattern sewing machine"
+  modelCandidates: string[]; // models that fit, most likely first (may be empty)
+  qty: number;
+  city: string | null;
+  budgetPkr: number | null; // total budget, only when the owner wrote one
+  searchQueries: string[]; // at most 3
+};
+
+// One web listing that survived the code filters. unitPrice is copied from the listing text, never estimated.
+export type SourcedOption = {
+  id: string; // "opt-1", in price order
+  seller: string;
+  item: string;
+  model: string | null;
+  title: string; // listing title as found
+  unitPrice: number; // PKR per unit, as written in the listing
+  condition: "new" | "unknown";
+  exactModel: boolean;
+  url: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  simulated: boolean; // demo listing written by the team (labelled in the UI)
+};
+
+export type SourcingResult = {
+  request: NeedRequest;
+  options: SourcedOption[]; // sorted by unit price, cheapest first
+  medianUnitPrice: number | null; // null when fewer than 3 prices (not enough market data)
+  minUnitPrice: number | null;
+  enoughData: boolean;
+  cached: boolean;
+  simulated: boolean;
+  note: string | null;
+  searchedAt: string; // ISO
+  selectedIds: string[]; // options the owner turned into offers (empty until chosen)
+};
+
 // ---- Management system records (MongoDB-backed, serialisable for the client) ----
 
 export type DecisionStatus = "draft" | "collecting" | "comparing" | "decided";
+
+// How the decision started: a supplier's quotation, or the owner describing what they need.
+export type DecisionOrigin = "quotation" | "need";
 
 // One purchase decision: the whole six-step workflow for one quotation.
 export type DecisionRecord = {
   id: string;
   title: string; // "4 × JUKI AMS-221F pattern sewers"
   status: DecisionStatus;
+  origin: DecisionOrigin;
   createdAt: string;
   updatedAt: string;
   decidedAt: string | null;
   quotation: Quotation | null;
   quotationConfirmed: boolean;
+  sourcing: SourcingResult | null;
   offers: Offer[];
   market: MarketResult | null;
   reputations: Record<string, ReputationResult>;
@@ -226,8 +273,10 @@ export type DecisionPatch = Partial<
   Pick<
     DecisionRecord,
     | "title"
+    | "origin"
     | "quotation"
     | "quotationConfirmed"
+    | "sourcing"
     | "offers"
     | "market"
     | "reputations"
