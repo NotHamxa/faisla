@@ -62,6 +62,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // Loaded after mount (not in useState init) so server and first client render match.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setState({ ...initialState, ...JSON.parse(raw) });
     } catch {
       // corrupted storage: start fresh

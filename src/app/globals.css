@@ -37,48 +37,46 @@ body {
   color: var(--ink);
 }
 
-/* Shared building blocks. Use these instead of re-inventing card/button styles per component. */
-@layer components {
-  .card {
-    @apply rounded-xl border border-line bg-white p-5 shadow-sm;
-  }
-  .card-title {
-    @apply text-lg font-semibold tracking-tight text-ink;
-  }
-  .card-sub {
-    @apply text-sm text-muted;
-  }
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  .btn-primary {
-    @apply btn border-brand bg-brand text-white hover:bg-brand/90;
-  }
-  .btn-ghost {
-    @apply btn border-transparent bg-transparent hover:bg-brand-soft;
-  }
-  .input {
-    @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
-  }
-  .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted;
-  }
-  .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-  .badge-good {
-    @apply badge bg-good-soft text-good;
-  }
-  .badge-warn {
-    @apply badge bg-warn-soft text-warn;
-  }
-  .badge-bad {
-    @apply badge bg-bad-soft text-bad;
-  }
-  .badge-muted {
-    @apply badge bg-paper text-muted;
-  }
-  .num {
-    @apply font-mono tabular-nums;
-  }
+/* Shared building blocks (Tailwind v4 utilities, so they can be composed with @apply and variants). */
+@utility card {
+  @apply rounded-xl border border-line bg-white p-5 shadow-sm;
+}
+@utility card-title {
+  @apply text-lg font-semibold tracking-tight text-ink;
+}
+@utility card-sub {
+  @apply text-sm text-muted;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn border-brand bg-brand text-white hover:bg-brand/90;
+}
+@utility btn-ghost {
+  @apply btn border-transparent bg-transparent hover:bg-brand-soft;
+}
+@utility input {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+}
+@utility label {
+  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted;
+}
+@utility badge {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+@utility badge-good {
+  @apply badge bg-good-soft text-good;
+}
+@utility badge-warn {
+  @apply badge bg-warn-soft text-warn;
+}
+@utility badge-bad {
+  @apply badge bg-bad-soft text-bad;
+}
+@utility badge-muted {
+  @apply badge bg-paper text-muted;
+}
+@utility num {
+  @apply font-mono tabular-nums;
 }
