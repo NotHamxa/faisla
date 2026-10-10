@@ -31,7 +31,7 @@ Each purchase is a **decision** with five steps (tabs). There are two ways to st
 | --- | --- |
 | 1. Quotation / Your need | One of the two starts above |
 | 2. Price & reputation | Quoted price vs web prices and a benchmark ("% above market"); supplier and product reviews scored by code as good / mixed / red flags |
-| 3. Competing offers | Faisla finds other suppliers and emails them an RFQ. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("13.4 lakh per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback |
+| 3. Competing offers | Faisla finds other suppliers and emails them an RFQ. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("67 hazar per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback |
 | 4. Compare | Every way to pay: cash, installments, bank loan, LTFF. PV before and after tax, cash runway, verdict, "Show calculation" per row, KIBOR stress slider, break-even discount rate, Assumptions card |
 | 5. Decide | Decision memo built from the code's numbers (every number checked), PDF export, and a "Request term sheet" email to the bank with a 36-month repayment schedule attached |
 
@@ -170,8 +170,10 @@ arrears unless the quotation says the first installment is due on delivery.
 ### Demo results
 
 Hamza Garments (fictional, Faisalabad exporter): Rs 1 crore cash, Rs 35 lakh/month fixed costs, 29% tax.
-Supplier A quotes 4 machines × Rs 15 lakh, "12 × Rs 5,00,000 at 0% markup" or 8% off for cash. Supplier B
-replies Rs 13.4 lakh each. Loans: 10% down, 36 months; bank 14.8% (KIBOR + 3%), LTFF 8.5% (policy 11.5% − 3%).
+The machine is real: 80 × Jack F5 direct-drive lockstitch machines (new units are listed in Pakistan at
+Rs 63,000–79,000, median Rs 70,000). Supplier A quotes 80 × Rs 75,000 = Rs 60 lakh, "12 × Rs 5,00,000 at 0% markup"
+or 8% off for cash (~9% above the market benchmark). Supplier B replies Rs 67,000 each (Rs 53.6 lakh).
+Loans: 10% down, 36 months; bank 14.8% (KIBOR + 3%), LTFF 8.5% (policy 11.5% − 3%).
 
 | Option | Pay | PV before tax | PV after tax | Runway (months) | Verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -210,13 +212,16 @@ This is a hackathon demo. The following are **fictional or simulated** and label
 
 - The company (Hamza Garments), its cash, costs and tax profile, and the seeded sample decisions.
 - Supplier A's quotation (Al-Noor Industrial Machines) and the supplier contacts (Madina Sewing Solutions, Karachi Garment Tech).
-- The 60-row price benchmark table ("simulated benchmark").
-- The cached JUKI AMS-221F web prices: no real PKR listings for that model were found online, so the team wrote them; their links open real marketplace search pages.
-- The cached supplier and product reviews.
+- The 60-row price benchmark table ("simulated benchmark", median Rs 68,700, set close to the real web median).
+- The cached supplier reviews (Al-Noor, Madina, Karachi Garment Tech); their links open real search pages, not the source of the quote.
 - The bank's SME desk, which is a team test inbox.
 
-**Real inputs:** with API keys set, a described need for anything else searches the live web and returns real
-listings, and supplier replies arrive as real emails. All outgoing emails go only to team test inboxes, never
+**Real data:** the demo machine (Jack F5) and its cached web prices are real listings with links, collected
+10 Oct 2026: two new units on OLX (Rs 79,000 and Rs 70,000, Lahore) and a Lahore dealer video (Rs 63,000); the
+cleaning rules drop a used Jack F6, a Jack F4 and two results without a PKR price, leaving a median of Rs 70,000.
+The cached Jack F5 product reviews are real (Amazon.de, Reddit, Facebook, a review site), each with its link.
+With API keys set, a described need for anything else searches the live web and returns real listings, and
+supplier replies arrive as real emails. All outgoing emails go only to team test inboxes, never
 to real companies. SBP policy rate (11.5%), KIBOR, the LTFF rate and the tax treatment are our best reading at
 the time of the demo; banks must confirm them, which is why the app emails the bank for a term sheet.
 

@@ -102,7 +102,7 @@ export function AppSidebar({
             <SidebarMenuButton size="lg" tooltip="Dashboard" render={<Link href="/dashboard" onClick={onNavigate} />}>
               <BrandMark />
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold tracking-tight">Faisla</span>
+                <span className="truncate font-heading text-[0.9375rem] font-bold">Faisla</span>
                 <span className="truncate text-xs text-muted-foreground">{companyName}</span>
               </div>
             </SidebarMenuButton>
@@ -152,7 +152,7 @@ export function AppSidebar({
                 render={<SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground" />}
               >
                 <Avatar className="size-8 rounded-lg after:rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-primary/10 font-medium text-primary">{initials(user.name)}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg border border-sidebar-border bg-sidebar font-mono text-xs font-medium text-foreground">{initials(user.name)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -165,7 +165,7 @@ export function AppSidebar({
                   <DropdownMenuLabel className="p-0 font-normal">
                     <div className="flex items-center gap-2 px-1.5 py-1.5 text-left text-sm">
                       <Avatar className="size-8 rounded-lg after:rounded-lg">
-                        <AvatarFallback className="rounded-lg bg-primary/10 font-medium text-primary">{initials(user.name)}</AvatarFallback>
+                        <AvatarFallback className="rounded-lg border border-border bg-card font-mono text-xs font-medium text-foreground">{initials(user.name)}</AvatarFallback>
                       </Avatar>
                       <div className="grid flex-1 leading-tight">
                         <span className="truncate font-medium text-foreground">{user.name}</span>

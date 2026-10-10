@@ -6,7 +6,7 @@ export function BrandMark({ className }: { className?: string }) {
     <div
       aria-hidden
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-lg leading-none font-semibold text-primary-foreground",
+        "flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-primary pb-0.5 text-lg leading-none font-semibold text-primary-foreground",
         className,
       )}
     >

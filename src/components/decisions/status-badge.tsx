@@ -11,12 +11,12 @@ export const STATUS_LABEL: Record<DecisionStatus, string> = {
 };
 
 const STATUS_CLASS: Record<DecisionStatus, string> = {
-  draft: "border-border bg-muted text-muted-foreground",
-  collecting: "bg-accent text-accent-foreground",
-  comparing: "bg-warning/10 text-warning",
-  decided: "bg-success/10 text-success",
+  draft: "",
+  collecting: "border-primary/40 text-primary",
+  comparing: "border-warning/50 text-warning",
+  decided: "border-success/40 text-success",
 };
 
 export function DecisionStatusBadge({ status, className }: { status: DecisionStatus; className?: string }) {
-  return <Badge className={cn(STATUS_CLASS[status], className)}>{STATUS_LABEL[status]}</Badge>;
+  return <Badge variant="muted" className={cn(STATUS_CLASS[status], className)}>{STATUS_LABEL[status]}</Badge>;
 }

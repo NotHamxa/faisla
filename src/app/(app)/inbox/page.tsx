@@ -24,8 +24,8 @@ export default async function InboxPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
+      <div className="space-y-1 border-b border-foreground/80 pb-4">
+        <h1 className="text-[1.75rem] leading-tight font-bold">Inbox</h1>
         <p className="text-sm text-muted-foreground">
           RFQs sent to suppliers, their replies (AI reads them, code checks the numbers) and term-sheet requests to the
           bank.

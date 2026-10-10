@@ -10,8 +10,8 @@ import {
   PaperclipIcon,
   PrinterIcon,
   ShieldAlertIcon,
+  PenLineIcon,
   ShieldCheckIcon,
-  SparklesIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -148,12 +148,12 @@ export default function MemoPanel() {
       <Card>
         <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
           <div className="space-y-1">
-            <CardTitle className="text-lg font-semibold">Decision memo</CardTitle>
+            <CardTitle className="text-xl font-bold">Decision memo</CardTitle>
             <CardDescription>AI writes the words; every number comes from the calculation and is checked by code.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:justify-end">
             <Button onClick={writeMemo} disabled={memoLoading}>
-              {memoLoading ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
+              {memoLoading ? <Spinner data-icon="inline-start" /> : <PenLineIcon data-icon="inline-start" />}
               {memoLoading ? "Writing memo…" : memo ? "Rewrite memo" : "Write decision memo"}
             </Button>
             <Button
@@ -207,14 +207,14 @@ export default function MemoPanel() {
       {memo ? (
         <article
           className={cn(
-            "faisla-print-memo mx-auto w-full max-w-4xl rounded-xl border bg-card px-6 py-8 text-card-foreground shadow-sm transition-opacity sm:px-10 sm:py-10",
+            "faisla-print-memo mx-auto w-full max-w-4xl rounded-[2px] border border-foreground/25 bg-card px-6 py-8 text-card-foreground transition-opacity sm:px-14 sm:py-12",
             memoLoading && "opacity-50",
           )}
         >
           <Markdown text={memo.memo} />
         </article>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-[2px] border border-dashed border-foreground/25 px-6 py-10 text-center">
           <FileTextIcon className="size-6 text-muted-foreground" />
           <p className="text-sm font-medium">No memo yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">
@@ -232,9 +232,9 @@ export default function MemoPanel() {
                 Term-sheet request
               </CardTitle>
               {bankEmail.simulated ? (
-                <Badge className="bg-warning/10 text-warning">Simulated (no email keys set)</Badge>
+                <Badge variant="warning">Simulated (no email keys set)</Badge>
               ) : (
-                <Badge className="bg-success/10 text-success">Sent</Badge>
+                <Badge variant="success">Sent</Badge>
               )}
             </div>
             <CardDescription>
@@ -244,7 +244,7 @@ export default function MemoPanel() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm font-medium">{bankEmail.subject}</p>
-            <pre className="max-h-80 overflow-auto rounded-lg bg-muted/50 p-3 font-sans text-sm whitespace-pre-wrap">
+            <pre className="max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-sans text-sm whitespace-pre-wrap">
               {bankEmail.body}
             </pre>
             {bankReply?.attachment && (
@@ -256,7 +256,7 @@ export default function MemoPanel() {
                   Attachment: {bankReply.attachment.filename}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-muted/50 p-3 font-mono text-xs tabular-nums">
+                  <pre className="mt-2 max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-mono text-xs tabular-nums">
                     {bankReply.attachment.content}
                   </pre>
                 </CollapsibleContent>
@@ -277,7 +277,7 @@ function NumberCheck({ memo }: { memo: MemoResult }) {
       {memo.source === "llm" ? (
         <Badge variant="outline">Written by AI</Badge>
       ) : (
-        <Badge className="bg-warning/10 text-warning">Template memo used</Badge>
+        <Badge variant="warning">Template memo used</Badge>
       )}
       {memo.source === "llm" && attempts > 1 && <Badge variant="outline">passed on draft {attempts}</Badge>}
     </div>
@@ -296,7 +296,7 @@ function NumberCheck({ memo }: { memo: MemoResult }) {
     );
   }
   return (
-    <Alert className="border-success/30 bg-success/5">
+    <Alert className="border-success/40 border-l-success">
       <ShieldCheckIcon className="text-success" />
       <AlertTitle className="text-success">
         {memo.source === "template"
@@ -385,7 +385,7 @@ function inline(text: string): ReactNode[] {
     }
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
       return (
-        <code key={i} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
+        <code key={i} className="rounded-[2px] bg-muted px-1 py-0.5 font-mono text-[0.85em]">
           {part.slice(1, -1)}
         </code>
       );
@@ -397,25 +397,25 @@ function inline(text: string): ReactNode[] {
 
 function Markdown({ text }: { text: string }) {
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-foreground">
+    <div className="space-y-3.5 font-serif text-[0.9375rem] leading-[1.7] text-foreground">
       {parseBlocks(text).map((b, i) => {
         if (b.kind === "h") {
           if (b.level === 1) {
             return (
-              <h2 key={i} className="border-b pb-3 text-2xl font-semibold tracking-tight">
+              <h2 key={i} className="rule-double pb-3 font-sans text-[1.75rem] leading-tight font-bold">
                 {inline(b.text)}
               </h2>
             );
           }
           if (b.level === 2) {
             return (
-              <h3 key={i} className="pt-3 text-base font-semibold text-primary">
+              <h3 key={i} className="border-b pt-4 pb-1 font-sans text-[0.8125rem] font-bold tracking-[0.04em] text-primary">
                 {inline(b.text)}
               </h3>
             );
           }
           return (
-            <h4 key={i} className="pt-1 font-semibold">
+            <h4 key={i} className="pt-1 font-sans font-semibold">
               {inline(b.text)}
             </h4>
           );
@@ -434,12 +434,12 @@ function Markdown({ text }: { text: string }) {
           );
         }
         return (
-          <div key={i} className="overflow-x-auto rounded-lg border">
+          <div key={i} className="overflow-x-auto border-y border-foreground/70 font-sans">
             <table className="w-full border-collapse text-left text-xs">
-              <thead className="bg-muted/50">
-                <tr className="border-b text-muted-foreground">
+              <thead>
+                <tr className="border-b border-foreground/30 text-muted-foreground">
                   {b.header.map((h, j) => (
-                    <th key={j} className="px-2.5 py-2 font-medium">
+                    <th key={j} className="px-2.5 py-2 font-semibold">
                       {inline(h)}
                     </th>
                   ))}

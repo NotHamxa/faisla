@@ -13,8 +13,8 @@ export default async function FinancingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Financing</h1>
+      <div className="space-y-1 border-b border-foreground/80 pb-4">
+        <h1 className="text-[1.75rem] leading-tight font-bold">Financing</h1>
         <p className="text-sm text-muted-foreground">
           The loan options every decision compares against cash and supplier installments. Changes apply to new
           comparisons.

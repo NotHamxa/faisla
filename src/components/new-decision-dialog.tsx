@@ -95,7 +95,7 @@ export default function NewDecisionDialog({
               id="new-decision-title"
               autoFocus
               maxLength={120}
-              placeholder="e.g. 4 × JUKI AMS-221F pattern sewers"
+              placeholder="e.g. 80 × Jack F5 lockstitch machines"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -114,8 +114,8 @@ export default function NewDecisionDialog({
                     aria-checked={active}
                     onClick={() => setOrigin(o.value)}
                     className={cn(
-                      "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                      active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40",
+                      "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      active ? "border-primary border-l-[3px] bg-card" : "border-border hover:bg-muted/60",
                     )}
                   >
                     <o.icon className={cn("mt-0.5 size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />

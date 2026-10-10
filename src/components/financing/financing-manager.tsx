@@ -289,8 +289,8 @@ function SaveState({ dirty, valid, status }: { dirty: boolean; valid: boolean; s
 function RateTile({ label, value, href, source }: { label: string; value: string; href: string; source: string }) {
   return (
     <div className="rounded-lg border p-4">
-      <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</div>
-      <div className="mt-1 font-mono text-3xl font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="ledger-label">{label}</div>
+      <div className="mt-1 font-mono text-3xl font-medium tabular-nums">{value}</div>
       <a
         href={href}
         target="_blank"
@@ -310,7 +310,7 @@ function RatesCard({ className }: { className?: string }) {
         <CardTitle>Reference rates</CardTitle>
         <CardDescription>Where the loan rates come from. Code uses these; AI never sets a rate.</CardDescription>
         <CardAction>
-          <Badge className="bg-warning/10 text-warning">
+          <Badge variant="warning">
             <TriangleAlertIcon data-icon="inline-start" />
             Verify before demo
           </Badge>
@@ -365,7 +365,7 @@ function EligibilityCard({ company, options }: { company: Company; options: Fina
       </CardHeader>
       <CardContent className="space-y-3">
         {company.isExporter ? (
-          <Alert className="border-success/30 bg-success/5">
+          <Alert className="border-success/40 border-l-success">
             <BadgeCheckIcon className="text-success" />
             <AlertTitle className="text-success">Exporter: LTFF eligible</AlertTitle>
             <AlertDescription>
@@ -374,7 +374,7 @@ function EligibilityCard({ company, options }: { company: Company; options: Fina
             </AlertDescription>
           </Alert>
         ) : (
-          <Alert className="border-warning/30 bg-warning/5">
+          <Alert className="border-warning/50 border-l-warning">
             <TriangleAlertIcon className="text-warning" />
             <AlertTitle className="text-warning">Not marked as an exporter</AlertTitle>
             <AlertDescription>
@@ -419,7 +419,7 @@ function OptionEditor({
   return (
     <div className="rounded-lg border p-4">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="flex size-6 items-center justify-center rounded-full bg-muted font-mono text-xs tabular-nums">
+        <span className="flex size-6 items-center justify-center rounded-[2px] border font-mono text-xs tabular-nums">
           {index + 1}
         </span>
         <div className="inline-flex rounded-lg border p-0.5" role="radiogroup" aria-label="Loan type">
@@ -436,7 +436,7 @@ function OptionEditor({
             </Button>
           ))}
         </div>
-        {!eligible && <Badge className="bg-warning/10 text-warning">Skipped: not an exporter</Badge>}
+        {!eligible && <Badge variant="warning">Skipped: not an exporter</Badge>}
         <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" onClick={onRemove}>
           <Trash2Icon data-icon="inline-start" />
           Remove
@@ -641,12 +641,12 @@ function EmiCalculator({ options, company }: { options: FinancingOption[]; compa
                 {rows.map((r) => {
                   const best = cheapest?.option.id === r.option.id && rows.length > 1;
                   return (
-                    <TableRow key={r.option.id} className={cn(best && "bg-primary/5 hover:bg-primary/10", !r.eligible && "opacity-60")}>
+                    <TableRow key={r.option.id} className={cn(best && "bg-muted/60 hover:bg-muted", !r.eligible && "opacity-60")}>
                       <TableCell className="py-3 pl-4 whitespace-normal">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-medium">{r.option.name}</span>
                           {best && <Badge>Cheapest</Badge>}
-                          {!r.eligible && <Badge className="bg-warning/10 text-warning">Not eligible</Badge>}
+                          {!r.eligible && <Badge variant="warning">Not eligible</Badge>}
                         </div>
                         {r.stressed !== null && (
                           <div className="text-xs text-muted-foreground">

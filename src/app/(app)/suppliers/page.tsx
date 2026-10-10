@@ -13,8 +13,8 @@ export default async function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
+      <div className="space-y-1 border-b border-foreground/80 pb-4">
+        <h1 className="text-[1.75rem] leading-tight font-bold">Suppliers</h1>
         <p className="text-sm text-muted-foreground">
           Everyone who quoted, was sent an RFQ or replied, across all your decisions. Reputation is scored by code
           from reviews; it flags risks but never changes the money figures.

@@ -48,12 +48,12 @@ export async function seedSampleDecisions(companyId: string): Promise<void> {
   const company = await getCompany(companyId);
   if (!company) return;
   if ((await listDecisions(companyId)).length > 0) return;
-  await seedDecidedJuki(company);
+  await seedDecidedJack(company);
   await seedGeneratorInProgress(company);
   await createDecision(companyId, { title: "Fabric cutting machine (draft)" }, { createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) });
 }
 
-async function seedDecidedJuki(company: CompanyRecord) {
+async function seedDecidedJack(company: CompanyRecord) {
   const decidedAt = new Date(Date.now() - 3 * DAY);
   const offerB: Offer = { ...demoOfferB, receivedAt: new Date(decidedAt.getTime() - 4 * 60 * 60 * 1000).toISOString() };
   const offers = [demoOfferA, offerB];
@@ -75,8 +75,8 @@ async function seedDecidedJuki(company: CompanyRecord) {
       id: "seed-rfq-b",
       direction: "out",
       toFrom: suppliers[0]?.email ?? "supplier-b@example.com",
-      subject: `RFQ for ${offerB.supplierName}: 4 x ${DEMO_MODEL} - ${company.name}`,
-      body: `Dear ${offerB.supplierName},\n\n${company.name} (${company.city}) would like a quotation for 4 × ${DEMO_MODEL}. Please share your unit price, delivery time, warranty, and cash vs installment terms.\n\nRegards,\n${company.name}`,
+      subject: `RFQ for ${offerB.supplierName}: ${demoOfferA.qty} x ${DEMO_MODEL} - ${company.name}`,
+      body: `Dear ${offerB.supplierName},\n\n${company.name} (${company.city}) would like a quotation for ${demoOfferA.qty} × ${DEMO_MODEL}. Please share your unit price, delivery time, warranty, and cash vs installment terms.\n\nRegards,\n${company.name}`,
       offerId: null,
       sentAt: new Date(decidedAt.getTime() - 6 * 60 * 60 * 1000).toISOString(),
       simulated: true,
@@ -85,7 +85,7 @@ async function seedDecidedJuki(company: CompanyRecord) {
       id: "seed-reply-b",
       direction: "in",
       toFrom: suppliers[0]?.email ?? "supplier-b@example.com",
-      subject: `Re: RFQ for ${offerB.supplierName}: 4 x ${DEMO_MODEL} - ${company.name}`,
+      subject: `Re: RFQ for ${offerB.supplierName}: ${demoOfferA.qty} x ${DEMO_MODEL} - ${company.name}`,
       body: DEMO_SUPPLIER_B_REPLY,
       offerId: offerB.id,
       sentAt: offerB.receivedAt,
@@ -101,7 +101,7 @@ async function seedDecidedJuki(company: CompanyRecord) {
   await createDecision(
     company.id,
     {
-      title: `4 × ${DEMO_MODEL} pattern sewers`,
+      title: `${demoOfferA.qty} × ${DEMO_MODEL} lockstitch machines`,
       quotation: demoQuotation,
       quotationConfirmed: true,
       offers,

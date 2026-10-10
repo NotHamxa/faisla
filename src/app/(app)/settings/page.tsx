@@ -26,8 +26,8 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <div className="space-y-1 border-b border-foreground/80 pb-4">
+        <h1 className="text-[1.75rem] leading-tight font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">Your company profile, account and how Faisla looks.</p>
       </div>
 
@@ -95,7 +95,7 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border p-4">
+            <div className="rounded-[2px] border border-t-[3px] border-t-primary p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <SparklesIcon className="size-4 text-primary" />
                 AI reads
@@ -105,7 +105,7 @@ export default async function SettingsPage() {
                 into structured fields you can check. AI also writes the memo&apos;s words.
               </p>
             </div>
-            <div className="rounded-lg border p-4">
+            <div className="rounded-[2px] border border-t-[3px] border-t-primary p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <CalculatorIcon className="size-4 text-primary" />
                 Code calculates
@@ -118,7 +118,7 @@ export default async function SettingsPage() {
           </div>
 
           <div>
-            <h3 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">Simulated data</h3>
+            <h3 className="mb-2 text-sm font-semibold">Simulated data</h3>
             <ul className="divide-y rounded-lg border text-sm">
               {SIMULATED.map((s) => (
                 <li key={s.what} className="flex flex-col gap-0.5 p-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">

@@ -1,8 +1,8 @@
 // POST { need, qty?, city?, budget? } → SourcingResponse (or NeedsOwnerInput).
 // "Describe what you need": AI structures the need → search (cache first) → AI reads listings →
 // code checks each price is written in the listing, filters, dedupes, ranks and takes the median.
-// The rehearsed demo need (pattern sewer / JUKI AMS-221F) is answered from the cached, labelled
-// simulated listings without any network call.
+// The rehearsed demo need (direct-drive lockstitch / Jack F5) is answered from the cached real
+// listings (src/data/cache/search.json) without any network call.
 import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { aiEnabled, aiJson } from "@/lib/ai";
@@ -191,7 +191,7 @@ function emptyResult(req: NeedRequest, cached: boolean): SourcingResponse {
   };
 }
 
-// The cached JUKI entry carries its pre-read cleaning, so the demo answers instantly and offline.
+// The cached Jack F5 entry carries its pre-read cleaning, so the demo answers instantly and offline.
 function fromDemoCache(
   need: string,
   input: { qty: number | null; city: string | null; budget: number | null },

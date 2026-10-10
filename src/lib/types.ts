@@ -217,7 +217,7 @@ export type NeedsOwnerInput = { needsOwnerInput: true; reason: string };
 // The owner's need in plain words, structured: what to search for and the limits that matter.
 export type NeedRequest = {
   need: string; // the owner's own words
-  item: string; // "Computer-controlled pattern sewing machine"
+  item: string; // "Direct-drive lockstitch sewing machine"
   modelCandidates: string[]; // models that fit, most likely first (may be empty)
   qty: number;
   city: string | null;
@@ -264,7 +264,7 @@ export type DecisionOrigin = "quotation" | "need";
 // One purchase decision: the whole six-step workflow for one quotation.
 export type DecisionRecord = {
   id: string;
-  title: string; // "4 × JUKI AMS-221F pattern sewers"
+  title: string; // "80 × Jack F5 lockstitch machines"
   status: DecisionStatus;
   origin: DecisionOrigin;
   createdAt: string;

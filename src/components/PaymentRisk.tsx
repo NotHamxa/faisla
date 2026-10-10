@@ -45,14 +45,15 @@ export function PaymentRiskBanner() {
 
 function RiskCard({ risk, onConfirm }: { risk: PaymentRisk; onConfirm: (confirmed: boolean) => void }) {
   const high = risk.level === "high";
+  // A ruled notice: hairline frame, a heavy bar on the left in the risk colour, no tinted wash.
   const tone = risk.confirmed
-    ? "border-success/40 bg-success/5"
+    ? "border-success/45 border-l-success"
     : high
-      ? "border-destructive/50 bg-destructive/5"
-      : "border-warning/40 bg-warning/10";
+      ? "border-destructive/60 border-l-destructive"
+      : "border-warning/55 border-l-warning";
   const Icon = risk.confirmed ? ShieldCheck : high ? ShieldAlert : TriangleAlert;
   return (
-    <div role="alert" className={cn("rounded-xl border p-4 text-sm", tone)}>
+    <div role="alert" className={cn("rounded-[2px] border border-l-[5px] bg-card px-4 py-3.5 text-sm", tone)}>
       <div className="flex items-start gap-3">
         <Icon
           className={cn(
@@ -62,7 +63,7 @@ function RiskCard({ risk, onConfirm }: { risk: PaymentRisk; onConfirm: (confirme
         />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold">
+            <p className="font-heading text-[0.9375rem] font-bold">
               {risk.confirmed
                 ? `Payment details confirmed by phone: ${risk.supplierName}`
                 : high
@@ -79,11 +80,11 @@ function RiskCard({ risk, onConfirm }: { risk: PaymentRisk; onConfirm: (confirme
             </ul>
           )}
           {!risk.confirmed && high && (
-            <p className="font-medium text-destructive">
+            <p className="border-t border-destructive/30 pt-2 font-semibold text-destructive">
               Do not pay. Payment and the bank term-sheet request are blocked until you confirm the account.
             </p>
           )}
-          <label className="flex w-fit cursor-pointer items-center gap-2 pt-1">
+          <label className="flex w-fit cursor-pointer items-start gap-2 pt-1 sm:items-center">
             <Checkbox checked={risk.confirmed} onCheckedChange={(c) => onConfirm(Boolean(c))} />
             <PhoneCall className="size-3.5 text-muted-foreground" />
             <span>I confirmed this account by phone on a number I already had (not one from the email)</span>
@@ -95,8 +96,8 @@ function RiskCard({ risk, onConfirm }: { risk: PaymentRisk; onConfirm: (confirme
 }
 
 export function RiskBadge({ risk }: { risk: PaymentRisk }) {
-  if (risk.confirmed) return <Badge className="bg-success/10 text-success">Confirmed by phone</Badge>;
-  if (risk.level === "high") return <Badge variant="destructive">High risk</Badge>;
-  if (risk.level === "medium") return <Badge className="bg-warning/10 text-warning">Medium risk</Badge>;
-  return <Badge variant="outline">Low risk</Badge>;
+  if (risk.confirmed) return <Badge variant="success">Confirmed by phone</Badge>;
+  if (risk.level === "high") return <Badge className="bg-destructive text-white">High risk</Badge>;
+  if (risk.level === "medium") return <Badge variant="warning">Medium risk</Badge>;
+  return <Badge variant="muted">Low risk</Badge>;
 }

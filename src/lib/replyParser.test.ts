@@ -19,10 +19,10 @@ describe("parseAmounts", () => {
 
   it("reads a total-only Roman Urdu reply as a unit price", () => {
     const x = parseReplyText(
-      "JUKI AMS-221F ki 4 units ka total 53 lakh 60 hazar banega, 30% advance baqi delivery pe. Delivery 2 hafte, warranty 6 mahine.",
-      { referenceUnitPrice: 15_00_000 },
+      "Jack F5 ki 80 units ka total 53 lakh 60 hazar banega, 30% advance baqi delivery pe. Delivery 2 hafte, warranty 6 mahine.",
+      { referenceUnitPrice: 75_000 },
     );
-    expect(x.unitPrice).toBe(13_40_000);
+    expect(x.unitPrice).toBe(67_000);
     expect(x.deliveryDays).toBe(14);
     expect(x.warrantyMonths).toBe(6);
   });
@@ -35,12 +35,12 @@ describe("parseAmounts", () => {
 describe("parseReplyText", () => {
   it("reads the demo Roman Urdu reply from supplier B", () => {
     const x = parseReplyText(DEMO_SUPPLIER_B_REPLY);
-    expect(x.unitPrice).toBe(13_40_000);
-    expect(x.qty).toBe(4);
+    expect(x.unitPrice).toBe(67_000);
+    expect(x.qty).toBe(80);
     expect(x.deliveryDays).toBe(10);
     expect(x.warrantyMonths).toBe(12);
     expect(x.needsOwnerInput).toBeUndefined();
-    expect(x.summary).toContain("13.4 lakh");
+    expect(x.summary).toBe("80 machines at Rs 67,000 each, final price; delivery in 10 days; 12-month warranty.");
   });
 
   it("derives unit price from a written total and quantity", () => {
@@ -89,10 +89,10 @@ describe("extractReply without AI", () => {
   });
 
   it("falls back to the deterministic parser and strips the quoted RFQ", async () => {
-    const body = `${DEMO_SUPPLIER_B_REPLY}\n\nOn Sat, 11 Oct 2026 at 10:02, Faisla wrote:\n> Hamza Garments is planning to buy 4 × JUKI AMS-221F\n> unit price (PKR) and total 99,99,999`;
+    const body = `${DEMO_SUPPLIER_B_REPLY}\n\nOn Sat, 11 Oct 2026 at 10:02, Faisla wrote:\n> Hamza Garments is planning to buy 80 × Jack F5\n> unit price (PKR) and total 99,99,999`;
     const x = await extractReply({ subject: "Re: RFQ for Madina Sewing Solutions", body });
     expect(x.source).toBe("parser");
-    expect(x.unitPrice).toBe(13_40_000);
+    expect(x.unitPrice).toBe(67_000);
   });
 });
 
@@ -107,13 +107,13 @@ describe("stripQuoted / buildReplyOffer", () => {
       key: "msg-1",
       supplierName: "Madina Sewing Solutions",
       supplierEmail: "b@test.com",
-      item: "Pattern sewer",
-      model: "JUKI AMS-221F",
-      defaultQty: 4,
+      item: "Lockstitch machine",
+      model: "Jack F5",
+      defaultQty: 80,
       receivedAt: "2026-10-11T06:25:00.000Z",
     };
     const offer = buildReplyOffer(x, ctx);
-    expect(offer).toMatchObject({ id: `offer-email-${hashString("msg-1")}`, source: "email", qty: 4, unitPrice: 13_40_000, total: 53_60_000, deliveryDays: 10, warrantyMonths: 12 });
+    expect(offer).toMatchObject({ id: `offer-email-${hashString("msg-1")}`, source: "email", qty: 80, unitPrice: 67_000, total: 53_60_000, deliveryDays: 10, warrantyMonths: 12 });
     expect(buildReplyOffer(parseReplyText("kal bataun ga"), ctx)).toBeNull();
   });
 });

@@ -1,77 +1,63 @@
 {
-  "_about": "Read-through cache for webSearch(). Keyed by normalized query. Entries marked simulated:true are demo listings written by the team because no real PKR listings for the JUKI AMS-221F were found online (searched 10 Oct 2026: olx.com.pk, daraz.pk, dealers). Their URLs point to real marketplace search pages, not to specific listings. Entries with simulated:false are real pages. 'cleaned' is the pre-read AI output used when no AI key is set.",
+  "_about": "Read-through cache for webSearch(). Keyed by normalized query. All entries below are REAL web pages (simulated:false), collected 10 Oct 2026 with Tavily (country: pakistan) plus a check of each page; 'content' is trimmed from the page (OLX ad details, video title). 'cleaned' is the pre-read AI output (seller, PKR price, condition, exact model) used for the instant demo and when no AI key is set; the code rules in lib/marketPrices.ts and lib/sourcing.ts still decide which prices count. Kept: 3 new Jack F5 prices (Rs 63,000 / 70,000 / 79,000, median Rs 70,000). Dropped: a used Jack F6, a Jack F4 (different model), an Indian rupee listing and a spec sheet (no PKR price).",
   "entries": {
-    "juki ams 221f price pakistan": {
-      "query": "JUKI AMS-221F price Pakistan",
-      "model": "JUKI AMS-221F",
+    "jack f5 price pakistan": {
+      "query": "Jack F5 price Pakistan",
+      "model": "Jack F5",
       "fetchedAt": "2026-10-10",
-      "simulated": true,
+      "simulated": false,
       "results": [
         {
-          "title": "JUKI AMS-221F pattern sewer, new box-packed - Rs 13,50,000",
-          "url": "https://www.olx.com.pk/items/q-juki-ams-221f",
-          "content": "Faisal Sewing Machines Co., Faisalabad. Brand new JUKI AMS-221F computer-controlled cycle machine (pattern sewer), 220x100 sewing area, with stand and servo. Price Rs 13,50,000 per machine. Installation and training included.",
-          "simulated": true
-        },
-        {
-          "title": "Juki AMS-221F-2516 computer controlled cycle machine - 13.2 lakh",
-          "url": "https://www.olx.com.pk/items/q-juki-ams-221f",
-          "content": "Lahore Sewing Hub, Hall Road Lahore. New Juki AMS-221F-2516, fresh import. Rs 13.2 lakh per unit, cash price. Bulk orders welcome.",
-          "simulated": true
-        },
-        {
-          "title": "JUKI AMS-221F Programmable Pattern Sewing Machine (New) - Rs. 1,375,000",
-          "url": "https://www.daraz.pk/catalog/?q=juki%20ams%20221f",
-          "content": "Industrial Sew Mart (Daraz seller). JUKI AMS-221F programmable electronic pattern sewing machine, new, 1 year warranty. Rs. 1,375,000. Free delivery in Punjab.",
-          "simulated": true
-        },
-        {
-          "title": "JUKI AMS-221F new pattern sewing machine with installation - Rs 14,20,000",
-          "url": "https://www.olx.com.pk/items/q-juki-pattern-sewing-machine",
-          "content": "Karachi Industrial Sewing Centre, SITE Karachi. JUKI AMS-221F new, includes installation, 2 pattern clamps and 1 year warranty. Rs 14,20,000.",
-          "simulated": true
-        },
-        {
-          "title": "JUKI AMS-221F (new) - Siddique Machinery Sialkot - Rs 13,60,000",
-          "url": "https://www.olx.com.pk/items/q-juki-ams-221",
-          "content": "Siddique Machinery, Sialkot. New JUKI AMS-221F pattern sewer for leather goods and sportswear. Rs 13,60,000 each, delivery in 7 days.",
-          "simulated": true
-        },
-        {
-          "title": "Used JUKI AMS-221F 2021 model, running condition - Rs 9,50,000",
-          "url": "https://www.olx.com.pk/items/q-juki-ams-221f",
-          "content": "Used JUKI AMS-221F, 2021 model, running condition, factory closing. Rs 9,50,000 negotiable. Gujranwala.",
-          "simulated": true
-        },
-        {
-          "title": "JUKI AMS-210EN pattern sewing machine new - Rs 8,90,000",
-          "url": "https://www.olx.com.pk/items/q-juki-pattern-sewing-machine",
-          "content": "New JUKI AMS-210EN (smaller sewing area) computer-controlled pattern machine. Rs 8,90,000. Multan.",
-          "simulated": true
-        },
-        {
-          "title": "Juki AMS 221F Computer Controlled Cycle Machine Stitching Machine",
-          "url": "https://m.indiamart.com/proddetail/juki-ams-221f-computer-controlled-cycle-machine-stitching-machine-26401142948.html",
-          "content": "Maxx Machinery LLP, Tiruppur, India. Juki AMS 221F computer controlled cycle machine. Price: ₹ 8,44,000 (excluding all taxes).",
+          "title": "Jack F5 Sewing Machine - Rs 79,000 - Aashiana Road, Lahore | OLX Pakistan",
+          "url": "https://www.olx.com.pk/item/jack-f5-sewing-machine-iid-1119872069",
+          "content": "Rs 79,000. Jack F5 Sewing Machine. Aashiana Road, Lahore. Type: Industrial. Condition: New. Description: Dear this machine like new just open and stay at home work not start on this machine.",
           "simulated": false
         },
         {
-          "title": "JUKI launches the AMS-221F series computer-controlled cycle machine",
-          "url": "https://www.juki.co.jp/industrial_e/whatsnew_e/newproducts/ams221f_release_en.pdf",
-          "content": "JUKI Corporation product release for the AMS-221F series computer-controlled cycle machine with input function. Specifications and features; no price listed.",
+          "title": "JACK F5 Heavy Duty Machine (Unused) - Rs 70,000 - DHA Phase 7, Lahore | OLX Pakistan",
+          "url": "https://www.olx.com.pk/item/jack-f5-heavy-duty-machine-unused-iid-1119189139",
+          "content": "Rs 70,000. JACK F5 Heavy Duty Machine (Unused). DHA Phase 7, Lahore. Type: Industrial. Condition: New. Description: Never Used. With China Table Stand.",
+          "simulated": false
+        },
+        {
+          "title": "Jack F5 New box pack Only 63000 ma complete sewing machine in Lahore Market #jackf5",
+          "url": "https://www.youtube.com/shorts/v0FDAc_SrXM",
+          "content": "Market Guide Vlogs (YouTube), 15 Jul 2025. Jack F5 New box pack Only 63000 ma complete sewing machine in Lahore Market.",
+          "simulated": false
+        },
+        {
+          "title": "JACK F6 SEWING MACHINE - Rs 70,000 - Qasimpura, Lahore | OLX Pakistan",
+          "url": "https://www.olx.com.pk/item/jack-f6-sewing-machine-iid-1120133008",
+          "content": "Rs 70,000. JACK F6 SEWING MACHINE. Qasimpura, Lahore. Condition: New. Description: new machine only 2 months use I want sale because of money.",
+          "simulated": false
+        },
+        {
+          "title": "Jack f4 sewing machine price in Pakistan 45000 | Jukiworkers",
+          "url": "https://www.facebook.com/jukiworkers/videos/jack-f4-sewing-machine-price-in-pakistan-45000/1698999091519080",
+          "content": "Jack F4 Sewing Machine Price in Pakistan Rs 45,000.",
+          "simulated": false
+        },
+        {
+          "title": "Jack F5 Direct Drive Lockstitch Machine at ₹ 20550 | IndiaMART",
+          "url": "https://www.indiamart.com/proddetail/jack-f5-direct-drive-lockstitch-machine-27625415173.html",
+          "content": "Jack F5 Direct Drive Lockstitch Machine at ₹ 20550. Max Speed 5000 spm. Motor Type: Direct drive. Stitch Type: Lockstitch.",
+          "simulated": false
+        },
+        {
+          "title": "F5 - Power saving direct drive lockstitch sewing machine (Jack leaflet)",
+          "url": "https://www.jack-sewing.com/wp-content/leaflets/F5.pdf",
+          "content": "POWER SAVING DIRECT DRIVE LOCKSTITCH SEWING MACHINE F5. Models F5, F5-H, F5-HL-7, F5-7, F5-H-7. Specifications and power-saving figures; no price listed.",
           "simulated": false
         }
       ],
       "cleaned": [
-        { "index": 0, "seller": "Faisal Sewing Machines Co. (Faisalabad)", "price": 1350000, "condition": "new", "exactModel": true },
-        { "index": 1, "seller": "Lahore Sewing Hub (Lahore)", "price": 1320000, "condition": "new", "exactModel": true },
-        { "index": 2, "seller": "Industrial Sew Mart (Daraz)", "price": 1375000, "condition": "new", "exactModel": true },
-        { "index": 3, "seller": "Karachi Industrial Sewing Centre (Karachi)", "price": 1420000, "condition": "new", "exactModel": true },
-        { "index": 4, "seller": "Siddique Machinery (Sialkot)", "price": 1360000, "condition": "new", "exactModel": true },
-        { "index": 5, "seller": "Private seller (Gujranwala)", "price": 950000, "condition": "used", "exactModel": true },
-        { "index": 6, "seller": "Seller in Multan", "price": 890000, "condition": "new", "exactModel": false },
-        { "index": 7, "seller": "Maxx Machinery LLP (India)", "price": null, "condition": "new", "exactModel": true },
-        { "index": 8, "seller": "JUKI Corporation", "price": null, "condition": "unknown", "exactModel": true }
+        { "index": 0, "seller": "OLX seller, Aashiana Road, Lahore", "price": 79000, "condition": "new", "exactModel": true },
+        { "index": 1, "seller": "OLX seller, DHA Phase 7, Lahore", "price": 70000, "condition": "new", "exactModel": true },
+        { "index": 2, "seller": "Market Guide Vlogs (Lahore machinery market)", "price": 63000, "condition": "new", "exactModel": true },
+        { "index": 3, "seller": "OLX seller, Qasimpura, Lahore", "price": 70000, "condition": "used", "exactModel": false },
+        { "index": 4, "seller": "Jukiworkers (Facebook)", "price": 45000, "condition": "unknown", "exactModel": false },
+        { "index": 5, "seller": "IndiaMART seller (India)", "price": null, "condition": "new", "exactModel": true },
+        { "index": 6, "seller": "Jack Sewing Machine Co. (spec sheet)", "price": null, "condition": "unknown", "exactModel": true }
       ]
     }
   }

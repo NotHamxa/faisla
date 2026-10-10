@@ -33,7 +33,7 @@ const extractionSchema = z.object({
   items: z.array(
     z.object({
       description: z.string().describe("Short item name, without the spec details"),
-      model: z.string().nullable().describe("Brand and model number, e.g. JUKI AMS-221F"),
+      model: z.string().nullable().describe("Brand and model number, e.g. Jack F5"),
       qty: z.number(),
       unitPrice: z.number().describe("Price per unit in PKR, as printed"),
       lineTotal: money.describe("Line amount in PKR as printed; null if not printed"),

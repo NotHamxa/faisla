@@ -27,8 +27,8 @@ export function CashChart({ data, monthlyFixedCosts }: { data: ProjectionPoint[]
 
   return (
     <Card className="h-full">
-      <Tabs defaultValue="committed" className="gap-4">
-        <CardHeader>
+      <Tabs defaultValue="committed" className="h-full gap-4">
+        <CardHeader className="border-b">
           <CardTitle>Next 12 months</CardTitle>
           <CardDescription>
             <TabsContent value="committed">
@@ -47,9 +47,9 @@ export function CashChart({ data, monthlyFixedCosts }: { data: ProjectionPoint[]
             </TabsList>
           </CardAction>
         </CardHeader>
-        <CardContent>
-          <TabsContent value="committed">
-            <ChartContainer config={config} className="aspect-auto h-64 w-full">
+        <CardContent className="flex min-h-0 flex-1 flex-col">
+          <TabsContent value="committed" className="flex min-h-64 flex-1 flex-col">
+            <ChartContainer config={config} className="aspect-auto min-h-64 w-full flex-1">
               <BarChart data={data} margin={{ left: 4, right: 4, top: 8 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
@@ -63,19 +63,13 @@ export function CashChart({ data, monthlyFixedCosts }: { data: ProjectionPoint[]
                     />
                   }
                 />
-                <Bar dataKey="committed" fill="var(--color-committed)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="committed" fill="var(--color-committed)" radius={0} maxBarSize={22} />
               </BarChart>
             </ChartContainer>
           </TabsContent>
-          <TabsContent value="floor">
-            <ChartContainer config={config} className="aspect-auto h-64 w-full">
+          <TabsContent value="floor" className="flex min-h-64 flex-1 flex-col">
+            <ChartContainer config={config} className="aspect-auto min-h-64 w-full flex-1">
               <AreaChart data={data} margin={{ left: 4, right: 4, top: 8 }}>
-                <defs>
-                  <linearGradient id="fillCashFloor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-cashFloor)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-cashFloor)" stopOpacity={0.04} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={axisLakh} />
@@ -92,8 +86,9 @@ export function CashChart({ data, monthlyFixedCosts }: { data: ProjectionPoint[]
                   dataKey="cashFloor"
                   type="linear"
                   stroke="var(--color-cashFloor)"
-                  strokeWidth={2}
-                  fill="url(#fillCashFloor)"
+                  strokeWidth={1.5}
+                  fill="var(--color-cashFloor)"
+                  fillOpacity={0.1}
                 />
               </AreaChart>
             </ChartContainer>

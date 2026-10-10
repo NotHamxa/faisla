@@ -81,7 +81,7 @@ export function SupplierDirectory({ suppliers }: { suppliers: SupplierEntry[] })
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="overflow-hidden rounded-[2px] border bg-card">
         <Table className="min-w-[760px]">
           <TableHeader className="bg-muted/40">
             <TableRow className="hover:bg-transparent">
@@ -178,7 +178,7 @@ export function SupplierDirectory({ suppliers }: { suppliers: SupplierEntry[] })
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2.5 px-4">
-      <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h3>
+      <h3 className="ledger-label">{title}</h3>
       {children}
     </section>
   );

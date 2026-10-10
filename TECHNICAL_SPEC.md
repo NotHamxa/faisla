@@ -156,9 +156,10 @@ stressTest(options: Option[], kiborShift: number): ComparisonRow[];    // shifts
 | Monthly fixed costs | Rs 35,00,000 |
 | Tax rate | 29% (editable) |
 | Discount rate | 15% (≈ bank rate KIBOR + 3% ≈ 14.8%, rounded); 10.65% after tax |
-| Supplier A | 4 machines × Rs 15,00,000 = Rs 60,00,000; 12 × Rs 5,00,000 "0% markup", first installment one month after delivery; 8% cash discount → Rs 55,20,000 |
-| Market benchmark | Median Rs 13,60,000 per machine (A is ~10% above) |
-| Supplier B | Rs 13,40,000 per machine = Rs 53,60,000 cash |
+| Machine | Jack F5 direct-drive single-needle lockstitch (real model; new units listed in Pakistan at Rs 63,000–79,000, web median Rs 70,000) |
+| Supplier A | 80 machines × Rs 75,000 = Rs 60,00,000; 12 × Rs 5,00,000 "0% markup", first installment one month after delivery; 8% cash discount → Rs 55,20,000 |
+| Market benchmark | Median Rs 68,700 per machine (simulated, close to the real web median of Rs 70,000; A is ~9% above) |
+| Supplier B | 80 × Rs 67,000 per machine = Rs 53,60,000 cash |
 | Loans | 10% down (Rs 5,36,000), 36 months, P = Rs 48,24,000; bank 14.8%, LTFF 8.5% (policy 11.5% − 3%) |
 
 ### 4.5 Expected results (the comparison table)
@@ -334,17 +335,17 @@ Optional input "expected extra monthly profit from the machines" → payback mon
 
 ---
 
-## 11. Demo data (all fictional, labelled "Demo data")
+## 11. Demo data (labelled "Demo data"; fictional except the machine's web prices and product reviews)
 
 | Item | Contents |
 | --- | --- |
 | Company profile | Hamza Garments, Faisalabad, exporter, Rs 1 crore cash, Rs 35 lakh/month fixed costs, 29% tax |
-| Supplier A quotation | Printed and photographed; letterhead, stamp; 4 machines × Rs 15 lakh, 8% cash discount, "12 months 0% markup", first installment one month after delivery (+ bank details, PROPOSED) |
-| Benchmark table | ~60 rows, Rs 12.9–14.8 lakh, median Rs 13.6 lakh, several cities ("simulated benchmark") |
-| Cached web search | Real results for 1–2 machine models, with links, saved as JSON |
-| Cached reviews | 5–8 each for Supplier A (mixed: slow warranty service), Supplier B (good), and the machine model |
+| Supplier A quotation | Printed and photographed; letterhead, stamp; 80 × Jack F5 at Rs 75,000 (Rs 60 lakh), 8% cash discount, "12 months 0% markup", first installment one month after delivery (+ bank details, PROPOSED) |
+| Benchmark table | 60 rows, Rs 65,200–74,700, median Rs 68,700, several cities ("simulated benchmark") |
+| Cached web search | Real Jack F5 results with links (OLX, dealer video, Facebook, IndiaMART, Jack leaflet), pre-cleaned, saved as JSON; 3 new-unit PKR prices kept, median Rs 70,000 |
+| Cached reviews | Simulated for the fictional suppliers: Supplier A (mixed: slow warranty service), Supplier B (good), Karachi Garment Tech (not enough). Real for the Jack F5 (Amazon.de, Reddit, Facebook, review site) |
 | Supplier contacts | 2–3 fictional suppliers; emails are team test inboxes |
-| Supplier B reply | "Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty", sent live from a phone |
+| Supplier B reply | "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty", sent live from a phone |
 | Fraud reply (PROPOSED) | "Our account has changed, please send advance to new account …" with a different IBAN |
 | Financing options | Bank KIBOR + 3% (≈ 14.8%), LTFF policy − 3% (8.5%), 10% down, 36 months, SBP source links |
 | Bank contact | Test inbox named as the bank's SME desk |

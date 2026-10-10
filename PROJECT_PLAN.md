@@ -132,7 +132,7 @@ Rule of thumb from the last hackathon: about a third of the time building, two-t
 | Time | Speaker | Beat |
 | --- | --- | --- |
 | 0:00–0:35 | D | Hook: Hamza, sixty lakh, "0% markup", no finance team |
-| 0:35–1:20 | A | Photo → AI reads → owner confirms → market check: ~10% above market |
+| 0:35–1:20 | A | Photo → AI reads → owner confirms → market check: 80 × Jack F5 at Rs 75,000, ~9% above market (real OLX/dealer prices, median Rs 70,000) |
 | 1:20–2:15 | C | Finds two suppliers, **checks what other buyers say about them**, sends RFQs; live Roman Urdu reply → new row (fraud flag beat here if P1) |
 | 2:15–3:30 | B | Code does the maths: hidden ~17%; LTFF ~8.5% vs ~15%; cash pay leaves ~1 month of salaries. **Saves ~5.8 lakh, 4.7 lakh even after tax, and leaves two and a half months of costs in the bank** |
 | 3:30–4:10 | A | AI reads, code decides, owner confirms; memo number check; "Request term sheet" |
@@ -152,7 +152,7 @@ If a step fails live: "here's the recording", play the backup video from that po
 | Did you include tax? | Yes: markup and depreciation (25% initial allowance, then 15%), on what each option actually pays, discounted at 10.65% after tax. LTFF still wins. |
 | Why a 15% discount rate? | About the company's bank borrowing rate (KIBOR + 3% ≈ 14.8%); editable; LTFF beats cash above 8.8%. |
 | What about bank fees and collateral? | On the Assumptions card; fee field editable; the term-sheet email asks the bank. |
-| Is the benchmark data real? | Benchmark and supplier reviews are simulated and labelled; web prices and the supplier reply are real inputs. |
+| Is the benchmark data real? | Benchmark, company and supplier reviews are simulated and labelled; the Jack F5 web prices and product reviews are real, with links; the supplier reply is a real email. |
 | Is this really Financial Operations? | It's financial planning and credit/risk for SMEs: financing choice, true cost of credit, tax, liquidity (plus fraud check if P1). |
 | How do you handle payment fraud? (if P1) | Code compares bank details across quotation and replies, checks IBAN validity and sender domain; AI flags account-change language; payment is blocked until the owner confirms by phone. |
 | Who pays for this? | SMEs on a monthly plan; banks (clean loan applications); suppliers listed in comparisons. |

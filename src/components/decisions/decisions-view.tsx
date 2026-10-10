@@ -91,9 +91,9 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-foreground/80 pb-4">
         <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Decisions</h1>
+          <h1 className="font-heading text-[1.75rem] leading-tight font-bold">Decisions</h1>
           <p className="text-sm text-muted-foreground">
             Every big purchase, from quotation to a signed-off way to pay.
           </p>
@@ -107,7 +107,7 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
       <NewDecisionDialog open={newOpen || wantsNew} onOpenChange={onNewOpenChange} />
 
       {decisions.length === 0 ? (
-        <Empty className="border bg-card py-16">
+        <Empty className="border border-dashed border-foreground/25 bg-card py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Scale />
@@ -153,7 +153,7 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
           </div>
 
           {visible.length === 0 ? (
-            <Empty className="border py-10">
+            <Empty className="border border-dashed border-foreground/25 py-10">
               <EmptyHeader>
                 <EmptyTitle>No matching decisions</EmptyTitle>
                 <EmptyDescription>Try another status or search term.</EmptyDescription>

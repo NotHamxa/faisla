@@ -110,7 +110,7 @@ export default function MarketCard() {
                 <>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-2 font-mono text-3xl font-semibold tracking-tight tabular-nums",
+                      "inline-flex items-center gap-2 font-mono text-3xl font-medium tabular-nums",
                       tone === "warn" && "text-warning",
                       tone === "good" && "text-success",
                     )}
@@ -119,13 +119,7 @@ export default function MarketCard() {
                     {formatPct(Math.abs(pct), 0)}
                   </span>
                   <span className="text-sm text-muted-foreground">{pct >= 0 ? "above" : "below"} market</span>
-                  <Badge
-                    className={cn(
-                      tone === "warn" && "bg-warning/10 text-warning",
-                      tone === "good" && "bg-success/10 text-success",
-                    )}
-                    variant={tone === "neutral" ? "secondary" : "default"}
-                  >
+                  <Badge variant={tone === "warn" ? "warning" : tone === "good" ? "success" : "muted"}>
                     {tone === "warn" ? "Overpriced" : tone === "good" ? "Fair price" : "Close to market"}
                   </Badge>
                 </>

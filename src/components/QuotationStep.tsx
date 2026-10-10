@@ -228,8 +228,8 @@ function UploadPanel(props: {
       <CardContent className="flex flex-col gap-3">
         <div
           className={cn(
-            "flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors",
-            dragging ? "border-primary bg-primary/5" : "border-border bg-muted/30",
+            "flex flex-col items-center justify-center gap-4 rounded-[2px] border border-dashed px-4 py-9 text-center transition-colors",
+            dragging ? "border-primary bg-muted" : "border-foreground/30 bg-background",
           )}
           onDragOver={(e) => {
             e.preventDefault();
@@ -246,7 +246,7 @@ function UploadPanel(props: {
             <PreviewThumb preview={props.preview} className={props.loading ? "opacity-50" : ""} />
           ) : (
             !props.loading && (
-              <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <div className="flex size-11 items-center justify-center rounded-[2px] border border-foreground/20 bg-card text-primary">
                 <Upload className="size-5" />
               </div>
             )
@@ -341,7 +341,7 @@ function PreviewThumb({ preview, className = "" }: { preview: Preview; className
     <img
       src={preview.url}
       alt="Uploaded quotation"
-      className={cn("max-h-72 w-auto rounded-lg border bg-card object-contain shadow-sm", className)}
+      className={cn("max-h-72 w-auto rounded-[2px] border bg-card object-contain", className)}
     />
   );
 }
@@ -393,7 +393,7 @@ function ConfirmForm(props: {
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle>Check the quotation</CardTitle>
             {props.source === "ai" && (
-              <Badge className="bg-warning/10 text-warning">
+              <Badge variant="warning">
                 <Sparkles />
                 AI read this
               </Badge>
@@ -693,7 +693,7 @@ function WarningNote({ children, className }: { children: React.ReactNode; class
     <div
       role="alert"
       className={cn(
-        "flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning",
+        "flex items-start gap-2 rounded-[2px] border border-l-[3px] border-warning/50 border-l-warning bg-card px-3 py-2 text-sm text-warning",
         className,
       )}
     >
@@ -706,14 +706,14 @@ function WarningNote({ children, className }: { children: React.ReactNode; class
 function IssueSummary({ issues }: { issues: ArithmeticIssue[] }) {
   if (issues.length === 0) {
     return (
-      <Badge className="bg-success/10 text-success">
+      <Badge variant="success">
         <CircleCheck />
         Arithmetic checks pass
       </Badge>
     );
   }
   return (
-    <Badge className="bg-warning/10 text-warning">
+    <Badge variant="warning">
       <TriangleAlert />
       {issues.length === 1 ? "1 thing to check" : `${issues.length} things to check`} — see highlighted fields
     </Badge>
@@ -842,7 +842,7 @@ function TriToggle({ value, onChange }: { value: boolean | null; onChange: (v: b
     { label: "Not stated", v: null },
   ];
   return (
-    <div className="flex gap-0.5 rounded-lg border bg-muted/40 p-0.5 text-xs" role="radiogroup">
+    <div className="flex gap-px overflow-hidden rounded-[2px] border bg-border text-xs" role="radiogroup">
       {options.map((o) => (
         <button
           key={o.label}
@@ -850,10 +850,10 @@ function TriToggle({ value, onChange }: { value: boolean | null; onChange: (v: b
           role="radio"
           aria-checked={value === o.v}
           className={cn(
-            "flex-1 rounded-md px-2 py-1.5 font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            "flex-1 px-2 py-1.5 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             value === o.v
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              ? "bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
           onClick={() => onChange(o.v)}
         >
@@ -887,7 +887,7 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
       <CardHeader>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <CardTitle className="truncate">{q.supplierName}</CardTitle>
-          <Badge className="bg-success/10 text-success">
+          <Badge variant="success">
             <CircleCheck />
             Quotation confirmed
           </Badge>
@@ -910,7 +910,7 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
 
       <CardContent className="flex flex-col gap-3">
         {first && (
-          <p className="font-mono text-xl font-semibold tabular-nums sm:text-2xl">
+          <p className="font-mono text-xl font-medium tabular-nums sm:text-2xl">
             {first.qty} × {formatPKR(first.unitPrice)} = {formatPKR(lineAmount(first))}
           </p>
         )}

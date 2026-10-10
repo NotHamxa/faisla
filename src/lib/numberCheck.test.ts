@@ -10,7 +10,7 @@ import type { ReputationResult } from "./types";
 const reputations: Record<string, ReputationResult> = {
   "Al-Noor Industrial Machines": {
     supplierName: "Al-Noor Industrial Machines",
-    model: "JUKI AMS-221F",
+    model: "Jack F5",
     flag: "mixed",
     averageRating: 3.4,
     reviews: [],
@@ -45,7 +45,7 @@ describe("extractNumbers", () => {
       "1. Request the term sheet by 11 Oct 2026.",
       "## 2) Next steps for 2026",
       'The "0%" plan and the "0% markup" claim.',
-      "Model JUKI AMS-221F.",
+      "Model Jack F5.",
     ].join("\n");
     expect(extractNumbers(text)).toEqual([]);
   });
@@ -67,7 +67,7 @@ describe("memoFacts", () => {
     expect(byKey.get("row.offer-b:ltff.monthly")?.value).toBe("Rs 1,52,282");
     expect(byKey.get("runway.today")?.value).toBe("2.86 months");
     expect(byKey.get("breakEven")?.value).toBe("8.84%");
-    expect(byKey.get("offer.offer-b.qty")?.value).toBe("4");
+    expect(byKey.get("offer.offer-b.qty")?.value).toBe("80");
   });
 });
 
@@ -75,7 +75,7 @@ describe("checkMemoNumbers", () => {
   const goodMemo = [
     "# Decision memo: Hamza Garments",
     "## Recommendation",
-    "Buy 4 machines from Madina Sewing Solutions with the SBP LTFF loan at 8.5%: Rs 5,36,000 now and 36 × Rs 1,52,282.",
+    "Buy 80 machines from Madina Sewing Solutions with the SBP LTFF loan at 8.5%: Rs 5,36,000 now and 36 × Rs 1,52,282.",
     "In today's money this costs **Rs 49,87,935** before tax and Rs 40,13,687 after tax.",
     "## Why",
     '- Saves Rs 5,79,103 against the "0%" installment plan, Rs 4,73,603 after tax.',

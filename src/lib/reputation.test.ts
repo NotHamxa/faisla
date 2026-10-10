@@ -93,9 +93,10 @@ describe("scoreReputation", () => {
       expect(scoreReputation(cache["karachi garment tech"].reviews, "supplier").flag).toBe("not_enough");
     });
 
-    it("JUKI AMS-221F model is good, irrelevant AMS-210 review dropped", () => {
-      const s = scoreReputation(cache["juki ams 221f"].reviews, "product");
+    it("Jack F5 model (real reviews) is good, irrelevant Juki-vs-Jack comment dropped", () => {
+      const s = scoreReputation(cache["jack f5"].reviews, "product");
       expect(s.reviews).toHaveLength(6);
+      expect(s.averageRating).toBe(4.5);
       expect(s.flag).toBe("good");
     });
   });

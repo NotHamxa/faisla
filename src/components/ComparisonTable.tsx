@@ -6,10 +6,10 @@ import {
   AlertTriangleIcon,
   CalculatorIcon,
   CheckCircle2Icon,
+  CheckIcon,
   ChevronDownIcon,
   RefreshCwIcon,
   ShieldAlertIcon,
-  SparklesIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { decide } from "@/lib/finance";
@@ -27,13 +27,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const SHIFT_STEPS = Array.from({ length: 9 }, (_, i) => i * 0.005); // 0 → +4% in 0.5% steps
 
-// Semantic tones (theme tokens, so they work in light and dark).
+// Semantic tones as tag variants (theme tokens, so they work in light and dark).
 const TONE = {
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-destructive/10 text-destructive",
-  muted: "bg-secondary text-muted-foreground",
+  success: "success",
+  warning: "warning",
+  danger: "destructive",
+  muted: "muted",
 } as const;
+
+type Tone = (typeof TONE)[keyof typeof TONE];
 
 function payText(r: ComparisonRow): string {
   if (r.method === "cash") return `${groupPKR(r.upfront)} now`;
@@ -43,7 +45,7 @@ function payText(r: ComparisonRow): string {
   return `${groupPKR(r.upfront)} + ${r.months} × ${groupPKR(r.monthlyPayment)}`;
 }
 
-function verdictTone(r: ComparisonRow): string {
+function verdictTone(r: ComparisonRow): Tone {
   if (r.recommended) return TONE.success;
   if (r.verdict.startsWith("Salaries")) return TONE.danger;
   if (r.verdict.startsWith("Hidden") || r.verdict.includes("drains") || r.verdict.startsWith("Tight")) return TONE.warning;
@@ -152,8 +154,8 @@ export default function ComparisonTable() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Compare every way to pay</CardTitle>
+        <CardHeader className="border-b">
+          <CardTitle className="text-xl font-bold">Compare every way to pay</CardTitle>
           <CardDescription>
             Present value (PV) = today&apos;s cost of every future payment. After tax counts markup and depreciation
             savings{decision ? `, discounted at ${formatPct(decision.afterTaxDiscountRate, 2)}` : ""}. All maths by
@@ -170,7 +172,7 @@ export default function ComparisonTable() {
         {decision && rec && (
           <CardContent className="space-y-5">
             {profileChanged && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[2px] border border-l-[3px] border-warning/50 border-l-warning bg-card px-3 py-2 text-sm">
                 <span className="flex items-center gap-2 text-warning">
                   <AlertTriangleIcon className="size-4 shrink-0" />
                   Your company profile changed since this comparison was calculated.
@@ -182,26 +184,16 @@ export default function ComparisonTable() {
             )}
             <SummaryTiles decision={decision} rec={rec} baseline={baseline} />
 
-            <div className="-mx-4 border-y">
+            <div className="-mx-4 border-y border-foreground/70">
               <Table className="min-w-[820px]">
-                <TableHeader className="bg-muted/40">
+                <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-4 text-xs tracking-wide text-muted-foreground uppercase">
-                      Option
-                    </TableHead>
-                    <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pay</TableHead>
-                    <TableHead className="text-right text-xs tracking-wide text-muted-foreground uppercase">
-                      PV before tax
-                    </TableHead>
-                    <TableHead className="text-right text-xs tracking-wide text-muted-foreground uppercase">
-                      PV after tax
-                    </TableHead>
-                    <TableHead className="text-right text-xs tracking-wide text-muted-foreground uppercase">
-                      Runway (months)
-                    </TableHead>
-                    <TableHead className="pr-4 text-xs tracking-wide text-muted-foreground uppercase">
-                      Verdict
-                    </TableHead>
+                    <TableHead className="h-10 pl-4">Option</TableHead>
+                    <TableHead className="h-10">Pay</TableHead>
+                    <TableHead className="h-10 text-right">PV before tax</TableHead>
+                    <TableHead className="h-10 text-right">PV after tax</TableHead>
+                    <TableHead className="h-10 text-right">Runway (months)</TableHead>
+                    <TableHead className="h-10 pr-4">Verdict</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,24 +203,26 @@ export default function ComparisonTable() {
                       <Fragment key={r.id}>
                         <TableRow
                           data-recommended={r.recommended || undefined}
-                          className={cn(
-                            "align-top",
-                            r.recommended && "bg-primary/5 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary/10",
-                          )}
+                          className="align-top"
                         >
-                          <TableCell className="py-3 pl-4 whitespace-normal">
+                          <TableCell
+                            className={cn(
+                              "relative py-3 pl-4 whitespace-normal",
+                              r.recommended && "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-primary",
+                            )}
+                          >
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className={cn("font-medium", r.recommended && "text-primary")}>{r.label}</span>
+                              <span className={cn("font-medium", r.recommended && "font-semibold")}>{r.label}</span>
                               {r.recommended && (
                                 <Badge>
-                                  <SparklesIcon data-icon="inline-start" />
+                                  <CheckIcon data-icon="inline-start" />
                                   Recommended
                                 </Badge>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">{r.supplierName}</div>
                             {r.hiddenYearlyRate !== null && r.hiddenYearlyRate > 0 && (
-                              <Badge className={cn("mt-1.5", TONE.warning)}>
+                              <Badge variant={TONE.warning} className="mt-1.5">
                                 <AlertTriangleIcon data-icon="inline-start" />
                                 hidden {formatPct(r.hiddenYearlyRate)} a year
                               </Badge>
@@ -249,13 +243,11 @@ export default function ComparisonTable() {
                           </TableCell>
                           <TableCell className="py-3 font-mono tabular-nums">{payText(r)}</TableCell>
                           <TableCell className="py-3 text-right font-mono tabular-nums">{groupPKR(r.pvBeforeTax)}</TableCell>
-                          <TableCell
-                            className={cn(
-                              "py-3 text-right font-mono tabular-nums",
-                              r.recommended && "font-semibold text-primary",
-                            )}
-                          >
-                            {groupPKR(r.pvAfterTax)}
+                          <TableCell className="py-3 text-right font-mono tabular-nums">
+                            {/* The figure that decides it gets the accountant's double underline. */}
+                            <span className={cn(r.recommended && "border-b-[3px] border-double border-primary pb-px font-semibold text-primary")}>
+                              {groupPKR(r.pvAfterTax)}
+                            </span>
                           </TableCell>
                           <TableCell
                             className={cn("py-3 text-right font-mono font-medium tabular-nums", runwayClass(r.runwayMonths))}
@@ -263,11 +255,11 @@ export default function ComparisonTable() {
                             {runwayText(r.runwayMonths)}
                           </TableCell>
                           <TableCell className="py-3 pr-4">
-                            <Badge className={verdictTone(r)}>{r.verdict}</Badge>
+                            <Badge variant={verdictTone(r)} className="h-auto min-h-5 py-1 text-left whitespace-normal">{r.verdict}</Badge>
                           </TableCell>
                         </TableRow>
                         {isOpen && (
-                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableRow className="bg-muted/60 hover:bg-muted/60">
                             <TableCell colSpan={6} className="px-4 py-4 whitespace-normal">
                               <CalculationList row={r} />
                             </TableCell>
@@ -315,11 +307,11 @@ function StatTile({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 rounded-lg border p-4",
-        highlight ? "border-primary/30 bg-primary/5" : "bg-card",
+        "relative flex flex-col gap-1.5 bg-card p-4",
+        highlight && "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-primary",
       )}
     >
-      <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</div>
+      <div className={cn("ledger-label", highlight && "text-primary")}>{label}</div>
       {children}
     </div>
   );
@@ -337,12 +329,12 @@ function SummaryTiles({
   const be = decision.breakEvenDiscountRate;
   const showSavings = decision.savingsVsBaseline && baseline && baseline.id !== rec.id;
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-px overflow-hidden rounded-[2px] border bg-border md:grid-cols-3">
       <StatTile label="Recommended" highlight>
-        <div className="text-base font-semibold text-primary">{rec.label}</div>
+        <div className="font-heading text-base font-bold">{rec.label}</div>
         {showSavings && decision.savingsVsBaseline ? (
           <>
-            <div className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
+            <div className="font-mono text-2xl font-medium tabular-nums">
               {formatPKR(decision.savingsVsBaseline.beforeTax)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -361,7 +353,7 @@ function SummaryTiles({
       </StatTile>
 
       <StatTile label="Cash runway">
-        <div className="flex items-baseline gap-2 font-mono text-2xl font-semibold tracking-tight tabular-nums">
+        <div className="flex items-baseline gap-2 font-mono text-2xl font-medium tabular-nums">
           <span className="text-muted-foreground">{runwayText(decision.runwayToday)}</span>
           <span className="text-base text-muted-foreground">→</span>
           <span className={runwayClass(rec.runwayMonths)}>{runwayText(rec.runwayMonths)}</span>
@@ -379,7 +371,7 @@ function SummaryTiles({
           <p className="text-sm">{methodName(rec)} beats paying cash at any discount rate.</p>
         ) : (
           <>
-            <div className="font-mono text-2xl font-semibold tracking-tight tabular-nums">{formatPct(be)}</div>
+            <div className="font-mono text-2xl font-medium tabular-nums">{formatPct(be)}</div>
             <p className="text-xs text-muted-foreground">
               {methodName(rec)} beats paying cash for any discount rate above this (ours is{" "}
               <span className="font-mono tabular-nums">{formatPct(decision.company.discountRate)}</span>).
@@ -395,7 +387,7 @@ function CalculationList({ row }: { row: ComparisonRow }) {
   return (
     <ol className="grid gap-3 md:grid-cols-2">
       {row.calculation.map((s, i) => (
-        <li key={i} className="rounded-lg border bg-card p-3 text-sm">
+        <li key={i} className="rounded-[2px] border bg-card p-3 text-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-medium">
               <span className="mr-1.5 text-muted-foreground">{i + 1}.</span>
@@ -424,13 +416,11 @@ const chartConfig = {
 function PvChart({ rows }: { rows: ComparisonRow[] }) {
   const data = rows.map((r) => ({ label: r.label, pv: Math.round(r.pvAfterTax), recommended: r.recommended }));
   return (
-    <div className="h-full rounded-lg border p-4">
-      <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        PV after tax per option (lower is cheaper)
-      </div>
+    <div className="h-full rounded-[2px] border p-4">
+      <div className="ledger-label">PV after tax per option (lower is cheaper)</div>
       <ChartContainer config={chartConfig} className="mt-2 aspect-auto w-full" style={{ height: data.length * 44 + 40 }}>
         <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }} barCategoryGap={8}>
-          <CartesianGrid horizontal={false} strokeDasharray="2 4" />
+          <CartesianGrid horizontal={false} />
           <XAxis
             type="number"
             tickFormatter={(v: number) => formatLakh(v, 0)}
@@ -460,12 +450,12 @@ function PvChart({ rows }: { rows: ComparisonRow[] }) {
               />
             }
           />
-          <Bar dataKey="pv" radius={[0, 4, 4, 0]} maxBarSize={24}>
+          <Bar dataKey="pv" radius={0} maxBarSize={20}>
             {data.map((d) => (
               <Cell
                 key={d.label}
                 fill={d.recommended ? "var(--chart-1)" : "var(--chart-5)"}
-                fillOpacity={d.recommended ? 1 : 0.45}
+                fillOpacity={d.recommended ? 1 : 0.55}
               />
             ))}
           </Bar>
@@ -489,12 +479,12 @@ function StressTest({
   recChanged: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border p-4">
+    <div className="flex h-full flex-col gap-3 rounded-[2px] border p-4">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor="kibor-shift" className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <label htmlFor="kibor-shift" className="ledger-label">
           Stress test: KIBOR shift
         </label>
-        <span className="font-mono text-lg font-semibold tabular-nums">{formatShift(shift)}</span>
+        <span className="font-mono text-lg font-medium tabular-nums">{formatShift(shift)}</span>
       </div>
       <Slider
         id="kibor-shift"
@@ -518,12 +508,12 @@ function StressTest({
       {shift === 0 ? (
         <p className="text-sm text-muted-foreground">Move the slider to see what happens if KIBOR rises.</p>
       ) : recChanged ? (
-        <div className={cn("flex items-start gap-2 rounded-lg p-3 text-sm font-medium", TONE.danger)}>
+        <div className="flex items-start gap-2 border-l-[3px] border-destructive py-1 pl-3 text-sm font-medium text-destructive">
           <ShieldAlertIcon className="mt-0.5 size-4 shrink-0" />
           <span>Recommendation changes to {rec.label}</span>
         </div>
       ) : (
-        <div className={cn("flex items-start gap-2 rounded-lg p-3 text-sm font-medium", TONE.success)}>
+        <div className="flex items-start gap-2 border-l-[3px] border-success py-1 pl-3 text-sm font-medium text-success">
           <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
           <span>Recommendation unchanged: {rec.label}</span>
         </div>
@@ -575,7 +565,7 @@ function AssumptionsCard({
 
   return (
     <Card size="sm">
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Assumptions</CardTitle>
         <CardDescription>What the comparison takes as given. Edit the fee to see it flow through.</CardDescription>
       </CardHeader>

@@ -93,7 +93,7 @@ export function InboxView({ items }: { items: InboxItem[] }) {
         </TabsList>
       </Tabs>
 
-      <div className="grid overflow-hidden rounded-xl border bg-card lg:h-[calc(100svh-15rem)] lg:min-h-[480px] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="grid overflow-hidden rounded-[2px] border bg-card lg:h-[calc(100svh-15rem)] lg:min-h-[480px] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* List */}
         <div className={cn("min-h-0 flex-col overflow-y-auto lg:flex lg:border-r", selected ? "hidden" : "flex")}>
           {filtered.length === 0 ? (
@@ -144,10 +144,10 @@ function MessageRow({ item, active, onSelect }: { item: InboxItem; active: boole
       aria-current={active || undefined}
       className={cn(
         "flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none",
-        active && "lg:bg-accent lg:hover:bg-accent",
+        active && "lg:bg-muted lg:hover:bg-muted lg:border-l-[3px] lg:border-l-primary",
       )}
     >
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[2px] border bg-card">
         <DirectionIcon email={email} className="size-3.5" />
       </span>
       <span className="min-w-0 flex-1 space-y-0.5">
@@ -185,7 +185,7 @@ function ReadingPane({ item, onBack }: { item: InboxItem; onBack: () => void }) 
           </Badge>
           {email.simulated && <SimulatedBadge />}
         </div>
-        <h2 className="text-lg font-semibold tracking-tight">{email.subject}</h2>
+        <h2 className="text-lg font-bold">{email.subject}</h2>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
           <dt className="text-muted-foreground">{email.direction === "out" ? "To" : "From"}</dt>
           <dd className="truncate">{email.toFrom}</dd>
@@ -219,7 +219,7 @@ function ExtractedOffer({ offer, href }: { offer: Offer; href: string }) {
   if (offer.warrantyMonths != null) facts.push({ label: "Warranty", value: `${offer.warrantyMonths} months` });
 
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+    <div className="rounded-[2px] border border-l-[3px] border-l-primary bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium text-primary">
           <SparklesIcon className="size-4" />

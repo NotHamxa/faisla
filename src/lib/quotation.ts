@@ -85,15 +85,18 @@ export function checkArithmetic(q: Quotation): ArithmeticIssue[] {
 // The first item drives the offer (the demo has one line). Total is always computed here, never read.
 export function quotationToOffer(q: Quotation, id = "offer-a"): Offer {
   const first = q.items[0] ?? { description: "", model: null, qty: 0, unitPrice: 0, lineTotal: null };
+  // Several lines (machine + stand + installation…) are priced as one purchase: every line counts.
+  const multi = q.items.length > 1;
+  const total = multi ? q.items.reduce((sum, item) => sum + lineAmount(item), 0) : lineAmount(first);
   return {
     id,
     supplierName: q.supplierName,
     supplierEmail: q.supplierEmail,
-    item: first.description,
+    item: multi ? `${q.items.length} items: ${q.items.map((i) => i.description).join(", ")}` : first.description,
     model: first.model,
-    qty: first.qty,
-    unitPrice: first.unitPrice,
-    total: lineAmount(first),
+    qty: multi ? 1 : first.qty,
+    unitPrice: multi ? total : first.unitPrice,
+    total,
     cashDiscountPct: q.cashDiscountPct,
     installmentMonths: q.installmentMonths,
     installmentAmount: q.installmentAmount,

@@ -36,11 +36,11 @@ const REQUEST_TIMEOUT_MS = 75_000;
 
 const EXAMPLES = [
   {
-    label: "4 pattern sewing machines (demo)",
-    text: "4 computer-controlled pattern sewing machines for my garment factory in Faisalabad, budget around 60 lakh",
+    label: "80 lockstitch machines (demo)",
+    text: "80 direct-drive lockstitch sewing machines for my garment factory in Faisalabad, budget around 60 lakh",
   },
   { label: "2 embroidery machines", text: "2 industrial embroidery machines for Lahore, budget 20 lakh" },
-  { label: "10 lockstitch machines", text: "10 single needle lockstitch sewing machines with servo motors, budget 6 lakh" },
+  { label: "6 overlock machines", text: "6 four-thread overlock machines for Lahore, budget 6 lakh" },
 ];
 
 export default function NeedStep() {
@@ -171,7 +171,7 @@ export default function NeedStep() {
             rows={3}
             maxLength={600}
             className="min-h-20"
-            placeholder="e.g. 4 computer-controlled pattern sewing machines for my garment factory in Faisalabad, budget around 60 lakh"
+            placeholder="e.g. 80 direct-drive lockstitch sewing machines for my garment factory in Faisalabad, budget around 60 lakh"
             value={need}
             onChange={(e) => setNeed(e.target.value)}
             onKeyDown={(e) => {
@@ -438,7 +438,7 @@ function OptionCard(props: {
     <li
       className={cn(
         "flex gap-3 rounded-lg border p-3 transition-colors",
-        props.checked ? "border-primary bg-primary/5" : "bg-card",
+        props.checked ? "border-primary border-l-[3px] bg-card" : "bg-card",
         props.disabled ? "opacity-60" : "cursor-pointer hover:bg-muted/40",
       )}
       onClick={() => !props.disabled && props.onToggle()}
@@ -481,9 +481,9 @@ function OptionCard(props: {
           </Badge>
           {fit &&
             (fit.within ? (
-              <Badge className="bg-success/10 text-success">Within budget</Badge>
+              <Badge variant="success">Within budget</Badge>
             ) : (
-              <Badge className="bg-warning/10 text-warning">
+              <Badge variant="warning">
                 Over budget by <span className="font-mono tabular-nums">{formatPKR(fit.over)}</span>
               </Badge>
             ))}
@@ -534,7 +534,7 @@ function ChosenSummary({ sourcing: s, onChange }: { sourcing: SourcingResult; on
       <CardHeader>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <CardTitle className="truncate">{s.request.item}</CardTitle>
-          <Badge className="bg-success/10 text-success">
+          <Badge variant="success">
             <CircleCheck />
             {chosen.length} option{chosen.length > 1 ? "s" : ""} chosen
           </Badge>
@@ -557,7 +557,7 @@ function ChosenSummary({ sourcing: s, onChange }: { sourcing: SourcingResult; on
           {chosen.map((o, i) => (
             <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[11px] font-semibold text-primary">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-[2px] border border-primary/50 font-mono text-[11px] font-semibold text-primary">
                   {String.fromCharCode(65 + i)}
                 </span>
                 <span className="truncate font-medium">{o.seller}</span>

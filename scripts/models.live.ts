@@ -47,10 +47,10 @@ function scoreQuotation(q: Quotation | null): { score: number; misses: string[] 
   const item = q.items?.[0];
   const checks: [string, boolean][] = [
     ["supplier", /al-?noor/i.test(q.supplierName ?? "")],
-    ["qty", item?.qty === 4],
-    ["unitPrice", item?.unitPrice === 15_00_000],
+    ["qty", item?.qty === 80],
+    ["unitPrice", item?.unitPrice === 75_000],
     ["lineTotal", item?.lineTotal === 60_00_000],
-    ["model", /AMS-?221F/i.test(item?.model ?? item?.description ?? "")],
+    ["model", /jack\s*f5/i.test(item?.model ?? item?.description ?? "")],
     ["printedTotal", q.printedTotal === 60_00_000],
     ["cashDiscount", q.cashDiscountPct === 8],
     ["months", q.installmentMonths === 12],
@@ -64,10 +64,10 @@ function scoreQuotation(q: Quotation | null): { score: number; misses: string[] 
 }
 
 const REPLIES = [
-  { body: "Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty", unit: 13_40_000, days: 10, warranty: 12 },
+  { body: "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty", unit: 67_000, days: 10, warranty: 12 },
   {
-    body: "Assalam o alaikum. JUKI AMS-221F ki 4 units ka total 53 lakh 60 hazar banega, 30% advance baqi delivery pe. Delivery 2 hafte, warranty 6 mahine.",
-    unit: 13_40_000,
+    body: "Assalam o alaikum. Jack F5 ki 80 units ka total 53 lakh 60 hazar banega, 30% advance baqi delivery pe. Delivery 2 hafte, warranty 6 mahine.",
+    unit: 67_000,
     days: 14,
     warranty: 6,
   },
@@ -99,7 +99,7 @@ test("benchmark", async () => {
     let ok = 0;
     const notes: string[] = [];
     for (const r of REPLIES) {
-      const x = await extractReply({ body: r.body, referenceUnitPrice: 15_00_000 });
+      const x = await extractReply({ body: r.body, referenceUnitPrice: demoQuotation.items[0].unitPrice });
       const good = x.source === "ai" && x.unitPrice === r.unit && x.deliveryDays === r.days && x.warrantyMonths === r.warranty;
       if (good) ok++;
       else notes.push(`[${x.source} ${x.unitPrice}/${x.deliveryDays}d/${x.warrantyMonths}m]`);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_FRAUD_REPLY, demoQuotation } from "./demoData";
+import { DEMO_FRAUD_REPLY, DEMO_SUPPLIER_B_REPLY, demoQuotation } from "./demoData";
 import {
   assessPaymentRisks,
   blockingRisks,
@@ -46,7 +46,7 @@ describe("names and language", () => {
     expect(findChangeOrUrgency("Due to audit our bank account has changed.")).toContain("account has changed");
     expect(findChangeOrUrgency("Please send the advance today to the new account.")).not.toBeNull();
     expect(findChangeOrUrgency("Bhai naya account hai, aaj hi bhej dein")).not.toBeNull();
-    expect(findChangeOrUrgency("4 machines 13.4 lakh per unit final, delivery 10 din")).toBeNull();
+    expect(findChangeOrUrgency("80 machines 67 hazar per unit final, delivery 10 din")).toBeNull();
   });
   it("reads bank details from an email body", () => {
     const p = extractPaymentDetails(DEMO_FRAUD_REPLY.body)!;
@@ -84,7 +84,7 @@ describe("assessPaymentRisks", () => {
   });
 
   it("ignores an ordinary priced reply", () => {
-    const email = inbound({ toFrom: "supplier-b@example.com", body: "Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty" });
+    const email = inbound({ toFrom: "supplier-b@example.com", body: DEMO_SUPPLIER_B_REPLY });
     expect(assessPaymentRisks({ quotation: demoQuotation, emails: [email] })).toEqual([]);
   });
 

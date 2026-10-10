@@ -1,8 +1,10 @@
-// Demo data (all fictional, labelled "Demo data" in the UI). Numbers match TECHNICAL_SPEC.md §4.4.
+// Demo data, labelled "Demo data" in the UI. Numbers match TECHNICAL_SPEC.md §4.4.
+// Company, suppliers and quotes are fictional. The machine is real: new Jack F5 units are listed in Pakistan
+// at Rs 63,000–79,000 (real listings cached in src/data/cache/search.json, median Rs 70,000).
 import type { Company, FinancingOption, Offer, Quotation, Supplier } from "./types";
 
-export const DEMO_MODEL = "JUKI AMS-221F";
-export const DEMO_ITEM = "Computer-controlled pattern sewing machine";
+export const DEMO_MODEL = "Jack F5";
+export const DEMO_ITEM = "Direct-drive single-needle lockstitch machine";
 
 export const demoCompany: Company = {
   name: "Hamza Garments",
@@ -24,8 +26,8 @@ export const demoQuotation: Quotation = {
     {
       description: DEMO_ITEM,
       model: DEMO_MODEL,
-      qty: 4,
-      unitPrice: 15_00_000,
+      qty: 80,
+      unitPrice: 75_000,
       lineTotal: 60_00_000,
     },
   ],
@@ -47,8 +49,8 @@ export const demoOfferA: Offer = {
   supplierEmail: demoQuotation.supplierEmail,
   item: DEMO_ITEM,
   model: DEMO_MODEL,
-  qty: 4,
-  unitPrice: 15_00_000,
+  qty: 80,
+  unitPrice: 75_000,
   total: 60_00_000,
   cashDiscountPct: 8,
   installmentMonths: 12,
@@ -59,15 +61,15 @@ export const demoOfferA: Offer = {
   receivedAt: "2026-10-08T10:00:00.000Z",
 };
 
-// Supplier B's reply, as read from the test inbox ("Bhai, 4 machines 13.4 lakh per unit final ...").
+// Supplier B's reply, as read from the test inbox ("Bhai, 80 machines 67 hazar per unit final ...").
 export const demoOfferB: Offer = {
   id: "offer-b",
   supplierName: "Madina Sewing Solutions",
   supplierEmail: null,
   item: DEMO_ITEM,
   model: DEMO_MODEL,
-  qty: 4,
-  unitPrice: 13_40_000,
+  qty: 80,
+  unitPrice: 67_000,
   total: 53_60_000,
   cashDiscountPct: null,
   installmentMonths: null,
@@ -78,7 +80,7 @@ export const demoOfferB: Offer = {
   receivedAt: "2026-10-11T06:25:00.000Z",
   deliveryDays: 10,
   warrantyMonths: 12,
-  summary: "4 machines at Rs 13.4 lakh each, final price; delivery in 10 days; 1 year warranty.",
+  summary: "80 machines at Rs 67,000 each, final price; delivery in 10 days; 1 year warranty.",
 };
 
 // Payment-fraud demo: looks like Supplier A, but from free webmail, new account, personal title, urgency.
@@ -88,7 +90,7 @@ export const DEMO_FRAUD_REPLY = {
   body: [
     "Dear Sir,",
     "",
-    "Thank you for your order confirmation. Due to our annual audit our bank account has changed. Kindly transfer the 30% advance today to our new account so we can book your machines:",
+    "Thank you for your order confirmation. Due to our annual audit our bank account has changed. Kindly transfer the 30% advance today to our new account so we can book your 80 Jack F5 machines from the next shipment:",
     "",
     "Bank Alfalah, Gulberg Branch",
     "Title: Imran Qureshi",
@@ -103,7 +105,7 @@ export const DEMO_FRAUD_REPLY = {
 };
 
 export const DEMO_SUPPLIER_B_REPLY =
-  "Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty";
+  "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty";
 
 export const POLICY_RATE = 0.115; // SBP policy rate since 14 Sept 2026
 export const KIBOR = 0.118; // 1-year KIBOR (verify before demo)

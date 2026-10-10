@@ -81,7 +81,7 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
+      <header className="flex flex-col gap-3 border-b border-foreground/80 pb-4">
         <Link
           href="/decisions"
           className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -146,19 +146,19 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
           <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
             <TabsList
               variant="line"
-              className="w-max min-w-full justify-start gap-0 border-b p-0 group-data-horizontal/tabs:h-auto"
+              className="w-max min-w-full justify-start gap-0 border-b border-foreground/25 p-0 group-data-horizontal/tabs:h-auto"
             >
               {STEPS.map((s, i) => (
                 <TabsTrigger
                   key={s.value}
                   value={s.value}
-                  className="h-auto flex-none gap-2 rounded-none px-3 py-2.5 after:bg-primary group-data-horizontal/tabs:after:bottom-[-1px]"
+                  className="h-auto flex-none gap-2 rounded-none px-3 py-2.5 after:bg-foreground group-data-horizontal/tabs:after:bottom-[-1px] group-data-horizontal/tabs:after:h-[2px]"
                 >
                   <span
                     className={cn(
-                      "flex size-5 items-center justify-center rounded-full font-mono text-[11px] font-semibold tabular-nums transition-colors",
+                      "flex size-5 items-center justify-center rounded-[2px] font-mono text-[11px] font-semibold tabular-nums transition-colors",
                       done[i]
-                        ? "bg-success/15 text-success"
+                        ? "border border-success/60 text-success"
                         : "border border-border text-muted-foreground in-data-active:border-primary in-data-active:bg-primary in-data-active:text-primary-foreground",
                     )}
                   >
@@ -262,7 +262,7 @@ function EditableTitle() {
         aria-label="Decision title"
         maxLength={120}
         value={draft}
-        className="h-10 max-w-2xl font-heading text-xl font-semibold md:text-2xl"
+        className="h-10 max-w-2xl font-heading text-xl font-bold md:text-2xl"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -276,13 +276,13 @@ function EditableTitle() {
     <button
       type="button"
       title="Rename"
-      className="group/title -mx-1.5 flex max-w-full items-center gap-2 rounded-md px-1.5 text-left hover:bg-accent/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group/title -mx-1.5 flex max-w-full items-center gap-2 rounded-[2px] px-1.5 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       onClick={() => {
         setDraft(state.title);
         setEditing(true);
       }}
     >
-      <h1 className="truncate font-heading text-xl font-semibold tracking-tight md:text-2xl">
+      <h1 className="truncate font-heading text-xl font-bold md:text-[1.75rem] md:leading-tight">
         {state.title || "Untitled decision"}
       </h1>
       <Pencil className="size-4 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover/title:opacity-100" />
@@ -318,7 +318,7 @@ function SaveIndicator({ saveStatus }: { saveStatus: SaveStatus }) {
 
 function CompanyLine({ company }: { company: FaislaState["company"] }) {
   return (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-2 text-xs text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
       <span className="font-medium text-foreground">{company.name}</span>
       <span>
         Cash <span className="font-mono text-foreground tabular-nums">{formatPKR(company.cashBalance)}</span>

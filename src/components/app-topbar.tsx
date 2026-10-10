@@ -50,7 +50,7 @@ export function AppTopbar() {
   const crumbs = crumbsFor(usePathname());
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-4">
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 md:px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 data-vertical:h-4 data-vertical:self-center" />
       <Breadcrumb className="min-w-0 flex-1">
@@ -62,7 +62,7 @@ export function AppTopbar() {
                 {i > 0 && <BreadcrumbSeparator className={i < crumbs.length - 1 ? "hidden sm:block" : undefined} />}
                 <BreadcrumbItem className={last ? "min-w-0" : "hidden sm:inline-flex"}>
                   {last ? (
-                    <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
+                    <BreadcrumbPage className="truncate font-semibold">{crumb.label}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink render={<Link href={crumb.href} />}>{crumb.label}</BreadcrumbLink>
                   )}
@@ -73,7 +73,7 @@ export function AppTopbar() {
         </BreadcrumbList>
       </Breadcrumb>
       <div className="flex items-center gap-1.5">
-        <Badge variant="outline" className="hidden border-warning/40 bg-warning/10 text-warning sm:inline-flex">
+        <Badge variant="warning" className="hidden sm:inline-flex">
           Demo data
         </Badge>
         <ThemeToggle />

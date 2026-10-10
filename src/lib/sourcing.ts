@@ -168,12 +168,13 @@ export function needToQuotation(option: SourcedOption, need: NeedRequest): Quota
   };
 }
 
-// The rehearsed demo need is answered from the cached JUKI listings, never from the live web.
+// The rehearsed demo need (Jack F5 / direct-drive lockstitch) is answered from the cached real Jack F5
+// listings, never from the live web.
 export function isDemoNeed(need: string): boolean {
-  return /pattern\s*sew|ams[\s-]*221|juki/i.test(need);
+  return /\bjack\s*-?\s*f5\b|direct[\s-]*drive\b[^.]{0,40}?\block\s*-?\s*stitch/i.test(need);
 }
 
-// "4 computer-controlled pattern sewing machines" → 4. Only a number in front of a unit word counts.
+// "80 direct-drive lockstitch sewing machines" → 80. Only a number in front of a unit word counts.
 export function parseNeedQty(need: string): number | null {
   const m = /(?<![\d.,])(\d{1,3})\s*(?:x|×)?\s+(?:[a-z][a-z-]*\s+){0,4}?(machines?|units?|pcs|pieces|sets?|sewers?|nos)\b/i.exec(need);
   const n = m ? parseInt(m[1], 10) : NaN;
@@ -212,7 +213,7 @@ export function demoNeedRequest(
   };
 }
 
-// A cached search entry with its stored cleaning (the demo JUKI listings) → candidates, no AI call.
+// A cached search entry with its stored cleaning (the demo Jack F5 listings) → candidates, no AI call.
 export function candidatesFromCache(entry: SearchCacheEntry, item: string): ListingCandidate[] {
   return (entry.cleaned ?? []).map((c) => {
     const source = entry.results[c.index];

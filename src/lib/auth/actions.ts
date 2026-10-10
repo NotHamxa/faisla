@@ -89,7 +89,8 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
       email: parsed.data.email,
       name: parsed.data.name,
       passwordHash: await hashPassword(parsed.data.password),
-      company: { name: parsed.data.companyName },
+      // Not the demo profile: no exporter/LTFF assumption; the owner sets cash and costs in Settings.
+      company: { name: parsed.data.companyName, city: "", isExporter: false },
     });
     userId = user._id;
   } catch (err) {
@@ -104,7 +105,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
     console.error("[auth] session failed", err);
     return { error: DB_DOWN, values };
   }
-  redirect("/dashboard");
+  redirect("/settings?welcome=1#company");
 }
 
 export async function logout(): Promise<void> {

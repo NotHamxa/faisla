@@ -111,7 +111,7 @@ export default function DemoQuotationPage() {
               <td className="border border-neutral-400 px-2 py-2">
                 <p className="font-semibold">{DEMO_ITEM}</p>
                 <p className="text-[11px] text-neutral-600">
-                  Sewing area 220 × 100 mm, direct-drive servo, with table &amp; stand. Brand new, Japan.
+                  Built-in direct-drive servo motor, auto lubrication, LED light, with table &amp; stand. Brand new, box packed.
                 </p>
               </td>
               <td className="border border-neutral-400 px-2 py-2 font-semibold">{DEMO_MODEL}</td>

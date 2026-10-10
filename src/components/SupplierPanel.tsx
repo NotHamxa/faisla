@@ -358,7 +358,7 @@ export default function SupplierPanel() {
                       sent.simulated ? (
                         <Badge variant="secondary">RFQ logged (simulated)</Badge>
                       ) : (
-                        <Badge className="bg-success/10 text-success">
+                        <Badge variant="success">
                           <MailCheck />
                           RFQ sent
                         </Badge>
@@ -372,7 +372,7 @@ export default function SupplierPanel() {
                   </div>
                   {sent && (
                     <Collapsible className="mt-2">
-                      <CollapsibleTrigger className="group/rfq flex w-full items-center gap-1.5 rounded-md text-left text-sm text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+                      <CollapsibleTrigger className="group/rfq flex w-full items-center gap-1.5 rounded-md text-left text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                         <ChevronDown className="size-4 shrink-0 -rotate-90 transition-transform group-data-panel-open/rfq:rotate-0" />
                         <span className="min-w-0 truncate">{sent.subject}</span>
                         {sent.simulated && (
@@ -395,14 +395,13 @@ export default function SupplierPanel() {
         )}
 
         {rfqs.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
+          <div className="flex flex-col gap-2 rounded-[2px] border bg-muted/60 p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-medium">
                 {polling ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="relative flex size-2">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60" />
-                      <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                      <span className="relative inline-flex size-2 animate-pulse bg-primary" />
                     </span>
                     Waiting for replies (checking every 10 s)
                   </span>
@@ -457,7 +456,7 @@ export default function SupplierPanel() {
                   <blockquote className="mt-2 border-l-2 border-primary/40 pl-3 whitespace-pre-wrap italic">{e.body}</blockquote>
                   {offer ? (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge className="bg-success/10 text-success">New offer added</Badge>
+                      <Badge variant="success">New offer added</Badge>
                       <span className="font-mono tabular-nums">
                         {formatPKR(offer.unitPrice)} per unit × {offer.qty} = {formatPKR(offer.total)}
                       </span>
@@ -495,7 +494,7 @@ export default function SupplierPanel() {
 
         {(suppliers.length > 0 || rfqs.length > 0) && (
           <Collapsible open={pasteOpen} onOpenChange={setPasteOpen} className="rounded-lg border border-dashed p-3 text-sm">
-            <CollapsibleTrigger className="group/paste flex w-full items-center gap-2 rounded-md text-left font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+            <CollapsibleTrigger className="group/paste flex w-full items-center gap-2 rounded-md text-left font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               <ClipboardPaste className="size-4 text-muted-foreground" />
               Paste a reply
               <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-data-panel-open/paste:rotate-180" />
@@ -538,7 +537,7 @@ export default function SupplierPanel() {
                 <Textarea
                   aria-label="Supplier reply"
                   className="min-h-20"
-                  placeholder="e.g. Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty"
+                  placeholder="e.g. Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty"
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                 />
@@ -560,7 +559,7 @@ function WarningNote({ children, className }: { children: React.ReactNode; class
     <div
       role="alert"
       className={cn(
-        "flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning",
+        "flex items-start gap-2 rounded-[2px] border border-l-[3px] border-warning/50 border-l-warning bg-card px-3 py-2 text-sm text-warning",
         className,
       )}
     >

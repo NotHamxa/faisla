@@ -32,7 +32,7 @@ function record(over: Partial<DecisionRecord> & Pick<DecisionRecord, "id" | "tit
 const jukiDecision = decide({ company, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
 const juki = record({
   id: "juki",
-  title: "4 × JUKI AMS-221F pattern sewers",
+  title: "80 × Jack F5 lockstitch machines",
   status: "decided",
   decidedAt: "2026-10-07T09:00:00.000Z",
   updatedAt: "2026-10-07T09:00:00.000Z",

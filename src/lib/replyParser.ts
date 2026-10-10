@@ -3,7 +3,7 @@
 // against the amounts actually written in the email. Prices that can't be pinned down → null + owner.
 import { z } from "zod";
 import { aiJson } from "./ai";
-import { formatLakh } from "./format";
+import { formatLakh, groupPKR } from "./format";
 import type { Offer } from "./types";
 
 export type ReplyExtraction = {
@@ -186,7 +186,7 @@ export function parseReplyText(
 function summarize(x: ReplyExtraction, final: boolean): string {
   if (x.unitPrice == null) return `Price unclear: ${x.needsOwnerInput ?? "no price found"}`;
   const parts = [
-    `${x.qty ? `${x.qty} machines at ` : ""}Rs ${formatLakh(x.unitPrice, 2)} each${final ? ", final price" : ""}`,
+    `${x.qty ? `${x.qty} machines at ` : ""}Rs ${x.unitPrice >= 1_00_000 ? formatLakh(x.unitPrice, 2) : groupPKR(x.unitPrice)} each${final ? ", final price" : ""}`,
     x.deliveryDays != null && `delivery in ${x.deliveryDays} days`,
     x.warrantyMonths != null && `${x.warrantyMonths}-month warranty`,
     x.paymentTerms && `terms: ${x.paymentTerms}`,

@@ -32,8 +32,8 @@ export function ThemeSelector() {
               aria-checked={active}
               onClick={() => setTheme(value)}
               className={cn(
-                "relative flex flex-col items-center gap-2 rounded-lg border p-4 text-sm font-medium transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50",
-                active && "border-primary bg-primary/5 text-primary hover:bg-primary/10",
+                "relative flex flex-col items-center gap-2 rounded-lg border p-4 text-sm font-medium transition-colors outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
+                active && "border-foreground border-b-[3px] bg-card text-foreground hover:bg-card",
               )}
             >
               {active && <CheckIcon className="absolute top-2 right-2 size-3.5" />}

@@ -16,11 +16,11 @@ import { cn } from "@/lib/utils";
 
 type Subject = { key: string; supplierName: string; model: string | null; kind: "Supplier" | "Machine model" };
 
-const FLAG_BADGE: Record<ReputationFlag, { cls: string; text: string }> = {
-  good: { cls: "bg-success/10 text-success", text: "Good" },
-  mixed: { cls: "bg-warning/10 text-warning", text: "Mixed" },
-  red: { cls: "bg-destructive/10 text-destructive", text: "Red flags" },
-  not_enough: { cls: "bg-secondary text-secondary-foreground", text: "Not enough reviews" },
+const FLAG_BADGE: Record<ReputationFlag, { variant: "success" | "warning" | "destructive" | "muted"; text: string }> = {
+  good: { variant: "success", text: "Good" },
+  mixed: { variant: "warning", text: "Mixed" },
+  red: { variant: "destructive", text: "Red flags" },
+  not_enough: { variant: "muted", text: "Not enough reviews" },
 };
 
 export default function ReputationCard() {
@@ -93,7 +93,7 @@ export default function ReputationCard() {
               <li key={s.key} className="rounded-lg border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{s.kind}</p>
+                    <p className="ledger-label">{s.kind}</p>
                     <p className="truncate font-medium">{s.supplierName || s.model}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -103,7 +103,7 @@ export default function ReputationCard() {
                       </Badge>
                     )}
                     {rep ? (
-                      <Badge className={FLAG_BADGE[rep.flag].cls}>{FLAG_BADGE[rep.flag].text}</Badge>
+                      <Badge variant={FLAG_BADGE[rep.flag].variant}>{FLAG_BADGE[rep.flag].text}</Badge>
                     ) : failed[s.key] ? (
                       <Badge variant="secondary" title={failed[s.key]}>
                         Unavailable
@@ -155,7 +155,7 @@ export default function ReputationCard() {
                                   variant="outline"
                                   className={cn(
                                     ["delivery", "warranty", "fraud"].includes(r.complaintType)
-                                      ? "border-warning/30 bg-warning/10 text-warning"
+                                      ? "border-warning/50 text-warning"
                                       : "text-muted-foreground",
                                   )}
                                 >

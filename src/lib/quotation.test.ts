@@ -30,7 +30,7 @@ describe("checkArithmetic", () => {
     expect(fields).toContain("items.0.lineTotal");
     expect(fields).toContain("printedTotal");
     const line = checkArithmetic(q).find((i) => i.field === "items.0.lineTotal")!;
-    expect(line.message).toBe("4 × Rs 15,00,000 = Rs 60,00,000, but the quotation prints Rs 58,00,000.");
+    expect(line.message).toBe("80 × Rs 75,000 = Rs 60,00,000, but the quotation prints Rs 58,00,000.");
   });
 
   it("sums multiple lines against the printed total", () => {
@@ -85,11 +85,27 @@ describe("quotationToOffer", () => {
     const offer = quotationToOffer(q, "offer-x");
     expect(offer.id).toBe("offer-x");
     expect(offer.qty).toBe(3);
-    expect(offer.total).toBe(45_00_000);
+    expect(offer.total).toBe(2_25_000);
   });
 
   it("unknown first-installment timing defaults to false", () => {
     expect(quotationToOffer({ ...demoQuotation, firstInstallmentOnDelivery: null }).firstInstallmentOnDelivery).toBe(false);
     expect(quotationToOffer({ ...demoQuotation, firstInstallmentOnDelivery: true }).firstInstallmentOnDelivery).toBe(true);
+  });
+});
+
+describe("quotationToOffer with several lines", () => {
+  it("prices every line, not just the first", () => {
+    const q = {
+      ...demoQuotation,
+      items: [
+        { description: "Machine", model: "X1", qty: 2, unitPrice: 5_00_000, lineTotal: 10_00_000 },
+        { description: "Installation", model: null, qty: 1, unitPrice: 50_000, lineTotal: 50_000 },
+      ],
+    };
+    const offer = quotationToOffer(q);
+    expect(offer.total).toBe(10_50_000);
+    expect(offer.qty).toBe(1);
+    expect(offer.item).toMatch(/2 items/);
   });
 });

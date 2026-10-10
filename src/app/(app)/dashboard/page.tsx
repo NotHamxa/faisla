@@ -73,9 +73,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-foreground/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[1.75rem] leading-tight font-bold">
             {greeting(now)}, {firstName}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
       {decisions.length === 0 ? (
         <Card>
           <CardContent>
-            <Empty className="border border-dashed py-12">
+            <Empty className="border border-dashed border-foreground/25 py-12">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <FilePlus2 />
@@ -151,28 +151,32 @@ function KpiCard({
   tone?: "default" | "warning" | "success";
   children?: React.ReactNode;
 }) {
+  // One cell of the statement strip; a warning cell carries an amber rule along its top edge.
   return (
-    <Card size="sm" className={cn(tone === "warning" && "bg-warning/10 ring-warning/40")}>
-      <CardHeader>
-        <CardDescription className="flex items-center gap-1.5">
-          <Icon className={cn("size-4", tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : "text-muted-foreground")} />
-          {label}
-        </CardDescription>
-        <div
-          className={cn(
-            "font-mono text-2xl font-semibold tracking-tight tabular-nums",
-            tone === "warning" && "text-warning",
-            tone === "success" && "text-success",
-          )}
-        >
-          {value}
-        </div>
-      </CardHeader>
-      <CardContent className="mt-auto space-y-2 text-xs text-muted-foreground">
+    <div
+      className={cn(
+        "relative flex flex-col gap-3 bg-card px-4 pt-3.5 pb-4",
+        tone === "warning" && "before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-warning",
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
+        <Icon className={cn("size-3.5", tone === "warning" ? "text-warning" : tone === "success" ? "text-success" : "text-muted-foreground")} />
+        {label}
+      </div>
+      <div
+        className={cn(
+          "font-mono text-[1.625rem] leading-none font-medium tabular-nums",
+          tone === "warning" && "text-warning",
+          tone === "success" && "text-success",
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-auto space-y-2 text-xs text-muted-foreground">
         {sub}
         {children}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -181,7 +185,7 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
   // Runway meter: 6 months fills the bar; the tick marks the 2-month safety line.
   const meter = (m: number) => `${Math.max(0, Math.min(100, (Number.isFinite(m) ? m : 6) / 6 * 100))}%`;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-px overflow-hidden rounded-[2px] border bg-border sm:grid-cols-2 xl:grid-cols-4">
       <KpiCard
         icon={Wallet}
         label="Cash in bank"
@@ -199,14 +203,14 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         value={
           <>
             {months(kpis.runwayAfterCommitments)}
-            <span className="ml-1 font-sans text-sm font-normal text-muted-foreground">months</span>
+            <span className="ml-1.5 font-sans text-sm font-normal text-muted-foreground">months</span>
           </>
         }
       >
-        <div className="relative h-1.5 overflow-hidden rounded-full bg-foreground/10">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-foreground/15" style={{ width: meter(kpis.runwayToday) }} />
+        <div className="relative h-1.5 overflow-hidden bg-foreground/10">
+          <div className="absolute inset-y-0 left-0 bg-foreground/20" style={{ width: meter(kpis.runwayToday) }} />
           <div
-            className={cn("absolute inset-y-0 left-0 rounded-full", tight ? "bg-warning" : "bg-primary")}
+            className={cn("absolute inset-y-0 left-0", tight ? "bg-warning" : "bg-primary")}
             style={{ width: meter(kpis.runwayAfterCommitments) }}
           />
           <div className="absolute inset-y-0 w-0.5 bg-destructive" style={{ left: meter(SAFE_RUNWAY) }} />
@@ -246,20 +250,20 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
 }
 
 const ALERT_STYLE: Record<AlertLevel, { icon: React.ComponentType<{ className?: string }>; className: string; label: string }> = {
-  high: { icon: AlertTriangle, className: "bg-destructive/10 text-destructive", label: "High" },
-  medium: { icon: CircleAlert, className: "bg-warning/10 text-warning", label: "Medium" },
-  info: { icon: Info, className: "bg-accent text-accent-foreground", label: "Info" },
+  high: { icon: AlertTriangle, className: "text-destructive", label: "High" },
+  medium: { icon: CircleAlert, className: "text-warning", label: "Medium" },
+  info: { icon: Info, className: "text-muted-foreground", label: "Info" },
 };
 
 function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
   return (
     <Card className="h-full">
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Alerts</CardTitle>
         <CardDescription>What needs your attention</CardDescription>
         {alerts.length > 0 && (
           <CardAction>
-            <Badge variant="secondary" className="font-mono tabular-nums">
+            <Badge variant="outline" className="font-mono tabular-nums">
               {alerts.length}
             </Badge>
           </CardAction>
@@ -272,13 +276,13 @@ function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
             All clear. No hidden rates, red flags or expiring quotes.
           </div>
         ) : (
-          <ul className="-mx-2 space-y-1">
+          <ul className="-mx-2 -my-1 divide-y">
             {alerts.slice(0, 6).map((alert, i) => {
               const style = ALERT_STYLE[alert.level];
               return (
                 <li key={i}>
-                  <Link href={alert.href} className="group flex gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
-                    <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", style.className)}>
+                  <Link href={alert.href} className="group flex gap-3 px-2 py-2.5 transition-colors hover:bg-muted">
+                    <div className={cn("flex size-5 shrink-0 items-start justify-center pt-0.5", style.className)}>
                       <style.icon className="size-4" />
                       <span className="sr-only">{style.label}</span>
                     </div>
@@ -302,7 +306,7 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
   const total = payments.reduce((s, p) => s + p.amount, 0);
   return (
     <Card className="h-full">
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Upcoming payments</CardTitle>
         <CardDescription>From decided purchases</CardDescription>
         <CardAction>
@@ -318,8 +322,8 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
           <ul className="divide-y">
             {payments.map((p) => (
               <li key={`${p.decisionId}-${p.dueDate}`} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                <div className="flex w-11 shrink-0 flex-col items-center rounded-lg border py-1 leading-none">
-                  <span className="text-[0.65rem] font-medium text-muted-foreground uppercase">{formatDate(p.dueDate, { month: "short" })}</span>
+                <div className="flex w-11 shrink-0 flex-col items-center gap-0.5 border-r py-0.5 pr-2 leading-none">
+                  <span className="text-[0.6875rem] font-medium text-muted-foreground">{formatDate(p.dueDate, { month: "short" })}</span>
                   <span className="font-mono text-base font-semibold tabular-nums">{formatDate(p.dueDate, { day: "numeric" })}</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -335,7 +339,7 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
         )}
       </CardContent>
       {payments.length > 0 && (
-        <CardFooter className="justify-between text-xs text-muted-foreground">
+        <CardFooter className="rule-top-double justify-between border-t-0 bg-card text-xs text-muted-foreground">
           <span>Next {payments.length} payments</span>
           <span className="font-mono font-medium text-foreground tabular-nums">{formatPKR(total)}</span>
         </CardFooter>
@@ -347,7 +351,7 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
 function RecentDecisionsCard({ dash, now, className }: { dash: ReturnType<typeof buildDashboard>; now: Date; className?: string }) {
   return (
     <Card className={cn("h-full", className)}>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Recent decisions</CardTitle>
         <CardDescription>Latest activity across your purchases</CardDescription>
         <CardAction>
@@ -357,7 +361,7 @@ function RecentDecisionsCard({ dash, now, className }: { dash: ReturnType<typeof
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="px-0">
+      <CardContent className="-mt-(--card-spacing) px-0">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

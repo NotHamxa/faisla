@@ -1,5 +1,5 @@
 {
-  "_about": "SIMULATED reviews for the demo (fictional suppliers, fictional quotes). Keyed by normalized supplier/model name. Already in ReviewPoint shape (the AI review-reading output); code scoring in lib/reputation.ts runs on them. URLs are real search pages, not the source of the quote.",
+  "_about": "Review cache, keyed by normalized supplier/model name, already in ReviewPoint shape (the AI review-reading output); the code rules in lib/reputation.ts score them. The three SUPPLIER entries are SIMULATED (fictional suppliers, team-written quotes; URLs are real search pages, not the source of the quote). The 'jack f5' PRODUCT entry is REAL (simulated:false): each quote is from the linked page, collected 10 Oct 2026; rating is null where the source gives no stars.",
   "entries": {
     "al noor industrial machines": {
       "name": "Al-Noor Industrial Machines",
@@ -7,13 +7,13 @@
       "simulated": true,
       "reviews": [
         { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Machines arrived on time and their technician set them up properly.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
-        { "about": "supplier", "rating": 3, "complaintType": "warranty", "quote": "Warranty claim for a stepper motor took almost five weeks; had to call them again and again.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
-        { "about": "supplier", "rating": 2, "complaintType": "warranty", "quote": "Bobbin case failed in month three. Warranty technician was coming 'next week' for a whole month.", "url": "https://www.facebook.com/search/top?q=Al-Noor%20Industrial%20Machines" },
-        { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Good range of JUKI machines in Faisalabad and the price was negotiable.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
+        { "about": "supplier", "rating": 3, "complaintType": "warranty", "quote": "Warranty claim for a control box took almost five weeks; had to call them again and again.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
+        { "about": "supplier", "rating": 2, "complaintType": "warranty", "quote": "Motor failed in month three. Warranty technician was coming 'next week' for a whole month.", "url": "https://www.facebook.com/search/top?q=Al-Noor%20Industrial%20Machines" },
+        { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Good range of Jack and JUKI machines in Faisalabad and the price was negotiable.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
         { "about": "supplier", "rating": 3, "complaintType": "service", "quote": "Sales team answers quickly, but after-sales service is slow.", "url": "https://www.facebook.com/search/top?q=Al-Noor%20Industrial%20Machines" },
-        { "about": "supplier", "rating": 4, "complaintType": "quality", "quote": "Machine is fine but the table and stand they supplied were poor quality.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
-        { "about": "supplier", "rating": 3, "complaintType": "service", "quote": "Took three visits before the pattern files were loaded correctly.", "url": "https://www.facebook.com/search/top?q=Al-Noor%20Industrial%20Machines" },
-        { "about": "supplier", "rating": 3, "complaintType": "warranty", "quote": "Warranty claim for a stepper motor took almost five weeks; had to call them again and again.", "url": "https://www.olx.com.pk/items/q-al-noor-industrial-machines" }
+        { "about": "supplier", "rating": 4, "complaintType": "quality", "quote": "Machines are fine but the tables and stands they supplied were poor quality.", "url": "https://www.google.com/maps/search/?api=1&query=Al-Noor+Industrial+Machines+Faisalabad" },
+        { "about": "supplier", "rating": 3, "complaintType": "service", "quote": "Took three visits before the stitch settings on our line were right.", "url": "https://www.facebook.com/search/top?q=Al-Noor%20Industrial%20Machines" },
+        { "about": "supplier", "rating": 3, "complaintType": "warranty", "quote": "Warranty claim for a control box took almost five weeks; had to call them again and again.", "url": "https://www.olx.com.pk/items/q-al-noor-industrial-machines" }
       ]
     },
     "madina sewing solutions": {
@@ -21,10 +21,10 @@
       "about": "supplier",
       "simulated": true,
       "reviews": [
-        { "about": "supplier", "rating": 5, "complaintType": "none", "quote": "Bought two JUKI pattern sewers; fair price and the technician came the same day for setup.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" },
+        { "about": "supplier", "rating": 5, "complaintType": "none", "quote": "Bought 30 Jack lockstitch machines; fair price and the technician came the same day for setup.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" },
         { "about": "supplier", "rating": 4, "complaintType": "delivery", "quote": "Delivery was four days late, but they kept us informed throughout.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" },
         { "about": "supplier", "rating": 5, "complaintType": "none", "quote": "Warranty repair was done within 48 hours, no arguments.", "url": "https://www.facebook.com/search/top?q=Madina%20Sewing%20Solutions" },
-        { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Honest dealer, genuine JUKI parts, prices close to market.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" },
+        { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Honest dealer, genuine parts, prices close to market.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" },
         { "about": "supplier", "rating": 5, "complaintType": "none", "quote": "Our third purchase from them. After-sales service is the best on Hall Road.", "url": "https://www.facebook.com/search/top?q=Madina%20Sewing%20Solutions" },
         { "about": "supplier", "rating": 4, "complaintType": "none", "quote": "Good training for our operators; spare parts available in stock.", "url": "https://www.google.com/maps/search/?api=1&query=Madina+Sewing+Solutions+Lahore" }
       ]
@@ -38,18 +38,18 @@
         { "about": "supplier", "rating": 3, "complaintType": "delivery", "quote": "Delivery to Faisalabad took longer than promised.", "url": "https://www.google.com/maps/search/?api=1&query=Karachi+Garment+Tech" }
       ]
     },
-    "juki ams 221f": {
-      "name": "JUKI AMS-221F",
+    "jack f5": {
+      "name": "Jack F5",
       "about": "product",
-      "simulated": true,
+      "simulated": false,
       "reviews": [
-        { "about": "product", "rating": 5, "complaintType": "none", "quote": "Stitch quality on leather patches is excellent and very consistent.", "url": "https://www.youtube.com/results?search_query=juki+ams-221f+review" },
-        { "about": "product", "rating": 4, "complaintType": "none", "quote": "Fast once the patterns are set up; operators learned it in two days.", "url": "https://www.reddit.com/search/?q=juki%20ams-221f" },
-        { "about": "product", "rating": 5, "complaintType": "none", "quote": "Running two shifts for a year with no major breakdown.", "url": "https://www.youtube.com/results?search_query=juki+ams-221f+review" },
-        { "about": "product", "rating": 4, "complaintType": "quality", "quote": "Thread-break sensor gives false alarms at top speed.", "url": "https://www.reddit.com/search/?q=juki%20ams-221f" },
-        { "about": "product", "rating": 5, "complaintType": "none", "quote": "Best pattern sewer in this price range for sportswear.", "url": "https://www.youtube.com/results?search_query=juki+ams-221f+review" },
-        { "about": "product", "rating": 4, "complaintType": "service", "quote": "Machine is great, but genuine spare parts are expensive in Pakistan.", "url": "https://www.reddit.com/search/?q=juki%20ams-221f" },
-        { "about": "product", "rating": 2, "complaintType": "quality", "quote": "The older AMS-210 model kept skipping stitches on thick fabric.", "url": "https://www.reddit.com/search/?q=juki%20ams-210", "relevant": false }
+        { "about": "product", "rating": 5, "complaintType": "none", "quote": "Strong industrial sewing machine, runs great! The seller watched my video and explained step by step how to thread my Jack F5; now it works perfectly. (Amazon.de, verified purchase, Sep 2025, translated)", "url": "https://www.amazon.de/-/en/F5-Sewing-Machine-Industrial-Professional/dp/B0BYLC9LJG" },
+        { "about": "product", "rating": 4, "complaintType": "none", "quote": "All parts work. (Amazon.de, verified purchase, Sep 2025, translated; listing average 4.4 / 5 from 8 ratings)", "url": "https://www.amazon.de/-/en/F5-Sewing-Machine-Industrial-Professional/dp/B0BYLC9LJG" },
+        { "about": "product", "rating": null, "complaintType": "none", "quote": "The Jack produces the most uniform consistent stitches I have ever been able to make. And winding bobbins while I sew? Crazy.", "url": "https://www.reddit.com/r/sewing/comments/1ujjfxk/finally_switched_my_singer_heavy_duty_for_a_jack" },
+        { "about": "product", "rating": null, "complaintType": "quality", "quote": "It's a solid fit for seamstresses doing regular clothing repairs and medium-sized work, but owners note it struggles with very heavy fabrics like leather.", "url": "https://www.facebook.com/fb-answers/jack-f5-industrial-sewing-machine-review" },
+        { "about": "product", "rating": null, "complaintType": "none", "quote": "The Jack F5 is praised as a reliable, practical option for medium-sized work and professional tailoring, especially for light to medium fabrics.", "url": "https://www.facebook.com/fb-answers/jack-f5-sewing-machine-review-and-setup" },
+        { "about": "product", "rating": null, "complaintType": "none", "quote": "The early feedback on the Jack F5 is encouraging ... this Amazon listing has only a small review pool, so those positive experiences should not be treated as proof of universal long-term reliability.", "url": "https://vtpix.online/jack-f5-sewing-machine-review" },
+        { "about": "product", "rating": null, "complaintType": "quality", "quote": "The vacuum system in it was nifty, but obnoxiously noisy. (Juki vs. Jack thread; not about the F5)", "url": "https://www.reddit.com/r/sewing/comments/jf78km/help_with_picking_an_industrial_juki_vs_jack", "relevant": false }
       ]
     }
   }

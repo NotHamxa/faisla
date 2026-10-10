@@ -17,9 +17,9 @@ export function SignupForm() {
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Create your account</CardTitle>
+      <Card className="border-foreground/20">
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
           <CardDescription>Set up your company in under a minute. You can edit cash and costs later.</CardDescription>
         </CardHeader>
         <CardContent>

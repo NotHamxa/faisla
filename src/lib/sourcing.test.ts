@@ -21,8 +21,8 @@ import {
   selectedOptions,
 } from "./sourcing";
 
-const jukiEntry = (searchCache as unknown as { entries: Record<string, SearchCacheEntry> }).entries[
-  "juki ams 221f price pakistan"
+const f5Entry = (searchCache as unknown as { entries: Record<string, SearchCacheEntry> }).entries[
+  "jack f5 price pakistan"
 ];
 
 function listing(over: Partial<ListingCandidate>): ListingCandidate {
@@ -43,15 +43,15 @@ function listing(over: Partial<ListingCandidate>): ListingCandidate {
 }
 
 describe("rankListings", () => {
-  it("demo JUKI cache: 5 new exact-model options, median Rs 13,60,000, cheapest first", () => {
-    const ranked = rankListings(candidatesFromCache(jukiEntry, DEMO_ITEM));
-    expect(ranked.options.map((o) => o.unitPrice)).toEqual([13_20_000, 13_50_000, 13_60_000, 13_75_000, 14_20_000]);
-    expect(ranked.medianUnitPrice).toBe(13_60_000);
-    expect(ranked.minUnitPrice).toBe(13_20_000);
+  it("demo Jack F5 cache (real listings): 3 new exact-model options, median Rs 70,000, cheapest first", () => {
+    const ranked = rankListings(candidatesFromCache(f5Entry, DEMO_ITEM));
+    expect(ranked.options.map((o) => o.unitPrice)).toEqual([63_000, 70_000, 79_000]);
+    expect(ranked.medianUnitPrice).toBe(70_000);
+    expect(ranked.minUnitPrice).toBe(63_000);
     expect(ranked.enoughData).toBe(true);
-    expect(ranked.options.every((o) => o.simulated && o.model === DEMO_MODEL)).toBe(true);
-    expect(ranked.options.map((o) => o.id)).toEqual(["opt-1", "opt-2", "opt-3", "opt-4", "opt-5"]);
-    // used Gujranwala, AMS-210EN (other model), Indian ₹ listing and spec sheet (no PKR price)
+    expect(ranked.options.every((o) => !o.simulated && o.model === DEMO_MODEL && o.url.startsWith("https://"))).toBe(true);
+    expect(ranked.options.map((o) => o.id)).toEqual(["opt-1", "opt-2", "opt-3"]);
+    // used Jack F6, Jack F4 (other model), Indian ₹ listing and spec sheet (no PKR price)
     expect(ranked.dropped).toEqual({ noPrice: 2, used: 1, otherModel: 1, duplicate: 0, outlier: 0 });
     expect(describeSourcingDropped(ranked.dropped)).toBe("4 listings left out: 2 without a PKR price, 1 used, 1 not matching.");
   });
@@ -99,48 +99,50 @@ describe("rankListings", () => {
 });
 
 describe("options → offers and quotation", () => {
-  const { options } = rankListings(candidatesFromCache(jukiEntry, DEMO_ITEM));
+  const { options } = rankListings(candidatesFromCache(f5Entry, DEMO_ITEM));
   const need = demoNeedRequest(
-    "4 computer-controlled pattern sewing machines for my garment factory in Faisalabad, budget around 60 lakh",
+    "80 direct-drive lockstitch sewing machines for my garment factory in Faisalabad, budget around 60 lakh",
     { qty: null, city: "Faisalabad", budget: 60_00_000 },
-    jukiEntry.query,
+    f5Entry.query,
   );
 
   it("builds the demo request in code", () => {
-    expect(need.qty).toBe(4);
+    expect(need.qty).toBe(80);
     expect(need.item).toBe(DEMO_ITEM);
     expect(need.modelCandidates).toEqual([DEMO_MODEL]);
     expect(need.budgetPkr).toBe(60_00_000);
   });
 
   it("offer total is qty × listed unit price, computed in code", () => {
-    const offer = optionToOffer(options[0], 4, 0);
+    const offer = optionToOffer(options[0], 80, 0);
     expect(offer.id).toBe("offer-web-1");
     expect(offer.source).toBe("web");
-    expect(offer.unitPrice).toBe(13_20_000);
-    expect(offer.total).toBe(52_80_000);
+    expect(offer.unitPrice).toBe(63_000);
+    expect(offer.total).toBe(50_40_000);
     expect(offer.sourceLink).toBe(options[0].url);
     expect(offer.installmentMonths).toBeNull();
-    expect(optionTotal(options[4], 4)).toBe(56_80_000);
+    expect(optionTotal(options[2], 80)).toBe(63_20_000);
   });
 
   it("budget fit uses the code total", () => {
-    expect(budgetFit(52_80_000, 60_00_000)).toEqual({ within: true, over: -7_20_000 });
+    expect(budgetFit(50_40_000, 60_00_000)).toEqual({ within: true, over: -9_60_000 });
     expect(budgetFit(62_00_000, 60_00_000)).toEqual({ within: false, over: 2_00_000 });
     expect(budgetFit(62_00_000, null)).toBeNull();
   });
 
   it("needToQuotation gives downstream steps item, model, qty and the listed unit price", () => {
     const q = needToQuotation(options[0], need);
-    expect(q.supplierName).toBe("Lahore Sewing Hub (Lahore)");
-    expect(q.items).toEqual([{ description: DEMO_ITEM, model: DEMO_MODEL, qty: 4, unitPrice: 13_20_000, lineTotal: null }]);
+    expect(q.supplierName).toBe("Market Guide Vlogs (Lahore machinery market)");
+    expect(q.items).toEqual([{ description: DEMO_ITEM, model: DEMO_MODEL, qty: 80, unitPrice: 63_000, lineTotal: null }]);
     expect(q.printedTotal).toBeNull();
     expect(q.firstInstallmentOnDelivery).toBeNull();
     expect(q.installmentMonths).toBeNull();
   });
 
   it("selection keeps price order and caps at 3", () => {
-    expect(selectedOptions(options, ["opt-4", "opt-1", "opt-2", "opt-3"]).map((o) => o.id)).toEqual(["opt-1", "opt-2", "opt-3"]);
+    expect(selectedOptions(options, ["opt-3", "opt-1"]).map((o) => o.id)).toEqual(["opt-1", "opt-3"]);
+    const four = [...options, { ...options[2], id: "opt-4" }];
+    expect(selectedOptions(four, ["opt-4", "opt-1", "opt-2", "opt-3"]).map((o) => o.id)).toEqual(["opt-1", "opt-2", "opt-3"]);
   });
 
   it("decide() works with web offers only: no baseline, no invented savings, memo still written", () => {
@@ -157,8 +159,9 @@ describe("options → offers and quotation", () => {
 
 describe("need text helpers", () => {
   it("recognises the demo need", () => {
-    expect(isDemoNeed("4 computer-controlled pattern sewing machines")).toBe(true);
-    expect(isDemoNeed("JUKI AMS-221F x4")).toBe(true);
+    expect(isDemoNeed("80 direct-drive lockstitch sewing machines")).toBe(true);
+    expect(isDemoNeed("Jack F5 x80")).toBe(true);
+    expect(isDemoNeed("10 single needle lockstitch sewing machines with servo motors")).toBe(false);
     expect(isDemoNeed("2 industrial embroidery machines for Lahore")).toBe(false);
   });
 
@@ -169,16 +172,16 @@ describe("need text helpers", () => {
   });
 
   it("reads quantity only in front of a unit word", () => {
-    expect(parseNeedQty("4 computer-controlled pattern sewing machines, budget around 60 lakh")).toBe(4);
+    expect(parseNeedQty("80 direct-drive lockstitch sewing machines, budget around 60 lakh")).toBe(80);
     expect(parseNeedQty("2 industrial embroidery machines for Lahore, budget 20 lakh")).toBe(2);
     expect(parseNeedQty("embroidery machine, budget 20 lakh")).toBeNull();
   });
 
   it("the price check finds the amounts written in the demo listings", () => {
-    const written = (i: number) => parseAmounts(`${jukiEntry.results[i].title}\n${jukiEntry.results[i].content}`).map((a) => a.value);
-    expect(written(0)).toContain(13_50_000);
-    expect(written(1)).toContain(13_20_000);
-    expect(written(2)).toContain(13_75_000);
+    const written = (i: number) => parseAmounts(`${f5Entry.results[i].title}\n${f5Entry.results[i].content}`).map((a) => a.value);
+    expect(written(0)).toContain(79_000);
+    expect(written(1)).toContain(70_000);
+    expect(written(2)).toContain(63_000);
     expect(parseAmounts("budget around 60 lakh").map((a) => a.value)).toEqual([60_00_000]);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useActionState } from "react";
-import { AlertCircle, ArrowRight, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowRight, KeyRound } from "lucide-react";
 import { login } from "@/lib/auth/actions";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/auth/constants";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -17,9 +17,9 @@ export function LoginForm({ next }: { next: string | null }) {
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+      <Card className="border-foreground/20">
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Sign in to your company&apos;s decisions.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -68,16 +68,16 @@ export function LoginForm({ next }: { next: string | null }) {
       </Card>
 
       {/* Demo box: judges sign in with one click. */}
-      <form action={formAction} className="rounded-xl border border-primary/30 bg-accent p-4 text-accent-foreground">
+      <form action={formAction} className="rounded-[2px] border border-dashed border-foreground/35 bg-card p-4">
         <input type="hidden" name="email" value={DEMO_EMAIL} />
         <input type="hidden" name="password" value={DEMO_PASSWORD} />
         {next && <input type="hidden" name="next" value={next} />}
         <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 size-4 shrink-0" />
+          <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1 space-y-3">
             <div>
               <div className="text-sm font-medium">Demo account</div>
-              <div className="font-mono text-sm break-all">
+              <div className="font-mono text-[0.8125rem] break-all text-muted-foreground">
                 {DEMO_EMAIL} / {DEMO_PASSWORD}
               </div>
             </div>
