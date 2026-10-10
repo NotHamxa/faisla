@@ -254,7 +254,7 @@ function NumberCheck({ memo }: { memo: MemoResult }) {
   const sourceBadges = (
     <div className="flex flex-wrap gap-1.5">
       {memo.source === "llm" ? (
-        <Badge variant="outline">Written by AI (Claude)</Badge>
+        <Badge variant="outline">Written by AI</Badge>
       ) : (
         <Badge className="bg-warning/10 text-warning">Template memo used</Badge>
       )}

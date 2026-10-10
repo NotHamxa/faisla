@@ -47,14 +47,14 @@ data, a template, or asks the owner. It never guesses.
 Browser (Next.js App Router, Tailwind, Recharts)
    │  state in localStorage (no database yet)
    │
-   ├── /api/extract ─────────► Claude (vision, structured output) ──► quotation draft
-   ├── /api/market ──────────► search cache ◄── Tavily ──► Claude cleaning ──► code median
-   ├── /api/reviews ─────────► search cache + Claude ──► code scoring ──► reputation flag
-   ├── /api/suppliers ───────► search + Claude ──► 2–3 suppliers
-   ├── /api/rfq/send ────────► Claude-written RFQ ──► Gmail SMTP ──► team test inboxes
-   ├── /api/rfq/replies ─────► Gmail IMAP ──► Claude extraction ──► offer row
+   ├── /api/extract ─────────► OpenAI (vision, structured output) ──► quotation draft
+   ├── /api/market ──────────► search cache ◄── Tavily ──► AI cleaning ──► code median
+   ├── /api/reviews ─────────► search cache + AI ──► code scoring ──► reputation flag
+   ├── /api/suppliers ───────► search + AI ──► 2–3 suppliers
+   ├── /api/rfq/send ────────► AI-written RFQ ──► Gmail SMTP ──► team test inboxes
+   ├── /api/rfq/replies ─────► Gmail IMAP ──► AI extraction ──► offer row
    ├── /api/decide ──────────► lib/finance.ts (pure TypeScript, no AI)
-   ├── /api/memo ────────────► facts from code ──► Claude ──► number check ──► memo (or template)
+   ├── /api/memo ────────────► facts from code ──► AI ──► number check ──► memo (or template)
    └── /api/bank-email ──────► code template + repayment schedule ──► Gmail SMTP ──► "bank SME desk" test inbox
 ```
 
@@ -122,8 +122,8 @@ With no keys set, the app runs end to end on cached data, template memos and sim
 
 | Variable | Purpose |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Claude API (extraction, cleaning, reviews, emails, memo) |
-| `FAISLA_MODEL` | Model id, default `claude-opus-5-5` |
+| `OPENAI_API_KEY` | OpenAI API (extraction, cleaning, reviews, emails, memo) |
+| `OPENAI_MODEL` | Model id, default `gpt-5.5` |
 | `DEMO_MODE` | `1` = never call external APIs (cached data only) |
 | `TAVILY_API_KEY` | Web search for market prices, reviews, suppliers |
 | `GMAIL_USER` | Team test Gmail account (sends RFQs and the bank email, inbox polled for replies) |
@@ -135,7 +135,7 @@ With no keys set, the app runs end to end on cached data, template memos and sim
 
 ## Third-party APIs and libraries
 
-- **Anthropic Claude API** (`claude-opus-5-5`, via `@anthropic-ai/sdk`): vision extraction, structured output, prose
+- **OpenAI API** (`gpt-5.5` by default, Responses API via the `openai` SDK): vision extraction, structured output, prose
 - **Tavily**: web search
 - **Gmail** SMTP/IMAP via `nodemailer`, `imapflow`, `mailparser`
 - **Next.js 16** (App Router), **React 19**, **Tailwind CSS v4**
