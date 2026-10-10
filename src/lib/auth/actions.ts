@@ -38,6 +38,8 @@ function firstErrors(error: z.ZodError): NonNullable<AuthFormState>["fieldErrors
   return out;
 }
 
+const DB_DOWN = "Can't reach the database right now. Please try again in a moment.";
+
 // Only same-site paths, so `next` can't bounce the user to another domain.
 function safeNext(value: FormDataEntryValue | null): string {
   const next = typeof value === "string" ? value : "";
@@ -51,14 +53,20 @@ export async function login(_prev: AuthFormState, formData: FormData): Promise<A
   const values = { email: String(formData.get("email") ?? "") };
   if (!parsed.success) return { fieldErrors: firstErrors(parsed.error), values };
 
-  // First demo sign-in creates the account and its sample decisions.
-  if (parsed.data.email === DEMO_EMAIL) await ensureDemoAccount();
+  // redirect() throws, so it stays outside the try that turns database failures into a form error.
+  try {
+    // First demo sign-in creates the account and its sample decisions.
+    if (parsed.data.email === DEMO_EMAIL) await ensureDemoAccount();
 
-  const user = await findUserByEmail(parsed.data.email);
-  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
-    return { error: "Wrong email or password", values };
+    const user = await findUserByEmail(parsed.data.email);
+    if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+      return { error: "Wrong email or password", values };
+    }
+    await createSession(user._id);
+  } catch (err) {
+    console.error("[auth] login failed", err);
+    return { error: DB_DOWN, values };
   }
-  await createSession(user._id);
   redirect(safeNext(formData.get("next")));
 }
 
@@ -74,10 +82,9 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   if (!parsed.success) return { fieldErrors: firstErrors(parsed.error), values };
 
   const taken = { fieldErrors: { email: "An account with this email already exists. Sign in instead." }, values };
-  if (await findUserByEmail(parsed.data.email)) return taken;
-
   let userId;
   try {
+    if (await findUserByEmail(parsed.data.email)) return taken;
     const user = await createUserWithCompany({
       email: parsed.data.email,
       name: parsed.data.name,
@@ -88,9 +95,15 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   } catch (err) {
     // Unique index on email: a parallel signup won the race.
     if ((err as { code?: number }).code === 11000) return taken;
-    throw err;
+    console.error("[auth] signup failed", err);
+    return { error: DB_DOWN, values };
   }
-  await createSession(userId);
+  try {
+    await createSession(userId);
+  } catch (err) {
+    console.error("[auth] session failed", err);
+    return { error: DB_DOWN, values };
+  }
   redirect("/dashboard");
 }
 
