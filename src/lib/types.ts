@@ -197,3 +197,56 @@ export type MemoResult = {
 
 // Returned by any AI route when the model output fails validation or no key is set and no cache exists.
 export type NeedsOwnerInput = { needsOwnerInput: true; reason: string };
+
+// ---- Management system records (MongoDB-backed, serialisable for the client) ----
+
+export type DecisionStatus = "draft" | "collecting" | "comparing" | "decided";
+
+// One purchase decision: the whole six-step workflow for one quotation.
+export type DecisionRecord = {
+  id: string;
+  title: string; // "4 × JUKI AMS-221F pattern sewers"
+  status: DecisionStatus;
+  createdAt: string;
+  updatedAt: string;
+  decidedAt: string | null;
+  quotation: Quotation | null;
+  quotationConfirmed: boolean;
+  offers: Offer[];
+  market: MarketResult | null;
+  reputations: Record<string, ReputationResult>;
+  suppliers: Supplier[];
+  emails: EmailRecord[];
+  decision: DecideResult | null;
+  memo: MemoResult | null;
+};
+
+// Workflow fields of a decision the client may change (everything except identity and timestamps).
+export type DecisionPatch = Partial<
+  Pick<
+    DecisionRecord,
+    | "title"
+    | "quotation"
+    | "quotationConfirmed"
+    | "offers"
+    | "market"
+    | "reputations"
+    | "suppliers"
+    | "emails"
+    | "decision"
+    | "memo"
+  >
+>;
+
+export type CompanyRecord = Company & {
+  id: string;
+  financing: FinancingOption[];
+  updatedAt: string;
+};
+
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  companyId: string;
+};
