@@ -70,9 +70,10 @@ export default function SupplierPanel() {
   }
 
   const line = state.quotation?.items[0];
-  const item = line?.description || DEMO_ITEM;
-  const model = line?.model || DEMO_MODEL;
-  const qty = line?.qty || 4;
+  const firstOffer = state.offers[0];
+  const item = line?.description || firstOffer?.item || DEMO_ITEM;
+  const model = line?.model || firstOffer?.model || (line || firstOffer ? "" : DEMO_MODEL);
+  const qty = line?.qty || firstOffer?.qty || 1;
   const referenceUnitPrice = line?.unitPrice ?? null;
   const suppliers = state.suppliers;
 
@@ -92,13 +93,16 @@ export default function SupplierPanel() {
       const res = await fetch("/api/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item, model, city: state.company.city, excludeSupplier: state.quotation?.supplierName }),
+        // live: the server searches the web for dealers only when this is not the (cached) demo machine.
+        body: JSON.stringify({ item, model, city: state.company.city, excludeSupplier: state.quotation?.supplierName, live: true }),
       });
       if (!res.ok) throw new Error(`Supplier search failed (${res.status})`);
       const data = (await res.json()) as { suppliers: Supplier[] };
       update({ suppliers: data.suppliers });
       toast.success(
-        data.suppliers.length ? `Found ${data.suppliers.length} other suppliers` : "No other suppliers found",
+        data.suppliers.length
+          ? `Found ${data.suppliers.length} other suppliers`
+          : "No dealers found on the web. Paste a supplier's reply below instead.",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Supplier search failed");

@@ -15,6 +15,7 @@ export const demoCompany: Company = {
   taxRate: 0.29,
   discountRate: 0.15,
   financingPreference: "islamic",
+  payInFullWhenAffordable: false,
 };
 
 // What extraction should return for the printed Supplier A quotation.
@@ -108,8 +109,8 @@ export const DEMO_FRAUD_REPLY = {
 export const DEMO_SUPPLIER_B_REPLY =
   "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty";
 
-export const POLICY_RATE = 0.115; // SBP policy rate since 14 Sept 2026
-export const KIBOR = 0.118; // 1-year KIBOR, benchmark for Islamic profit rates too (verify before demo)
+export const POLICY_RATE = 0.115; // SBP policy rate: set at 11.5% on 28 Apr 2026, held on 27 Jul and 14 Sep 2026
+export const KIBOR = 0.118; // Illustrative KIBOR (6M offer was 11.86% on 4 Sep 2026, 12.41% on 9 Oct 2026); the stress slider covers the gap
 
 // Islamic-first financing set (docs/ISLAMIC_FINANCE.md). Diminishing Musharakah, Islamic LTFF and Murabaha use the same
 // cash-flow maths as a term facility (10% customer contribution, 36 equal monthly installments, profit on the outstanding
@@ -127,7 +128,7 @@ export const diminishingMusharakah: FinancingOption = {
   kiborLinked: true,
   requiresExporter: false,
   sourceLink: "https://www.meezanbank.com/commercial-banking/",
-  note: "Co-ownership: monthly rent on the bank's share + purchase of its units. Profit rate = KIBOR ≈ 11.8% + 3%",
+  note: "Co-ownership: monthly rent on the bank's share + purchase of its units. Profit rate = KIBOR (illustrative 11.8%) + 3%",
 };
 
 export const ijarah: FinancingOption = {

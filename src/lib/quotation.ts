@@ -85,7 +85,8 @@ export function checkArithmetic(q: Quotation): ArithmeticIssue[] {
   return issues;
 }
 
-// The first item drives the offer (the demo has one line). Total is always computed here, never read.
+// One quotation = one offer. A single line keeps its qty × unit price; several lines are priced together as one
+// purchase (qty 1, total of every line). Total is always computed here, never read.
 export function quotationToOffer(q: Quotation, id = "offer-a"): Offer {
   const first = q.items[0] ?? { description: "", model: null, qty: 0, unitPrice: 0, lineTotal: null };
   // Several lines (machine + stand + installation…) are priced as one purchase: every line counts.

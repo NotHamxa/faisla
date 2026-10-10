@@ -106,10 +106,16 @@ export function memoTemplate(
 
   // Recommendation
   out.push("## Recommendation");
+  // "Pay in full when affordable" can pick cash over cheaper Shariah-compliant financing; the memo says so plainly.
+  const cheapestCompliant = rows.find((r) => isShariahRow(r)) ?? rows[0];
+  const paidInFullByChoice =
+    rec.method === "cash" && !!company.payInFullWhenAffordable && cheapestCompliant.id !== rec.id;
   const ranking =
     rec.id === rows[0].id
       ? `the lowest of the ${rows.length} ways to pay we compared`
-      : `the best balance of cost and cash safety among the ${rows.length} ways to pay we compared`;
+      : paidInFullByChoice
+        ? `your preferred way to pay (in full, from cash, with no financing) among the ${rows.length} ways to pay we compared`
+        : `the best balance of cost and cash safety among the ${rows.length} ways to pay we compared`;
   out.push(
     `Buy from **${rec.supplierName}** with **${methodPhrases[rec.method]}** (${rec.label}), paying ${payDescription(rec)}. ` +
       `In today's money this costs **${formatPKR(rec.pvBeforeTax)}** before tax and **${formatPKR(rec.pvAfterTax)}** after tax, ` +
@@ -137,6 +143,13 @@ export function memoTemplate(
   } else if (recRate != null && recRate < company.discountRate) {
     const rateName = isShariahRow(rec) ? (rec.method === "ijarah" ? "rental rate" : "profit rate") : "interest rate";
     out.push(`- The ${rateName} is ${formatPct(recRate, 1)} a year, below the ${formatPct(company.discountRate, 0)} the business pays for financing.`);
+  }
+  if (paidInFullByChoice) {
+    out.push(
+      `- **Paid in full, no financing:** you asked Faisla to prefer paying in full when cash allows. ` +
+        `The cheapest option in today's money is ${cheapestCompliant.label} at ${formatPKR(cheapestCompliant.pvAfterTax)} after tax, ` +
+        `against ${formatPKR(rec.pvAfterTax)} for paying cash; paying in full avoids a financing contract, bank approval and monthly payments.`,
+    );
   }
   if (cheapestCash && cheapestCash.id !== rec.id) {
     out.push(
@@ -205,7 +218,7 @@ export function memoTemplate(
         `well below the ${formatPct(company.discountRate, 0)} used here.`,
     );
   }
-  for (const a of keyAssumptions(decision.assumptions)) out.push(`- Assumption: ${a}`);
+  for (const a of keyAssumptions(decision.assumptions, isFinanced(rec))) out.push(`- Assumption: ${a}`);
   out.push("");
 
   // Next steps
@@ -229,9 +242,16 @@ export function memoTemplate(
   }
   const priceNote = recOffer ? ` at ${formatPKR(recOffer.unitPrice)} per machine` : "";
   steps.push(`Negotiate with ${rec.supplierName}: confirm the price${priceNote}, delivery and warranty in writing.`);
-  steps.push(
-    `Keep runway at or above ${MIN_SAFE_RUNWAY_MONTHS} months: avoid paying the full price in cash, and recheck cash before each payment.`,
-  );
+  if (rec.method === "cash") {
+    steps.push(
+      `No bank financing is needed. Before paying ${formatPKR(rec.upfront)}, confirm the bank account of ${rec.supplierName} by phone on a number you already have.`,
+    );
+    steps.push(`Recheck cash on the day you pay: runway must stay at or above ${MIN_SAFE_RUNWAY_MONTHS} months.`);
+  } else {
+    steps.push(
+      `Keep runway at or above ${MIN_SAFE_RUNWAY_MONTHS} months: avoid paying the full price in cash, and recheck cash before each payment.`,
+    );
+  }
   steps.forEach((s, i) => out.push(`${i + 1}. ${s}`));
   out.push("");
   out.push("_Every number in this memo comes from Faisla's calculation, not from AI._");
@@ -241,7 +261,9 @@ export function memoTemplate(
 
 // A one-page memo keeps the assumptions an owner acts on (fees, collateral, LTFF, Shariah notes, stress); the full
 // list stays on the Assumptions card. Falls back to every assumption if none match.
-function keyAssumptions(assumptions: string[]): string[] {
+// Paying cash needs none of the financing assumptions, only the pay-in-full rule.
+function keyAssumptions(assumptions: string[], financed: boolean): string[] {
+  if (!financed) return assumptions.filter((a) => /^Pay in full when affordable: on/.test(a));
   const key = assumptions.filter((a) => /fee|insurance|collateral|LTFF|stress|Shariah notes|Ijarah:/i.test(a));
   return key.length ? key : assumptions;
 }

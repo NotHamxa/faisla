@@ -176,3 +176,39 @@ describe("Islamic wording in the template memo", () => {
     expect(memo).toContain("| **B, Islamic LTFF 8.5%** |");
   });
 });
+
+describe("template memo when the recommendation is cash (pay in full)", () => {
+  const offers = [demoOfferA, demoOfferB];
+  const company = { ...demoCompany, cashBalance: 2_00_00_000, payInFullWhenAffordable: true };
+  const decision = decide({ company, offers, financing: demoFinancing });
+  const ctx = { offers, financing: demoFinancing };
+  const memo = memoTemplate(decision, reputations, ctx);
+  const cashFacts = memoFacts(decision, reputations, ctx);
+
+  it("passes the number check", () => {
+    expect(checkMemoNumbers(memo, allowedNumbers(cashFacts))).toEqual({ passed: true, unknownNumbers: [] });
+  });
+
+  it("recommends paying in full, says no financing is needed and asks for no term sheet", () => {
+    expect(memo).toContain("Buy from **Madina Sewing Solutions** with **cash at delivery** (B, cash)");
+    expect(memo).toContain("No bank financing is needed");
+    expect(memo).not.toMatch(/term sheet/i);
+    expect(memo).not.toContain("avoid paying the full price in cash");
+  });
+
+  it("is honest that Islamic LTFF is cheaper in today's money", () => {
+    expect(memo).toContain("The cheapest option in today's money is B, Islamic LTFF 8.5% at Rs 40,13,687 after tax");
+    expect(memo).toContain("Saves Rs 2,07,038");
+  });
+
+  it("keeps Islamic wording", () => {
+    expect(memo).not.toMatch(/interest|\bloans?\b|\bEMI\b|markup/i);
+  });
+
+  it("tells the AI there is no financing to request", () => {
+    const byKey = new Map(cashFacts.map((f) => [f.key, f.value]));
+    expect(byKey.get("recommended.bankFinancing")).toBe("no");
+    expect(byKey.get("company.payInFull")).toBe("on");
+    expect(byKey.get("cheapest.option")).toBe("B, Islamic LTFF 8.5%");
+  });
+});

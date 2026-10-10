@@ -19,7 +19,7 @@ const IGNORE_PATTERNS: RegExp[] = [
 // List markers at line starts ("1. ", "## 2) "), keeping the prefix so the line stays readable.
 const LIST_MARKER = /^(\s*(?:#{1,6}\s+)?(?:[-*+]\s+)?)\d{1,2}[.)](?=\s)/gm;
 
-// A number not glued to letters/digits (so "AMS-221F" or "A1" are not numbers), optional Rs/PKR, optional %.
+// A number not glued to letters/digits (so "F5-7" or "A1" are not numbers), optional Rs/PKR, optional %.
 const NUMBER_TOKEN = /(?:(?<!\w)(Rs|PKR)\.?\s*|(?<!\w))(\d[\d,]*(?:\.\d+)?)(\s?%)?(?!\w)/gi;
 
 const IGNORED_YEARS = new Set(["2025", "2026", "2027"]);

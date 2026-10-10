@@ -159,6 +159,24 @@ export function memoFacts(
   add("recommended.option", "Recommended option", recommended.label);
   add("recommended.supplier", "Recommended supplier", recommended.supplierName);
   add("recommended.method", "Recommended way to pay", methodName(recommended));
+  add(
+    "recommended.bankFinancing",
+    "Bank financing needed for the recommended option (if no, there is no term sheet to request)",
+    isFinanced(recommended) ? "yes" : "no",
+  );
+  add(
+    "company.payInFull",
+    `Owner's setting "pay in full when we can afford it" (prefer cash whenever it leaves at least ${MIN_SAFE_RUNWAY_MONTHS} months of fixed costs)`,
+    company.payInFullWhenAffordable ? "on" : "off",
+  );
+  const cheapestCompliant = rows.find((r) => isShariahRow(r));
+  if (cheapestCompliant && cheapestCompliant.id !== recommended.id) {
+    add(
+      "cheapest.option",
+      "Cheapest Shariah-compliant option in today's money after tax (not recommended because of cash safety or the owner's pay-in-full setting)",
+      cheapestCompliant.label,
+    );
+  }
   if (baseline && decision.savingsVsBaseline) {
     add("baseline.option", "Original quotation's plan (baseline)", baseline.label);
     addMoney("savings.beforeTax", `Saving vs ${baseline.label}, before tax, in today's money`, decision.savingsVsBaseline.beforeTax);

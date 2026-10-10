@@ -12,12 +12,36 @@ confirms.
 | Repository | https://github.com/NotHamxa/faisla |
 | Team | CodeStorm · AICON'26 Build With AI · Financial Operations |
 
+## How to test (about 2 minutes)
+
+Open https://faisla-xi.vercel.app and press **Sign in as demo** (or type `demo@faisla.pk` / `faisla2026`). The demo
+company is fictional; the first sign-in seeds 3 sample decisions. Nothing you do emails a real company: all mail goes to
+team test inboxes.
+
+1. **Dashboard:** cash, runway, the savings already found, upcoming Islamic LTFF installments, alerts.
+2. **Decisions → New decision → Upload a quotation**, then **Use demo quotation** and **Confirm quotation** (80 × Jack F5
+   at Rs 75,000, "12 × Rs 5,00,000 at 0% markup" or 8% off for cash).
+3. **Price & reputation:** the quote is ~9% above the simulated benchmark (~7% above the real web median of Rs 70,000);
+   supplier reviews are scored by code.
+4. **Competing offers:** **Find other suppliers → Send RFQ to all**. Under *Paste a reply*, press **Use demo reply →
+   Read reply** (Roman Urdu: "67 hazar per unit") to add Supplier B. Then press **Demo fraud email**: a "new bank
+   account" email raises a high-risk payment-fraud warning (IBAN changed, urgency wording, title mismatch).
+5. **Compare:** six Shariah-compliant ways to pay; **B, Islamic LTFF 8.5%** is recommended (Rs 40,13,687 after tax).
+   Open **Show calculation** on any row, move the **KIBOR stress** slider, read the Assumptions and Shariah notes.
+6. **Decide:** **Write decision memo** (every number checked against the calculation). **Request term sheet** stays
+   blocked until you tick that the flagged account was confirmed by phone.
+7. **Settings toggles:** switch the financing preference to **Islamic and conventional** and press Compare again:
+   two conventional rows appear, labelled interest-based, and are never recommended. Turn on **Pay in full when we can
+   afford it** and set cash to Rs 2,00,00,000: Compare now recommends **B, cash**, says Islamic LTFF would cost
+   Rs 2,78,722 less after tax, and the term-sheet button explains no financing is needed. Use **Load demo company** in
+   Settings to put the profile back.
+
 ## Problem
 
 SME owners make big purchase and borrowing decisions without a finance team. Four mistakes keep happening:
 
 1. **The cost of paying later.** A "0% markup" plan is a deferred-price sale: permissible, but the price is higher than cash. In the demo, paying later costs 16.9% a year.
-2. **Missed cheap Shariah-compliant financing.** Exporters buying new machinery qualify for SBP's Islamic LTFF (policy rate − 3% = 8.5%), but most never ask.
+2. **Missed cheap Shariah-compliant financing.** Exporters buying new machinery can apply for SBP's Islamic LTFF, priced at policy rate − 3% (8.5% today by that formula; the bank confirms the actual rate), but many never ask.
 3. **Ignored tax.** Profit, Ijarah rentals and depreciation are tax-deductible, and that changes which option is cheaper.
 4. **Cash crunch.** Paying cash for the cheapest price can leave barely a month of salaries in the bank.
 
@@ -54,10 +78,16 @@ Each purchase is a **decision** with five steps (tabs). There are two ways to st
 | Step | What happens |
 | --- | --- |
 | 1. Quotation / Your need | One of the two starts above |
-| 2. Price & reputation | Quoted price vs web prices and a benchmark ("% above market"); supplier and product reviews scored by code as good / mixed / red flags |
-| 3. Competing offers | Faisla finds other suppliers and emails them an RFQ. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("67 hazar per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback |
+| 2. Price & reputation | Quoted price vs the simulated benchmark median ("% above the benchmark") and the real web listings (median shown alongside); supplier and product reviews scored by code as good / mixed / red flags |
+| 3. Competing offers | For the demo machine, two fictional suppliers (no web call); for any other item, Faisla searches the web for dealers (Tavily + AI, names and phones only as printed). RFQs are emailed to team test inboxes. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("67 hazar per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback |
 | 4. Compare | Every way to pay: cash, the supplier's deferred-price plan, Diminishing Musharakah, Ijarah, Islamic LTFF (conventional rows only if the preference includes them). PV before and after tax, cash runway, verdict, "Show calculation" per row, KIBOR stress slider, break-even discount rate, Assumptions card with Shariah notes |
-| 5. Decide | Decision memo built from the code's numbers (every number checked, Islamic finance terms), PDF export, and a "Request term sheet" email to an Islamic bank's SME desk (profit rate, takaful, security deposit, late-payment charity undertaking, Shariah board approval) with a 36-month installment schedule attached |
+| 5. Decide | Decision memo built from the code's numbers (every number checked, Islamic finance terms), PDF export, and a "Request term sheet" email to an Islamic bank's SME desk (profit rate, takaful, security deposit, late-payment charity undertaking, Shariah board approval) with a 36-month installment schedule attached. If the recommendation is cash, no term sheet is needed and the button says so |
+
+**Recommendation rule (code, `compareOptions`).** Among Shariah-compliant rows (cash, the supplier's plan, Islamic
+financing), pick the lowest PV after tax that still leaves at least 2 months of fixed costs in the bank; if none does,
+the lowest PV after tax. Conventional rows are never recommended. If the company turns on **Pay in full when we can
+afford it**, the cheapest cash row that leaves 2 months of runway wins instead, and cheaper financing rows are marked
+"Cheaper in today's money, but uses financing".
 
 Around the decisions sits a management shell:
 
@@ -65,7 +95,8 @@ Around the decisions sits a management shell:
 - **Suppliers:** every supplier seen across decisions, merged by name, with reputation.
 - **Financing:** the Islamic-first preference, a short explainer of each Islamic mode, KIBOR and policy-rate references, and the company's financing options (Islamic presets plus conventional), editable; used in every comparison.
 - **Inbox:** every RFQ, reply and bank email across decisions.
-- **Settings:** company profile, account, light/dark/system theme, and what is real vs simulated.
+- **Settings:** company profile (including the financing preference and "pay in full when we can afford it"), account,
+  light/dark/system theme, and what is real vs simulated.
 
 ## Where the AI is, and isn't
 
@@ -196,9 +227,12 @@ arrears unless the quotation says the first installment is due on delivery.
 Hamza Garments (fictional, Faisalabad exporter): Rs 1 crore cash, Rs 35 lakh/month fixed costs, 29% tax.
 The machine is real: 80 × Jack F5 direct-drive lockstitch machines (new units are listed in Pakistan at
 Rs 63,000–79,000, median Rs 70,000). Supplier A quotes 80 × Rs 75,000 = Rs 60 lakh, "12 × Rs 5,00,000 at 0% markup"
-or 8% off for cash (~9% above the market benchmark). Supplier B replies Rs 67,000 each (Rs 53.6 lakh).
+or 8% off for cash (~9% above the simulated benchmark median of Rs 68,700; ~7% above the real web median of
+Rs 70,000). Supplier B replies Rs 67,000 each (Rs 53.6 lakh).
 Financing (Shariah-compliant only): 10% own share or security deposit, 36 months; Diminishing Musharakah and Ijarah
-at 14.8% (KIBOR + 3%), SBP Islamic LTFF 8.5% (policy 11.5% − 3%).
+at 14.8% (an illustrative KIBOR of 11.8% + 3%; the 6-month KIBOR offer was 12.41% on 9 Oct 2026, which the stress
+slider covers), SBP Islamic LTFF 8.5% (policy rate 11.5% − 3%, our arithmetic from SBP's published formula; the policy
+rate was set on 28 Apr 2026 and held on 14 Sep 2026).
 
 | Option | Pay | PV before tax | PV after tax | Runway (months) | Verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -215,7 +249,9 @@ at 14.8% (KIBOR + 3%), SBP Islamic LTFF 8.5% (policy 11.5% − 3%).
 - Stress test, KIBOR +2%: Diminishing Musharakah and Ijarah reprice to 16.8% (installment Rs 1,71,509, PV Rs 55,50,038 before tax). The recommendation doesn't change, because Islamic LTFF follows the policy rate, not KIBOR.
 - With "Islamic and conventional" selected, a conventional loan (14.8%) and conventional LTFF (8.5%) appear with the same numbers, labelled "Interest-based, for comparison only"; the recommendation stays Islamic LTFF.
 
-Every figure above is asserted in the unit tests.
+Every figure above is asserted in the unit tests. With **Pay in full when we can afford it** on and Rs 2 crore cash,
+the recommendation becomes B, cash (4.18 months of runway, Rs 2,07,038 saved before tax against the "0%" plan); Islamic
+LTFF stays Rs 2,78,722 cheaper after tax and the app says so. Also tested.
 
 ## Cost and model choice
 
@@ -240,18 +276,25 @@ This is a hackathon demo. The following are **fictional or simulated** and label
 
 - The company (Hamza Garments), its cash, costs and tax profile, and the seeded sample decisions.
 - Supplier A's quotation (Al-Noor Industrial Machines) and the supplier contacts (Madina Sewing Solutions, Karachi Garment Tech).
-- The 60-row price benchmark table ("simulated benchmark", median Rs 68,700, set close to the real web median).
+- The 60-row price benchmark table ("simulated benchmark", median Rs 68,700, set close to the real web median). The
+  "% above" figure on the Price step uses this simulated median; the real web median is shown next to it.
 - The cached supplier reviews (Al-Noor, Madina, Karachi Garment Tech); their links open real search pages, not the source of the quote.
+- The demo reply texts (Supplier B's Roman Urdu reply and the fraud email). The app also reads real replies from the inbox.
 - The bank's SME desk, which is a team test inbox.
+- The tax profile (29%, 25% initial allowance + 15% reducing balance, 10-year life) is our reading of the Income Tax
+  Ordinance 2001 for a company buying new plant and machinery, not tax advice; it is listed on every comparison.
 
 **Real data:** the demo machine (Jack F5) and its cached web prices are real listings with links, collected
-10 Oct 2026: two new units on OLX (Rs 79,000 and Rs 70,000, Lahore) and a Lahore dealer video (Rs 63,000); the
-cleaning rules drop a used Jack F6, a Jack F4 and two results without a PKR price, leaving a median of Rs 70,000.
+10 Oct 2026. Only three new-unit prices survive the cleaning: two on OLX (Rs 79,000 and Rs 70,000, Lahore) and a
+Lahore dealer video (Rs 63,000); the rules drop a used Jack F6, a Jack F4 and two results without a PKR price, leaving
+a median of Rs 70,000. Three prices is the minimum the app accepts, so treat it as an indication, not a market survey.
 The cached Jack F5 product reviews are real (Amazon.de, Reddit, Facebook, a review site), each with its link.
 With API keys set, a described need for anything else searches the live web and returns real listings, and
 supplier replies arrive as real emails. All outgoing emails go only to team test inboxes, never
-to real companies. SBP policy rate (11.5%), KIBOR, the Islamic LTFF rate and the tax treatment are our best reading at
-the time of the demo; banks must confirm them, which is why the app emails the bank for a term sheet.
+to real companies. SBP policy rate (11.5%, set 28 Apr 2026, held 14 Sep 2026), KIBOR (11.8%, illustrative), the
+Islamic LTFF rate (8.5% = policy rate − 3%, our arithmetic) and the tax treatment are our best reading at the time of
+the demo; banks must confirm them, which is why the app emails the bank for a term sheet. No real personal or
+company data is stored: the demo account is fictional, and the only credentials in this README are for that account.
 
 ## Running locally
 
@@ -259,7 +302,7 @@ the time of the demo; banks must confirm them, which is why the app emails the b
 npm i
 cp .env.example .env.local
 npm run dev        # http://localhost:3000
-npm test           # 113 Vitest tests: finance engine, memo number check, reply parser, sourcing, reputation, quotation, dashboard
+npm test           # 157 Vitest tests: finance engine, memo number check, reply parser, sourcing, reputation, quotation, fraud, dashboard
 npx vitest run -c vitest.live.config.ts   # live checks (model benchmark + one live sourcing search); spends API credit
 ```
 
@@ -281,20 +324,45 @@ none set, the app runs end to end on cached data, template memos and simulated e
 | `BANK_INBOX` | Test inbox acting as the bank's SME desk (add it to `ALLOWED_RECIPIENTS` too) |
 | `COMPANY_NAME` | Sender name on outgoing emails |
 
-## Third-party APIs and libraries
+## Built during AICON'26
 
-| Name | Used for |
-| --- | --- |
-| OpenAI API (`openai` SDK, Responses API) | Vision extraction, structured output, emails and memo prose |
-| Tavily | Web search |
-| Gmail via `nodemailer`, `imapflow`, `mailparser` | Sending RFQs and bank email (SMTP), reading replies (IMAP) |
-| MongoDB Node.js driver, MongoDB Atlas | Users, sessions, companies, decisions |
-| Next.js 16 (App Router), React 19 | App framework |
-| Tailwind CSS v4, shadcn/ui (Base UI), lucide-react, sonner | UI components, icons, toasts |
-| Recharts | Cost and cash charts |
-| Zod | Validation of AI output and API input |
-| next-themes | Light/dark/system theme |
-| Vitest | Unit tests and the live model benchmark |
+Everything in this repository was built by Team CodeStorm during the AICON'26 Build With AI period (10–11 Oct 2026);
+the commit history starts with the scaffold on 10 Oct 2026. What we built:
+
+- The finance engine (`src/lib/finance.ts`): effective cost of deferred-price plans, Islamic financing schedules,
+  Ijarah and Diminishing Musharakah tax treatment, PV before and after tax, runway, break-even, stress test, the
+  recommendation rule, and its tests.
+- The AI pipelines (quotation vision extraction, need-to-search, listing and review reading, reply reading with a
+  Roman Urdu parser cross-check, memo writing with a code number check) and the model benchmark that picked the models.
+- The payment-fraud rules, the reputation scoring, the web app (five-step decision workspace, dashboard, suppliers,
+  financing, inbox, settings), auth, the MongoDB data layer and the email safety rules.
+
+Disclosures:
+
+- **Planning documents.** `TECHNICAL_SPEC.md` and `PROJECT_PLAN.md` were written at the start of the event as the
+  plan and keep their PROPOSED/SHOULD labels. Where they differ from the build, this README describes what was built.
+  `reference/` holds the team's build-plan documents and `finance_reference.py`, the Python reference calculator
+  used to check the demo numbers.
+- **AI coding assistants** were used to write code and docs, as the rulebook allows. The team designed the product and
+  the finance rules, reviewed the code and can explain every part of it.
+- **Boilerplate:** `create-next-app` and shadcn/ui component templates (`src/components/ui`).
+
+## Third-party APIs, libraries and data
+
+| Name | Used for | Licence / terms |
+| --- | --- | --- |
+| OpenAI API (`openai` SDK, Responses API) | Vision extraction, structured output, emails and memo prose | SDK Apache-2.0; API under OpenAI's terms |
+| Tavily | Web search | Tavily API terms |
+| Gmail via `nodemailer`, `imapflow`, `mailparser` | Sending RFQs and bank email (SMTP), reading replies (IMAP) | MIT-0, MIT, MIT; one team Gmail account |
+| MongoDB Node.js driver, MongoDB Atlas | Users, sessions, companies, decisions | Driver Apache-2.0; Atlas free tier |
+| Next.js 16 (App Router), React 19, Vercel | App framework and hosting | MIT; Vercel hobby plan |
+| Tailwind CSS v4, shadcn/ui (Base UI), lucide-react, sonner | UI components, icons, toasts | MIT, MIT, ISC, MIT |
+| Recharts | Cost and cash charts | MIT |
+| Zod | Validation of AI output and API input | MIT |
+| next-themes | Light/dark/system theme | MIT |
+| Vitest, TypeScript, ESLint | Tests, types, lint | MIT, Apache-2.0, MIT |
+| Public web pages (OLX listings, a dealer video, Amazon.de, Reddit, Facebook, a review site) | Cached Jack F5 prices and product reviews | Short quotes and prices with links to the source, non-commercial demo |
+| SBP, bank and news pages | Rates, scheme rules, Islamic finance references | Cited with links in [docs/ISLAMIC_FINANCE.md](docs/ISLAMIC_FINANCE.md) |
 
 ---
 

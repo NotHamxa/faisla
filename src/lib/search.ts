@@ -43,7 +43,7 @@ export function lookupCache(query: string): SearchCacheEntry | null {
   return fileEntries[key] ?? runtimeEntries.get(key) ?? null;
 }
 
-// Market lookups by model: "JUKI AMS-221F", "AMS-221F" and "Juki AMS 221F-2516" share the demo entry.
+// Market lookups by model: "Jack F5", "JACK F5" and "Jack F5-7" share the demo entry.
 export function lookupCacheByModel(model: string): SearchCacheEntry | null {
   const key = model.toLowerCase().replace(/[^a-z0-9]+/g, "");
   if (!key) return null;
@@ -54,7 +54,7 @@ export function lookupCacheByModel(model: string): SearchCacheEntry | null {
   return null;
 }
 
-// Sellers that only exist in team-written simulated listings (fictional), e.g. the demo JUKI sellers.
+// Sellers that only exist in team-written simulated listings (fictional), kept for older cached entries.
 export function isSimulatedSeller(name: string): boolean {
   const key = normalizeQuery(name);
   if (!key) return false;

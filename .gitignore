@@ -43,3 +43,6 @@ next-env.d.ts
 
 .vercel
 scripts/bench-results.txt
+
+# Office lock files
+~$*

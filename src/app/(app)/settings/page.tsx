@@ -15,8 +15,14 @@ export const metadata: Metadata = { title: "Settings · Faisla" };
 const SIMULATED = [
   { what: "Company profile and demo decisions", detail: "Fictional business (Hamza Garments), labelled “Demo data”." },
   { what: "Supplier quotations and suppliers", detail: "Fictional suppliers; RFQ emails only go to team test inboxes." },
-  { what: "Market benchmark table", detail: "Simulated price table; live web prices are cached real search results with links." },
-  { what: "Supplier reviews", detail: "Simulated quotes, tagged “simulated”; links point to real search pages." },
+  {
+    what: "Market benchmark table",
+    detail: "Simulated 60-row price table. The Jack F5 web prices beside it are real listings (3 new units, with links).",
+  },
+  {
+    what: "Supplier reviews",
+    detail: "Reviews of the fictional suppliers are simulated and tagged “simulated”. Jack F5 product reviews are real, with links.",
+  },
   { what: "Emails without mail keys", detail: "Saved but not sent, tagged “simulated”." },
 ];
 

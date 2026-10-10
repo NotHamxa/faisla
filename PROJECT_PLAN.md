@@ -3,6 +3,11 @@
 Team CodeStorm · AICON'26 Build With AI · Domain: **Financial Operations**
 Technical details: [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md)
 
+> **Planning document**, written at the start of AICON'26 Build With AI (10 Oct 2026). Status labels (MUST, SHOULD,
+> PROPOSED) are the plan, not the final build. The build uses MongoDB Atlas, Gmail SMTP/IMAP and OpenAI + Tavily, and
+> includes Islamic-first financing and the payment-fraud check; [README.md](README.md) describes what was built.
+> Sections 1–4 are the plan as written; the pitch answers in §5 are kept current.
+
 ## Event
 
 | | |
@@ -65,7 +70,7 @@ Technical details: [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md)
 | M4 | Supplier finder + RFQ email | C | 2–3 suppliers with contacts; "Send" delivers to a test inbox |
 | M5 | Reply reader | C | Reply in test inbox → price extracted → new offer row |
 | M6 | Finance engine + unit tests | B | All tests in spec §4.6 pass |
-| M7 | Financing comparison table | B | Five rows match spec §4.5; "show calculation"; Assumptions card visible |
+| M7 | Financing comparison table | B | Six rows match spec §4.5; "show calculation"; Assumptions card visible |
 | M8 | Decision memo + bank email | D | Memo from code's numbers passes number check; "Request term sheet" sends email |
 | M9 | Deployed link | A | Opens on phone and laptop in incognito |
 
@@ -91,7 +96,7 @@ If P1/P2 are accepted, they slot in as SHOULD items after S1–S2 and never befo
 
 ### ROADMAP (slide only)
 
-Islamic financing (Ijarah, Diminishing Musharakah), leasing, bulk stock purchases, vehicles, solar savings model, multi-user approvals, WhatsApp intake.
+Leasing beyond Ijarah, bulk stock purchases, vehicles, solar savings model, multi-user approvals, WhatsApp intake.
 
 ---
 
@@ -99,14 +104,14 @@ Islamic financing (Ijarah, Diminishing Musharakah), leasing, bulk stock purchase
 
 | Role | Owns |
 | --- | --- |
-| A: Capture & app shell | Next.js app, Vercel deploy, Supabase, profile, upload, extraction, confirm screen |
+| A: Capture & app shell | Next.js app, Vercel deploy, MongoDB Atlas, profile, upload, extraction, confirm screen |
 | B: Finance engine | `lib/finance.ts`, unit tests, comparison table, "show calculation", after-tax, stress test (P4 if accepted) |
 | C: Market & email | Search API, cleaning and caching, reviews and reputation card, supplier finder, RFQ send, reply reader, bank email (P1 if accepted) |
 | D: Data, memo & pitch | Demo data, quotation printout, memo + number check, UI polish, slides, script, backup video, journey video (P2, P3 if accepted) |
 
 | Hours | A | B | C | D |
 | --- | --- | --- | --- | --- |
-| 0–2 | App skeleton, empty deploy, Supabase tables | Unit tests from spec §4.6 first | Test search API on 2 models; choose one | Company profile, financing options, start benchmark |
+| 0–2 | App skeleton, empty deploy, database collections | Unit tests from spec §4.6 first | Test search API on 2 models; choose one | Company profile, financing options, start benchmark |
 | 2–5 | Upload + extraction + confirm | All finance functions pass | Cleaning + caching + market card; cache demo reviews | Print/photograph quotation; finish benchmark; fake fraud reply (if P1) |
 | 5–8 | Wire confirm → decide → table | Table UI + "show calculation" | Supplier finder, RFQ send, reply reader | Memo prompt + number check; slides draft (P3 flow) |
 | 8–10 | Full path end to end, deployed | Fix numbers that differ from tests | Bank email; retry/timeout handling | First timed rehearsal |
@@ -121,18 +126,18 @@ Rule of thumb from the last hackathon: about a third of the time building, two-t
 
 ### Slides (5 max, following the organisers' flow) — P3
 
-1. **Problem**: SMEs decide big purchases blind; four mistakes (the cost of paying later on "0%" plans, missed Islamic LTFF, ignored tax, cash crunch); 82% of Pakistani SMEs report cash-flow shortages; $5.7T SME finance gap.
+1. **Problem**: SMEs decide big purchases blind; four mistakes (the cost of paying later on "0%" plans, missed Islamic LTFF, ignored tax, cash crunch); 82% of Pakistani SMEs reported cash-flow shortages in a 2020 SMEDA survey; $5.7T MSME finance gap (IFC estimate).
 2. **Data/Input**: quotation photo, supplier emails (Roman Urdu), web prices and reviews, company cash and costs, SBP rates and KIBOR.
 3. **AI Component**: AI reads, code calculates, owner confirms (two-column diagram: AI side vs code side).
 4. **Solution** (Islamic finance first): the comparison table + memo (screenshot), with the three moments: paying later costs 17% a year, Islamic LTFF 8.5%, live email reply.
-5. **Impact + roadmap**: Rs 5.8 lakh saved (4.7 after tax), cash kept; SBP AI sandbox fit; roadmap plug-ins; live link.
+5. **Impact + roadmap**: Rs 5.8 lakh saved (4.7 after tax), cash kept; roadmap plug-ins; live link.
 
 ### 5-minute script (updated lines)
 
 | Time | Speaker | Beat |
 | --- | --- | --- |
 | 0:00–0:35 | D | Hook: Hamza, sixty lakh, "0% markup", no finance team |
-| 0:35–1:20 | A | Photo → AI reads → owner confirms → market check: 80 × Jack F5 at Rs 75,000, ~9% above market (real OLX/dealer prices, median Rs 70,000) |
+| 0:35–1:20 | A | Photo → AI reads → owner confirms → market check: 80 × Jack F5 at Rs 75,000, ~9% above the simulated benchmark (~7% above the median of 3 real OLX/dealer prices, Rs 70,000) |
 | 1:20–2:15 | C | Finds two suppliers, **checks what other buyers say about them**, sends RFQs; live Roman Urdu reply → new row (fraud flag beat here if P1) |
 | 2:15–3:30 | B | Code does the maths, Shariah-compliant first: the "0%" deferred-price plan costs ~17% a year to pay later; Islamic LTFF ~8.5% vs ~15% for Diminishing Musharakah; cash pay leaves ~1 month of salaries. **Saves ~5.8 lakh, 4.7 lakh even after tax, and leaves two and a half months of costs in the bank** |
 | 3:30–4:10 | A | AI reads, code decides, owner confirms; memo number check; "Request term sheet" to an Islamic bank's SME desk |
@@ -150,16 +155,16 @@ If a step fails live: "here's the recording", play the backup video from that po
 | Is this Shariah-compliant? | Islamic finance first. By default Faisla only compares Shariah-compliant financing: Diminishing Musharakah, Ijarah, Murabaha (preset) and SBP Islamic LTFF, the modes Pakistani Islamic banks use for machinery, priced off KIBOR or the SBP rate. Conventional loans appear only if the owner switches the preference to "Islamic and conventional"; they are labelled interest-based and never recommended. The supplier's "0%" plan is a deferred-price sale (bay' muajjal), which is permissible when the price is fixed, so we show its effective yearly cost, not "interest". Every comparison lists Shariah notes: asset-backed, no compounding, late payment goes to charity, takaful. Final compliance is the bank's Shariah board's call, so the term-sheet email asks for its approval. This matters because the 26th Amendment targets ending riba before 1 Jan 2028. |
 | Why does Ijarah beat Diminishing Musharakah at the same rate? | Tax: Ijarah rentals are deducted as paid over 3 years; with Diminishing Musharakah you deduct profit plus depreciation spread over 10 years. Same cash, earlier tax savings. |
 | How do we know 17% is right? | "Show calculation": standard IRR of paying later versus the cash price. Timing is an input; due on delivery it's 20.3%. |
-| Is 8.5% for Islamic LTFF real? | SBP sets the Islamic LTFF / LTFF end-user rate at policy rate − 3% (ABL publishes this); policy rate 11.5% since 14 Sept 2026. The refinance schemes are being phased out over FY24–28, so banks confirm, hence the term-sheet email. |
+| Is 8.5% for Islamic LTFF real? | SBP sets the Islamic LTFF / LTFF end-user rate at policy rate − 3% (ABL publishes this); policy rate 11.5% (set 28 Apr 2026, held 14 Sep 2026), so 8.5% is our arithmetic, not a quoted bank rate. The refinance schemes are being phased out over FY24–28, so banks confirm, hence the term-sheet email. |
 | Did you include tax? | Yes: profit (or Ijarah rentals) and depreciation (25% initial allowance, then 15%), on what each option actually pays, discounted at 10.65% after tax. Islamic LTFF still wins. |
-| Why a 15% discount rate? | About the company's cost of financing (KIBOR + 3% ≈ 14.8%); editable; Islamic LTFF beats cash above 8.8%. |
+| Why a 15% discount rate? | About the company's cost of financing (KIBOR + 3% ≈ 14.8% with an illustrative KIBOR of 11.8%; the 6M KIBOR offer was 12.41% on 9 Oct 2026, which the stress slider covers); editable; Islamic LTFF beats cash above 8.8%. |
 | What about bank fees, takaful and collateral? | On the Assumptions card; fee field editable; the term-sheet email asks the bank (plus security deposit, late-payment charity undertaking and Shariah board approval). |
-| Is the benchmark data real? | Benchmark, company and supplier reviews are simulated and labelled; the Jack F5 web prices and product reviews are real, with links; the supplier reply is a real email. |
+| Is the benchmark data real? | Benchmark, company and supplier reviews are simulated and labelled; the Jack F5 web prices (3 listings) and product reviews are real, with links. Supplier replies can arrive as real emails in the test inbox; the demo also has a "Use demo reply" text. |
 | Is this really Financial Operations? | It's financial planning and credit/risk for SMEs: financing choice, true cost of credit, tax, liquidity (plus fraud check if P1). |
 | How do you handle payment fraud? (if P1) | Code compares bank details across quotation and replies, checks IBAN validity and sender domain; AI flags account-change language; payment is blocked until the owner confirms by phone. |
 | Who pays for this? | SMEs on a monthly plan; Islamic banks (clean, documented financing requests); suppliers listed in comparisons. |
 | Is this financial advice? | It compares options for a business decision; the owner decides; numbers and sources are shown. |
-| What did you build here? | Today's commit history on GitHub. |
+| What did you build here? | Everything in the repo, during the event: the commit history starts on 10 Oct 2026. We used AI coding assistants (allowed) and can explain every part; README "Built during AICON'26". |
 
 ---
 

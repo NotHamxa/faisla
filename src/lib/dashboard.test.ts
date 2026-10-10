@@ -1,4 +1,4 @@
-// Dashboard tests on the seeded demo shape: one decided JUKI purchase (Islamic LTFF), one open generator quote, one draft.
+// Dashboard tests on the seeded demo shape: one decided Jack F5 purchase (Islamic LTFF), one open generator quote, one draft.
 import { describe, expect, it } from "vitest";
 import { addMonths, buildDashboard } from "./dashboard";
 import { demoCompany, demoFinancing, demoOfferA, demoOfferB, demoQuotation } from "./demoData";
@@ -206,5 +206,24 @@ describe("recent decisions", () => {
     expect(j.recommendedLabel).toBe(ltff.label);
     expect(j.savingsAfterTax).toBe(jukiDecision.savingsVsBaseline!.afterTax);
     expect(dash.recentDecisions[0].recommendedLabel).toBeNull();
+  });
+});
+
+describe("a decided cash purchase (pay in full)", () => {
+  const rich: CompanyRecord = { ...company, cashBalance: 2_00_00_000, payInFullWhenAffordable: true };
+  const cashDecision = decide({ company: rich, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
+  const cash = record({ ...juki, id: "cash", decision: cashDecision });
+  const d = buildDashboard(rich, [cash], now);
+
+  it("commits the cash price upfront and nothing monthly", () => {
+    expect(d.kpis.committedUpfront).toBe(53_60_000);
+    expect(d.kpis.committedMonthly).toBe(0);
+    expect(d.kpis.runwayAfterCommitments).toBeCloseTo(4.18, 2);
+    expect(d.upcomingPayments).toEqual([]);
+  });
+
+  it("asks for no term sheet and raises no runway alert", () => {
+    expect(d.alerts.some((a) => /term sheet/i.test(a.title))).toBe(false);
+    expect(d.alerts.some((a) => a.title.startsWith("Runway drops"))).toBe(false);
   });
 });

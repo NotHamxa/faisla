@@ -367,3 +367,38 @@ describe("pay in full when affordable", () => {
     expect(r.rows.find((row) => row.recommended)!.label).toBe("B, Islamic LTFF 8.5%");
   });
 });
+
+describe("pay in full: the cash-recommended path", () => {
+  const company = { ...demoCompany, cashBalance: 2_00_00_000, payInFullWhenAffordable: true };
+  const r = decide({ company, offers: [demoOfferA, demoOfferB], financing: demoFinancing });
+  const byId = (id: string) => r.rows.find((x) => x.id === id)!;
+
+  it("recommends B, cash with 4.18 months of runway", () => {
+    expect(r.recommendedId).toBe("offer-b:cash");
+    expect(byId("offer-b:cash").verdict).toBe("Recommended");
+    expect(byId("offer-b:cash").runwayMonths).toBeCloseTo(4.18, 2);
+  });
+
+  it("never calls cheaper financing 'dearer than' the cash row", () => {
+    // Islamic LTFF (40,13,687) and Ijarah (41,90,272) cost less after tax than B cash (42,92,409).
+    expect(byId("offer-b:iltf").verdict).toBe("Cheaper in today's money, but uses financing");
+    expect(byId("offer-b:ijarah").verdict).toBe("Cheaper in today's money, but uses financing");
+    expect(byId("offer-b:dm").verdict).toBe("Safe, dearer than B cash");
+    expect(byId("offer-a:installments").verdict).toBe("Paying later costs 16.9% a year");
+  });
+
+  it("has no break-even rate and measures savings against the quoted plan", () => {
+    expect(r.breakEvenDiscountRate).toBeNull();
+    expect(r.savingsVsBaseline).toEqual({ beforeTax: 2_07_038, afterTax: 1_94_881 });
+  });
+
+  it("states the setting in the assumptions", () => {
+    expect(r.assumptions.some((a) => a.startsWith("Pay in full when affordable: on."))).toBe(true);
+  });
+
+  it("still never recommends conventional financing under 'both'", () => {
+    const both = decide({ company, offers: [demoOfferA, demoOfferB], financing: demoFinancing, preference: "both" });
+    expect(both.recommendedId).toBe("offer-b:cash");
+    expect(both.rows.filter((x) => !isShariahRow(x)).every((x) => x.verdict === "Interest-based, for comparison only")).toBe(true);
+  });
+});

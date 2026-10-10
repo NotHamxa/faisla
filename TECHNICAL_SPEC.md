@@ -3,6 +3,11 @@
 Team CodeStorm · AICON'26 Build With AI · Domain: **Financial Operations**
 Presentation: 11 Oct 2026, 11:20–11:25, SEECS CR-01
 
+> **Planning document**, written at the start of AICON'26 Build With AI (10 Oct 2026). Status labels (MUST, SHOULD,
+> PROPOSED) are the plan, not the final build. The build uses MongoDB Atlas, Gmail SMTP/IMAP and OpenAI + Tavily, and
+> includes Islamic-first financing and the payment-fraud check; [README.md](README.md) describes what was built.
+> The finance numbers in §4 match the build and its unit tests.
+
 Status legend used throughout:
 
 - **MUST** — on the demo path; built first.
@@ -43,7 +48,7 @@ confirms. No number shown on screen is produced by an LLM.
 | Data/Input | Quotation photo/PDF, supplier email replies, web prices and reviews, company cash and costs, SBP rates |
 | AI Component | Vision extraction, search-result and review reading, RFQ and reply handling, memo writing |
 | Solution | Ranked comparison of every way to pay + decision memo + bank term-sheet request |
-| Impact | Demo: Rs 5.8 lakh saved (Rs 4.7 lakh after tax) and no cash crunch; SME finance gap; SBP AI sandbox theme |
+| Impact | Demo: Rs 5.8 lakh saved (Rs 4.7 lakh after tax) and no cash crunch; SME finance gap |
 
 ---
 
@@ -56,29 +61,29 @@ Browser (Next.js App Router, Tailwind, Recharts)
    ├── /api/market ──────────► search cache ◄── search API (Tavily / Serper / Brave)
    ├── /api/reviews ─────────► search cache + LLM ──► code scoring
    ├── /api/suppliers ───────► search API + LLM
-   ├── /api/rfq/send ────────► Resend / Gmail API ──► team test inboxes
-   ├── /api/rfq/replies ─────► Gmail API (poll 10 s) ──► LLM extraction
+   ├── /api/rfq/send ────────► Gmail SMTP ──► team test inboxes
+   ├── /api/rfq/replies ─────► Gmail IMAP (poll 10 s) ──► LLM extraction
    ├── /api/fraud-check ─────► code rules (+ LLM signals)            [PROPOSED]
    ├── /api/decide ──────────► lib/finance.ts (pure TypeScript, no AI)
    ├── /api/memo ────────────► LLM + code number-check
    ├── /api/loan-pack ───────► lib/finance.ts + template                [PROPOSED]
-   └── /api/bank-email ──────► Resend / Gmail API ──► test inbox "bank SME desk"
+   └── /api/bank-email ──────► Gmail SMTP ──► test inbox "bank SME desk"
    │
-Supabase (Postgres + Storage)
+MongoDB Atlas (users, sessions, companies, decisions)
 ```
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
 | Web app | Next.js (App Router, TypeScript) + Tailwind | Mobile-friendly; deploy to Vercel in hour 1 |
-| Database + files | Supabase (Postgres + Storage) | Free tier |
+| Database | MongoDB Atlas | Free tier |
 | Vision + text AI | One LLM API with vision and JSON output | Temperature 0–0.2, strict schemas |
-| Web search | Tavily, Serper or Brave | Test on Pakistani equipment prices; cache every demo query |
-| Email send | Resend (or Gmail API) | Only to team test inboxes |
-| Email read | Gmail API on one test inbox (or Resend inbound webhook) | Poll every 10 s in demo |
+| Web search | Tavily | Cache every demo query |
+| Email send | Gmail SMTP (nodemailer) | Only to team test inboxes |
+| Email read | Gmail IMAP on one test inbox (imapflow) | Poll every 10 s in demo |
 | Charts | Recharts | Cost bars, runway line |
 | Maths | `lib/finance.ts` + Vitest | No AI calls in this file, ever |
 
-Secrets (LLM key, search key, email keys, Supabase service key) live in Vercel env vars only, never in the repo.
+Secrets (LLM key, search key, Gmail app password, MongoDB URI) live in Vercel env vars only, never in the repo.
 
 ---
 
@@ -115,11 +120,11 @@ type Flow = { month: number; amount: number }; // positive = cash out
 monthlyFromYearly(yearly: number): number;
 yearlyFromMonthly(monthly: number): number; // (1 + r)^12 − 1
 
-// 1. Hidden interest rate of an installment plan (bisection, 0–20% a month)
+// 1. Effective monthly cost of the supplier's deferred-price plan vs its cash price (bisection, 0–20% a month)
 hiddenMonthlyRate(cashPrice: number, installment: number, months: number,
                   firstDueOnDelivery: boolean): number;
 
-// 2. Loan
+// 2. Equal monthly installment / rental on the amount financed (bank convention i = rate ÷ 12)
 emi(principal: number, yearlyRate: number, months: number): number;
 amortisation(principal: number, yearlyRate: number, months: number):
   { month: number; payment: number; markup: number; principalPaid: number; balance: number }[];
@@ -158,12 +163,12 @@ stressTest(options: Option[], kiborShift: number): ComparisonRow[];    // shifts
 | Cash in bank | Rs 1,00,00,000 |
 | Monthly fixed costs | Rs 35,00,000 |
 | Tax rate | 29% (editable) |
-| Discount rate | 15% (≈ cost of financing, KIBOR + 3% ≈ 14.8%, rounded); 10.65% after tax |
+| Discount rate | 15% (≈ cost of financing, KIBOR + 3% ≈ 14.8% with an illustrative KIBOR of 11.8%, rounded); 10.65% after tax |
 | Machine | Jack F5 direct-drive single-needle lockstitch (real model; new units listed in Pakistan at Rs 63,000–79,000, web median Rs 70,000) |
 | Supplier A | 80 machines × Rs 75,000 = Rs 60,00,000; 12 × Rs 5,00,000 "0% markup", first installment one month after delivery; 8% cash discount → Rs 55,20,000 |
 | Market benchmark | Median Rs 68,700 per machine (simulated, close to the real web median of Rs 70,000; A is ~9% above) |
 | Supplier B | 80 × Rs 67,000 per machine = Rs 53,60,000 cash |
-| Financing | 10% own share / security deposit (Rs 5,36,000), 36 months, P = Rs 48,24,000; Diminishing Musharakah and Ijarah 14.8% (KIBOR + 3%), SBP Islamic LTFF 8.5% (policy 11.5% − 3%); conventional loan 14.8% and LTFF 8.5% kept for the "both" preference |
+| Financing | 10% own share / security deposit (Rs 5,36,000), 36 months, P = Rs 48,24,000; Diminishing Musharakah and Ijarah 14.8% (illustrative KIBOR 11.8% + 3%; 6M KIBOR offer was 12.41% on 9 Oct 2026), SBP Islamic LTFF 8.5% (policy rate 11.5% − 3%, our arithmetic; set 28 Apr 2026, held 14 Sep 2026); conventional loan 14.8% and LTFF 8.5% kept for the "both" preference |
 
 ### 4.5 Expected results (the comparison table)
 
@@ -227,7 +232,7 @@ All routes validate LLM output against a Zod schema; on failure they return `nee
 
 ---
 
-## 6. Database (Supabase / Postgres)
+## 6. Database (planned relational schema; built as MongoDB collections, see README)
 
 | Table | Key columns | Status |
 | --- | --- | --- |
@@ -297,7 +302,7 @@ Prompt: "Write a short, polite request for quotation from {company} in {city} fo
 
 ### 7.5 Reply reading — MUST
 
-Prompt: "From this supplier email, extract: unit_price (PKR integer or null), total (or null), delivery_days, warranty_months, payment_terms, and a one-line summary. If the price is unclear, set it to null and explain in summary." Must handle Roman Urdu ("13.4 lakh per unit" → 1340000). PROPOSED extra fields: bank_name, account_title, iban, urgency_or_account_change_language (boolean + quote).
+Prompt: "From this supplier email, extract: unit_price (PKR integer or null), total (or null), delivery_days, warranty_months, payment_terms, and a one-line summary. If the price is unclear, set it to null and explain in summary." Must handle Roman Urdu ("67 hazar per unit" → 67000; "53.6 lakh" → 5360000). PROPOSED extra fields: bank_name, account_title, iban, urgency_or_account_change_language (boolean + quote).
 
 ### 7.6 Decision memo — MUST
 
@@ -307,7 +312,7 @@ Number check (code): extract every number from the memo (strip commas, handle %)
 
 ---
 
-## 8. Payment-fraud check — PROPOSED
+## 8. Payment-fraud check — PROPOSED at the start, built
 
 The most common real-world payment fraud in SME purchasing is a "please pay to our new account" email
 (business email compromise / invoice fraud). Faisla already reads quotations and replies, so it can flag this.
@@ -356,7 +361,7 @@ Optional input "expected extra monthly profit from the machines" → payback mon
 | Supplier contacts | 2–3 fictional suppliers; emails are team test inboxes |
 | Supplier B reply | "Bhai, 80 machines 67 hazar per unit final, delivery 10 din, 1 saal warranty", sent live from a phone |
 | Fraud reply (PROPOSED) | "Our account has changed, please send advance to new account …" with a different IBAN |
-| Financing options | Diminishing Musharakah and Ijarah KIBOR + 3% (≈ 14.8%), SBP Islamic LTFF policy − 3% (8.5%), Murabaha preset; conventional loan and LTFF kept (shariahCompliant false); 10% own share / deposit, 36 months, source links |
+| Financing options | Diminishing Musharakah and Ijarah KIBOR + 3% (≈ 14.8% with an illustrative KIBOR of 11.8%), SBP Islamic LTFF policy − 3% (8.5%), Murabaha preset; conventional loan and LTFF kept (shariahCompliant false); 10% own share / deposit, 36 months, source links |
 | Bank contact | Test inbox named as the bank's SME desk |
 
 ---
@@ -372,7 +377,7 @@ Optional input "expected extra monthly profit from the machines" → payback mon
 
 ## 13. Assumptions and open items to verify before the demo
 
-- Current KIBOR fixing; exact Islamic LTFF profit rate a bank quotes today (SBP refinance is being phased out over FY24–28); policy rate 11.5% (14 Sept 2026).
+- Current KIBOR fixing (the demo uses an illustrative 11.8%; 6M KIBOR offer was 12.41% on 9 Oct 2026); exact Islamic LTFF profit rate a bank quotes today (SBP refinance is being phased out over FY24–28); policy rate 11.5% (set 28 Apr 2026, held 14 Sep 2026).
 - 29% tax rate for the company type.
 - 25% initial allowance and 15% depreciation for this machine class, and that both apply in year 1.
 - 10-year machine life.

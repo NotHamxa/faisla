@@ -375,11 +375,24 @@ function SaveState({ dirty, valid, status }: { dirty: boolean; valid: boolean; s
 
 // ---------- rates ----------
 
-function RateTile({ label, value, href, source }: { label: string; value: string; href: string; source: string }) {
+function RateTile({
+  label,
+  value,
+  href,
+  source,
+  asOf,
+}: {
+  label: string;
+  value: string;
+  href: string;
+  source: string;
+  asOf?: string;
+}) {
   return (
     <div className="rounded-lg border p-4">
       <div className="ledger-label">{label}</div>
       <div className="mt-1 font-mono text-3xl font-medium tabular-nums">{value}</div>
+      {asOf && <p className="mt-1 text-xs text-muted-foreground">{asOf}</p>}
       <a
         href={href}
         target="_blank"
@@ -404,14 +417,26 @@ function RatesCard({ className }: { className?: string }) {
         <CardAction>
           <Badge variant="warning">
             <TriangleAlertIcon data-icon="inline-start" />
-            Verify before demo
+            Bank confirms
           </Badge>
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <RateTile label="KIBOR (benchmark)" value={formatPct(KIBOR)} href={LINKS.kibor} source="SBP KIBOR fixings" />
-          <RateTile label="SBP policy rate" value={formatPct(POLICY_RATE)} href={LINKS.policy} source="SBP monetary policy" />
+          <RateTile
+            label="KIBOR (benchmark)"
+            value={formatPct(KIBOR)}
+            href={LINKS.kibor}
+            source="SBP KIBOR fixings"
+            asOf="Illustrative. 6M KIBOR offer was 11.86% on 4 Sep and 12.41% on 9 Oct 2026; the stress slider covers a higher KIBOR."
+          />
+          <RateTile
+            label="SBP policy rate"
+            value={formatPct(POLICY_RATE)}
+            href={LINKS.policy}
+            source="SBP monetary policy"
+            asOf="Set on 28 Apr 2026; held on 27 Jul and 14 Sep 2026."
+          />
         </div>
         <div className="divide-y rounded-lg border text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 p-3">
@@ -440,7 +465,8 @@ function RatesCard({ className }: { className?: string }) {
           <a href={LINKS.ltff} target="_blank" rel="noreferrer" className="text-primary underline-offset-2 hover:underline">
             &ldquo;3% less than the SBP policy rate&rdquo;
           </a>
-          . SBP refinance schemes are being phased out over FY24–28, so the bank confirms the exact rate and approval time.
+          ; 8.5% is that formula applied to today&apos;s 11.5% policy rate (our arithmetic). SBP refinance schemes are being
+          phased out over FY24–28, so the bank confirms the exact rate and approval time.
           Conventional loans use the same KIBOR + spread and are shown only when the preference includes them.
         </p>
       </CardContent>

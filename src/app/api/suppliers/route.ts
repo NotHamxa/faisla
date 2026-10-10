@@ -1,6 +1,7 @@
 // POST { item, model, city, excludeSupplier?, live? } → { suppliers: Supplier[] }.
-// The demo list always comes back instantly. With `live: true` and search + AI keys, up to two
-// web-found dealers are appended (contact email = TEST_INBOX, so nothing reaches a real company).
+// The demo machine (Jack F5) gets the fictional demo suppliers instantly, from no web call. Any other item gets no demo
+// suppliers: with `live: true` and search + AI keys, up to three web-found dealers are returned (contact email =
+// TEST_INBOX, so nothing reaches a real company); without keys the list is empty and the owner pastes replies instead.
 import { apiUser } from "@/lib/auth/api";
 import { z } from "zod";
 import { aiEnabled, aiJson } from "@/lib/ai";
@@ -31,17 +32,25 @@ export async function POST(request: Request) {
     live?: boolean;
   };
   const exclude = body.excludeSupplier ?? "";
-  let suppliers = resolveDemoSuppliers().filter((s) => !sameSupplier(s.name, exclude));
+  const demo = isDemoMachine(body.item, body.model);
+  let suppliers = demo ? resolveDemoSuppliers().filter((s) => !sameSupplier(s.name, exclude)) : [];
 
-  if (body.live && searchEnabled() && aiEnabled() && process.env.TEST_INBOX) {
+  if (!demo && body.live && searchEnabled() && aiEnabled() && process.env.TEST_INBOX) {
     const found = await withTimeout(findDealers(body.item || DEMO_ITEM, body.model || DEMO_MODEL, body.city), 12000);
     const fresh = (found ?? []).filter(
       (d) => !sameSupplier(d.name, exclude) && !suppliers.some((s) => sameSupplier(s.name, d.name)),
     );
-    suppliers = [...suppliers, ...fresh.slice(0, 2)];
+    suppliers = [...suppliers, ...fresh.slice(0, 3)];
   }
 
   return Response.json({ suppliers });
+}
+
+// The cached demo path: the Jack F5 (or a request with no item at all).
+function isDemoMachine(item?: string, model?: string): boolean {
+  const norm = (s?: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (!norm(item) && !norm(model)) return true;
+  return norm(model).includes(norm(DEMO_MODEL)) || (!norm(model) && norm(item) === norm(DEMO_ITEM));
 }
 
 async function findDealers(item: string, model: string, city?: string): Promise<Supplier[]> {

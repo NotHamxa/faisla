@@ -917,7 +917,7 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
         {q.items.length > 1 && (
           <p className="text-xs text-muted-foreground">
             + {q.items.length - 1} more line{q.items.length > 2 ? "s" : ""} (all lines: {formatPKR(quotationListTotal(q))});
-            the comparison uses the first line.
+            the comparison prices every line together as one purchase.
           </p>
         )}
 

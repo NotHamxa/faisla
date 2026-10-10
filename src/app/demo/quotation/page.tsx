@@ -64,9 +64,9 @@ export default function DemoQuotationPage() {
         <section className="mt-6 flex justify-between gap-6">
           <div>
             <p className="text-[11px] uppercase tracking-wider text-neutral-500">To</p>
-            <p className="font-semibold">M/s Hamza Garments</p>
+            <p className="font-semibold">M/s Hamza Garments (Pvt) Ltd</p>
             <p>Sargodha Road, Faisalabad</p>
-            <p>Attn: Mr. Hamza (Proprietor)</p>
+            <p>Attn: Mr. Hamza, Director</p>
           </div>
           <table className="self-start text-[12.5px]">
             <tbody>

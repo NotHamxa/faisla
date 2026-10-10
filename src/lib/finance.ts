@@ -764,6 +764,8 @@ export function compareOptions(options: PayOption[], company: Company): Comparis
       verdict = c.runway < SAFE_RUNWAY ? "Cheapest price, drains cash" : "Cheapest price";
     else if (c.runway < SALARIES_AT_RISK_RUNWAY) verdict = "Salaries at risk";
     else if (c.runway < SAFE_RUNWAY) verdict = "Tight on cash";
+    // Only reachable when "pay in full when affordable" picked a cash row over cheaper financing.
+    else if (c.pvAfterTax < computed[recIdx].pvAfterTax) verdict = "Cheaper in today's money, but uses financing";
     else verdict = `Safe, dearer than ${shortName(rec)}`;
 
     return {

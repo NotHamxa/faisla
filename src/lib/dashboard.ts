@@ -225,7 +225,7 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
       alerts.push({
         level: "info",
         title: "Comparison ready to confirm",
-        detail: `${d.title}: ${rec.label} leads on after-tax cost.`,
+        detail: `${d.title}: ${rec.label} is recommended.`,
         href,
       });
     }

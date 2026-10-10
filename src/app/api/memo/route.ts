@@ -41,6 +41,12 @@ Islamic finance first (the owner wants Shariah-compliant financing):
 - Under Risks or Next steps, mention confirming the bank's Shariah board approval, takaful and the late-payment charity
   undertaking when an Islamic financing row is recommended.
 
+When the recommended way to pay is cash (the facts say no bank financing is needed):
+- Say plainly that no financing is needed and do not suggest requesting a term sheet.
+- If the owner's "pay in full" setting is on and a cheaper option in today's money exists, say honestly that it is cheaper
+  and that paying in full was chosen because of the owner's setting (no financing contract, approval or monthly payments).
+- Next steps: confirm the supplier's bank account by phone before paying, and recheck cash on the day of payment.
+
 Numbers (strict, checked by code):
 - Use ONLY the numbers in the facts list, written exactly as given (e.g. "Rs 49,87,935", "5.8 lakh", "16.9%", "2.59 months").
 - Do not calculate, round, convert or add any other number. No years, no dates, no counts, no percentages that are not in the facts.

@@ -12,6 +12,7 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { FINANCING_NAMES, SHARIAH_NOTES, decide, isFinancedMethod, isShariahRow, paymentWord } from "@/lib/finance";
 import { formatLakh, formatPKR, formatPct, groupPKR } from "@/lib/format";
 import { type FaislaState, useStore } from "@/lib/store";
@@ -152,6 +153,7 @@ export default function ComparisonTable() {
     ((["isExporter", "cashBalance", "monthlyFixedCosts", "taxRate", "discountRate"] as const).some(
       (key) => decision.company[key] !== state.company[key],
     ) ||
+      !!decision.company.payInFullWhenAffordable !== !!state.company.payInFullWhenAffordable ||
       (decision.financingPreference ?? "both") !== preference);
 
   function toggle(id: string) {
@@ -362,10 +364,29 @@ function SummaryTiles({
 }) {
   const be = decision.breakEvenDiscountRate;
   const showSavings = decision.savingsVsBaseline && baseline && baseline.id !== rec.id;
+  // "Pay in full when affordable" can pick cash over cheaper financing: say so, with the difference.
+  const cheapest = decision.rows.find(isShariahRow) ?? null;
+  const cheaperFinancing =
+    rec.method === "cash" && cheapest && cheapest.id !== rec.id && isFinancedMethod(cheapest.method) ? cheapest : null;
   return (
     <div className="grid gap-px overflow-hidden rounded-[2px] border bg-border md:grid-cols-3">
       <StatTile label="Recommended" highlight>
         <div className="font-heading text-base font-bold">{rec.label}</div>
+        {rec.method === "cash" && (
+          <p className="text-xs text-muted-foreground" data-testid="pay-in-full-note">
+            Paid in full from cash: no financing needed.
+            {cheaperFinancing && decision.company.payInFullWhenAffordable && (
+              <>
+                {" "}
+                You chose to pay in full when affordable (Settings); {cheaperFinancing.label} would cost{" "}
+                <span className="font-mono tabular-nums">
+                  {formatPKR(Math.round(rec.pvAfterTax) - Math.round(cheaperFinancing.pvAfterTax))}
+                </span>{" "}
+                less after tax.
+              </>
+            )}
+          </p>
+        )}
         {showSavings && decision.savingsVsBaseline ? (
           <>
             <div className="font-mono text-2xl font-medium tabular-nums">
@@ -448,6 +469,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 function PvChart({ rows }: { rows: ComparisonRow[] }) {
+  const isMobile = useIsMobile();
   const data = rows.map((r) => ({ label: r.label, pv: Math.round(r.pvAfterTax), recommended: r.recommended }));
   return (
     <div className="h-full rounded-[2px] border p-4">
@@ -465,8 +487,8 @@ function PvChart({ rows }: { rows: ComparisonRow[] }) {
           <YAxis
             type="category"
             dataKey="label"
-            width={210}
-            tick={{ fontSize: 12 }}
+            width={isMobile ? 130 : 210}
+            tick={{ fontSize: isMobile ? 10 : 12 }}
             axisLine={false}
             tickLine={false}
           />

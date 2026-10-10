@@ -118,10 +118,18 @@ export default function MarketCard() {
                     {pct >= 0 ? <TrendingUp className="size-6" /> : <TrendingDown className="size-6" />}~
                     {formatPct(Math.abs(pct), 0)}
                   </span>
-                  <span className="text-sm text-muted-foreground">{pct >= 0 ? "above" : "below"} market</span>
+                  <span className="text-sm text-muted-foreground">
+                    {pct >= 0 ? "above" : "below"} {market.benchmarkMedian != null ? "the simulated benchmark" : "the web median"}
+                  </span>
                   <Badge variant={tone === "warn" ? "warning" : tone === "good" ? "success" : "muted"}>
                     {tone === "warn" ? "Overpriced" : tone === "good" ? "Fair price" : "Close to market"}
                   </Badge>
+                  {market.benchmarkMedian != null && market.webMedian != null && market.quotedUnitPrice != null && (
+                    <span className="w-full text-xs text-muted-foreground" data-testid="web-median-pct">
+                      ~{formatPct(Math.abs(market.quotedUnitPrice / market.webMedian - 1), 0)}{" "}
+                      {market.quotedUnitPrice >= market.webMedian ? "above" : "below"} the real web median
+                    </span>
+                  )}
                 </>
               ) : (
                 <Badge variant="secondary">Not enough market data</Badge>

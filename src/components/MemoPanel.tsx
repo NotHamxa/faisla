@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/dateFormat";
+import { isFinancedMethod, isShariahRow } from "@/lib/finance";
 import { useStore } from "@/lib/store";
 import type { EmailRecord, MemoResult } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -102,7 +103,13 @@ export default function MemoPanel() {
     }
   }
 
-  async function requestTermSheet() {
+  // The term sheet is for bank financing. When the recommendation needs none (cash, or the supplier's own plan), the
+  // button explains that, and the owner can still ask about the best Shariah-compliant financing row on purpose.
+  const recRow = decision.rows.find((r) => r.id === decision.recommendedId) ?? decision.rows.find((r) => r.recommended) ?? null;
+  const needsFinancing = !!recRow && isFinancedMethod(recRow.method);
+  const altFinancing = needsFinancing ? null : (decision.rows.find((r) => isFinancedMethod(r.method) && isShariahRow(r)) ?? null);
+
+  async function requestTermSheet(rowId?: string) {
     setEmailLoading(true);
     setError(null);
     try {
@@ -114,6 +121,7 @@ export default function MemoPanel() {
           company: state.company,
           offers: state.offers,
           financing: state.financing,
+          ...(rowId ? { rowId } : {}),
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `Email failed (${res.status})`);
@@ -158,9 +166,16 @@ export default function MemoPanel() {
             </Button>
             <Button
               variant="outline"
-              onClick={requestTermSheet}
-              disabled={emailLoading || blocking.length > 0}
-              title={blocking.length ? "Blocked: confirm the flagged bank account by phone first (see the warning at the top)" : undefined}
+              onClick={() => requestTermSheet()}
+              disabled={emailLoading || blocking.length > 0 || !needsFinancing}
+              data-testid="term-sheet-button"
+              title={
+                blocking.length
+                  ? "Blocked: confirm the flagged bank account by phone first (see the warning at the top)"
+                  : !needsFinancing
+                    ? "Not needed: the recommended option uses no bank financing"
+                    : undefined
+              }
             >
               {emailLoading ? <Spinner data-icon="inline-start" /> : <MailIcon data-icon="inline-start" />}
               {emailLoading ? "Sending…" : "Request term sheet"}
@@ -176,6 +191,31 @@ export default function MemoPanel() {
             </Button>
           </div>
         </CardHeader>
+
+        {!needsFinancing && recRow && (
+          <CardContent>
+            <div
+              className="flex flex-wrap items-center justify-between gap-2 rounded-[2px] border border-l-[3px] border-l-success px-3 py-2 text-sm"
+              data-testid="no-financing-note"
+            >
+              <span className="text-muted-foreground">
+                No term sheet needed: the recommendation ({recRow.label}) uses no bank financing.
+              </span>
+              {altFinancing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto whitespace-normal text-left"
+                  onClick={() => requestTermSheet(altFinancing.id)}
+                  disabled={emailLoading || blocking.length > 0}
+                >
+                  <MailIcon data-icon="inline-start" />
+                  Ask the bank about {altFinancing.label} anyway
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        )}
 
         {blocking.length > 0 && (
           <CardContent>

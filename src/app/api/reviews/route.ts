@@ -29,7 +29,7 @@ const reviewSchema = z.object({
 function lookupReviews(name: string, about: ReviewPoint["about"]): CachedReviews | null {
   const key = normalizeQuery(name);
   if (cacheEntries[key]) return cacheEntries[key];
-  // Loose match so "Al Noor Industrial Machines (Pvt) Ltd" or "AMS-221F" still hit the demo cache.
+  // Loose match so "Al Noor Industrial Machines (Pvt) Ltd" or "JACK F5" still hit the demo cache.
   const compact = key.replace(/ /g, "");
   for (const [entryKey, entry] of Object.entries(cacheEntries)) {
     const entryCompact = entryKey.replace(/ /g, "");

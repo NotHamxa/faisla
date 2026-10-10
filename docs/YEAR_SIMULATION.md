@@ -53,6 +53,12 @@ WhatsApp Business intake and RFQs (photos, PDFs, voice notes) · the after-decis
 
 ## 1. Baseline: what Faisla does today (used for every walkthrough)
 
+> **Update, 10 Oct 2026 (after this simulation).** Several gaps below were fixed in later commits: Islamic finance
+> first (Diminishing Musharakah, Ijarah, Murabaha preset, Islamic LTFF; conventional only on request), neutral signup
+> (new companies are not exporters and don't inherit the demo cash and costs), every quotation line priced, a
+> "pay in full when affordable" setting, dated reference rates, and web dealer search for non-demo items. The
+> simulation itself is left as written.
+
 | Area | What exists (file) | Limits that matter in the simulation |
 | --- | --- | --- |
 | Signup and profile | Email/password, one user per company. Profile: city, exporter flag, cash, fixed costs, tax rate, discount rate (`ProfileForm.tsx`) | A new company copies the demo's numbers and `isExporter: true` (`repo.ts`). No revenue/inflow, no taxpayer type, no existing debt. Single user, no roles |

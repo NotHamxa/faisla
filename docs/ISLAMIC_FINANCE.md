@@ -44,13 +44,13 @@ Common features, which Faisla shows as **Shariah notes** in the Assumptions card
 
 **Rates used in the demo.**
 
-- **Policy rate 11.5%:** raised in Apr 2026, held in Jul and on 14 Sep 2026
+- **Policy rate 11.5%:** set on 28 Apr 2026, held in Jul and on 14 Sep 2026
   ([ARY](https://arynews.tv/sbp-retains-policy-rate-at-11-5-percent)).
 - **6-month KIBOR:** 11.61% bid / 11.86% offer on 4 Sep 2026
   ([SBP](https://www.sbp.org.pk/assets/document/kibor-rates-04-september-2026.pdf)).
 - **Islamic LTFF 8.5%:** 11.5% − 3% = 8.5%. That is our own arithmetic from the published formula, not a figure from
   an SBP circular.
-- **Diminishing Musharakah and Ijarah 14.8%:** KIBOR ≈ 11.8% + 3%. Meezan's home Diminishing Musharakah reverts to
+- **Diminishing Musharakah and Ijarah 14.8%:** an illustrative KIBOR of 11.8% + 3%. The 6-month KIBOR offer was 12.41% on 9 Oct 2026 ([SBP](https://www.sbp.org.pk/ecodata/sir.pdf)); the KIBOR stress slider shows that higher rates do not change the recommendation. Meezan's home Diminishing Musharakah reverts to
   "KIBOR + 3%". We found no published SME spread.
 
 **Caveats for the pitch.**
