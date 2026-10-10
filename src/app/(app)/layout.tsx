@@ -15,9 +15,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AppSidebar user={{ name: user.name, email: user.email }} companyName={company?.name ?? "Your company"} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <AppTopbar />
-        <div className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-6">{children}</div>
+        <div className="mx-auto w-full min-w-0 max-w-7xl flex-1 p-4 md:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );
