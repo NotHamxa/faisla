@@ -3,10 +3,33 @@
 // Replies (often Roman Urdu) are read by AI with a code fallback; each priced reply becomes an offer row.
 // "Paste a reply" runs the same extraction on pasted text when the inbox is slow or not connected.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  ChevronDown,
+  ClipboardPaste,
+  ExternalLink,
+  Inbox,
+  MailCheck,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { DEMO_ITEM, DEMO_MODEL, DEMO_SUPPLIER_B_REPLY } from "@/lib/demoData";
 import { formatPKR } from "@/lib/format";
 import { type FaislaState, useStore } from "@/lib/store";
 import type { EmailRecord, Offer, Supplier } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type ReplyItem = { email: EmailRecord; offer: Offer | null; needsOwnerInput?: string };
 type RepliesResponse = { replies: ReplyItem[]; simulated?: boolean; error?: string };
@@ -34,6 +57,15 @@ export default function SupplierPanel() {
   const [pasteSupplier, setPasteSupplier] = useState("");
   const [pasting, setPasting] = useState(false);
 
+  // "Paste a reply" opens by itself when the inbox gives up or isn't connected; the owner can still toggle it.
+  const autoOpenPaste = Boolean(inboxStatus && !polling);
+  const [pasteOpen, setPasteOpen] = useState(autoOpenPaste);
+  const [lastAutoOpen, setLastAutoOpen] = useState(autoOpenPaste);
+  if (autoOpenPaste !== lastAutoOpen) {
+    setLastAutoOpen(autoOpenPaste);
+    if (autoOpenPaste) setPasteOpen(true);
+  }
+
   const line = state.quotation?.items[0];
   const item = line?.description || DEMO_ITEM;
   const model = line?.model || DEMO_MODEL;
@@ -46,6 +78,7 @@ export default function SupplierPanel() {
   const rfqs = state.emails.filter((e) => e.direction === "out" && e.subject.startsWith("RFQ"));
   const replies = state.emails.filter((e) => e.direction === "in");
   const firstRfqAt = rfqs.length ? rfqs.map((e) => e.sentAt).sort()[0] : null;
+  const anySending = Object.values(sending).some(Boolean);
 
   async function findSuppliers() {
     setFinding(true);
@@ -59,6 +92,9 @@ export default function SupplierPanel() {
       if (!res.ok) throw new Error(`Supplier search failed (${res.status})`);
       const data = (await res.json()) as { suppliers: Supplier[] };
       update({ suppliers: data.suppliers });
+      toast.success(
+        data.suppliers.length ? `Found ${data.suppliers.length} other suppliers` : "No other suppliers found",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Supplier search failed");
     } finally {
@@ -78,11 +114,18 @@ export default function SupplierPanel() {
       if (!res.ok) throw new Error(`RFQ to ${supplier.name} failed (${res.status})`);
       const data = (await res.json()) as { email: EmailRecord; error?: string };
       addEmail(data.email);
-      if (data.error) setError(`Email not delivered (${data.error}); logged as simulated.`);
+      if (data.error) {
+        setError(`Email not delivered (${data.error}); logged as simulated.`);
+        toast.warning(`RFQ to ${supplier.name} logged as simulated`);
+      } else {
+        toast.success(`RFQ sent to ${supplier.name}`, { description: "Watching the inbox for the reply." });
+      }
       setPolling(true);
       setPollStartedAt((t) => t ?? Date.now());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "RFQ failed");
+      const message = e instanceof Error ? e.message : "RFQ failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setSending((s) => ({ ...s, [supplier.name]: false }));
     }
@@ -103,6 +146,9 @@ export default function SupplierPanel() {
           upsertOffer(r.offer);
           known.add(r.offer.id);
           added++;
+          toast.success(`New offer from ${r.offer.supplierName}`, {
+            description: `${formatPKR(r.offer.unitPrice)} per unit × ${r.offer.qty} = ${formatPKR(r.offer.total)}`,
+          });
         }
         const note = r.needsOwnerInput;
         if (note) setNotes((n) => ({ ...n, [r.email.id]: note }));
@@ -183,178 +229,297 @@ export default function SupplierPanel() {
       });
       if (!res.ok) throw new Error(`Could not read the reply (${res.status})`);
       const data = (await res.json()) as RepliesResponse;
-      absorb(data.replies ?? []);
+      const added = absorb(data.replies ?? []);
+      if (added === 0) toast.warning("Reply read, but no clear unit price", { description: "Check the reply below." });
       setPasteText("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read the reply");
+      const message = e instanceof Error ? e.message : "Could not read the reply";
+      setError(message);
+      toast.error(message);
     } finally {
       setPasting(false);
     }
   }
 
   return (
-    <section className="card space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="card-title">Other suppliers</h2>
-          <p className="card-sub">
-            RFQ for {qty} × {model}. Emails go only to team test inboxes.
-          </p>
+    <Card>
+      <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <CardTitle>Other suppliers</CardTitle>
+          <CardDescription>
+            RFQ for{" "}
+            <span className="font-mono text-foreground tabular-nums">
+              {qty} × {model}
+            </span>
+            . Emails go only to team test inboxes.
+          </CardDescription>
         </div>
-        <div className="flex gap-2">
-          <button className={suppliers.length ? "btn-ghost" : "btn-primary"} onClick={() => void findSuppliers()} disabled={finding}>
-            {finding ? "Searching…" : suppliers.length ? "Search again" : "Find other suppliers"}
-          </button>
-          {suppliers.length > 0 && (
-            <button className="btn-primary" onClick={() => void sendAll()} disabled={suppliers.every((s) => rfqFor(s)) || Object.values(sending).some(Boolean)}>
+        {suppliers.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => void findSuppliers()} disabled={finding}>
+              {finding ? <Spinner data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+              {finding ? "Searching…" : "Search again"}
+            </Button>
+            <Button size="sm" onClick={() => void sendAll()} disabled={suppliers.every((s) => rfqFor(s)) || anySending}>
+              <Send data-icon="inline-start" />
               Send RFQ to all
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+          </div>
+        )}
+      </CardHeader>
 
-      {error && <p className="badge-warn whitespace-normal rounded-md py-1">{error}</p>}
+      <CardContent className="flex flex-col gap-5">
+        {error && <WarningNote>{error}</WarningNote>}
 
-      {suppliers.length > 0 && (
-        <ul className="space-y-3">
-          {suppliers.map((s) => {
-            const sent = rfqFor(s);
-            return (
-              <li key={s.name} className="rounded-lg border border-line p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {s.name}
-                      {s.city && <span className="ml-2 text-sm font-normal text-muted">{s.city}</span>}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {[s.email, s.phone].filter(Boolean).join(" · ")}
-                      {s.link && (
-                        <>
-                          {" · "}
-                          <a href={s.link} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
-                            website
-                          </a>
-                        </>
-                      )}
-                    </p>
+        {suppliers.length === 0 &&
+          (finding ? (
+            <div className="flex flex-col gap-3" aria-label="Searching for suppliers">
+              {[0, 1, 2].map((k) => (
+                <div key={k} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                  <div className="flex flex-1 flex-col gap-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64 max-w-full" />
                   </div>
-                  {sent ? (
-                    <span className={sent.simulated ? "badge-muted" : "badge-good"}>{sent.simulated ? "RFQ logged (simulated)" : "RFQ sent"}</span>
-                  ) : (
-                    <button className="btn" onClick={() => void sendRfq(s)} disabled={sending[s.name]}>
-                      {sending[s.name] ? "Writing & sending…" : "Send RFQ"}
-                    </button>
+                  <Skeleton className="h-7 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty className="border py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Search />
+                </EmptyMedia>
+                <EmptyTitle>Get competing quotes</EmptyTitle>
+                <EmptyDescription>
+                  Faisla finds 2–3 other suppliers for the same machine and emails each a request for quotation.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button onClick={() => void findSuppliers()}>
+                  <Search data-icon="inline-start" />
+                  Find other suppliers
+                </Button>
+              </EmptyContent>
+            </Empty>
+          ))}
+
+        {suppliers.length > 0 && (
+          <ul className="flex flex-col gap-3">
+            {suppliers.map((s) => {
+              const sent = rfqFor(s);
+              return (
+                <li key={s.name} className="rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {s.name}
+                        {s.city && <span className="ml-2 text-sm font-normal text-muted-foreground">{s.city}</span>}
+                      </p>
+                      <p className="text-xs break-all text-muted-foreground">
+                        {[s.email, s.phone].filter(Boolean).join(" · ")}
+                        {s.link && (
+                          <>
+                            {" · "}
+                            <a
+                              href={s.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 text-primary underline-offset-4 hover:underline"
+                            >
+                              website
+                              <ExternalLink className="size-3" />
+                            </a>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {sent ? (
+                      sent.simulated ? (
+                        <Badge variant="secondary">RFQ logged (simulated)</Badge>
+                      ) : (
+                        <Badge className="bg-success/10 text-success">
+                          <MailCheck />
+                          RFQ sent
+                        </Badge>
+                      )
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => void sendRfq(s)} disabled={sending[s.name]}>
+                        {sending[s.name] ? <Spinner data-icon="inline-start" /> : <Send data-icon="inline-start" />}
+                        {sending[s.name] ? "Writing & sending…" : "Send RFQ"}
+                      </Button>
+                    )}
+                  </div>
+                  {sent && (
+                    <Collapsible className="mt-2">
+                      <CollapsibleTrigger className="group/rfq flex w-full items-center gap-1.5 rounded-md text-left text-sm text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+                        <ChevronDown className="size-4 shrink-0 -rotate-90 transition-transform group-data-panel-open/rfq:rotate-0" />
+                        <span className="min-w-0 truncate">{sent.subject}</span>
+                        {sent.simulated && (
+                          <Badge variant="outline" className="ml-1 text-muted-foreground">
+                            simulated
+                          </Badge>
+                        )}
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <pre className="mt-2 rounded-md border bg-muted/40 p-3 font-sans text-sm whitespace-pre-wrap">
+                          {sent.body}
+                        </pre>
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
-                </div>
-                {sent && (
-                  <details className="mt-2 text-sm">
-                    <summary className="cursor-pointer text-muted">
-                      {sent.subject}
-                      {sent.simulated && <span className="badge-muted ml-2">simulated</span>}
-                    </summary>
-                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-paper p-3 font-sans text-sm">{sent.body}</pre>
-                  </details>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-      {rfqs.length > 0 && (
-        <div className="space-y-2 rounded-lg bg-paper p-3 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-medium">
-              {polling ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-brand" /> Waiting for replies (checking every 10 s)
-                </span>
-              ) : (
-                "Replies"
-              )}
-            </p>
-            <div className="flex gap-2">
-              <button className="btn-ghost" onClick={() => void checkInbox()} disabled={checking}>
-                {checking ? "Checking…" : "Check inbox now"}
-              </button>
-              <button className="btn-ghost text-xs" onClick={() => void checkInbox({ earlier: true })} disabled={checking}>
-                Include last 24 h
-              </button>
-            </div>
-          </div>
-          {(inboxStatus || lastChecked) && (
-            <p className="text-xs text-muted">
-              {inboxStatus}
-              {lastChecked && ` Last checked ${lastChecked}.`}
-            </p>
-          )}
-        </div>
-      )}
-
-      {replies.length > 0 && (
-        <ul className="space-y-3">
-          {replies.map((e) => {
-            const offer = e.offerId ? state.offers.find((o) => o.id === e.offerId) : null;
-            return (
-              <li key={e.id} className="rounded-lg border border-line p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">{offer?.supplierName ?? e.toFrom}</p>
-                  <span className="text-xs text-muted">
-                    {e.subject} · {new Date(e.sentAt).toLocaleTimeString()}
-                  </span>
-                </div>
-                <blockquote className="mt-2 whitespace-pre-wrap border-l-4 border-line pl-3 italic text-ink">{e.body}</blockquote>
-                {offer ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="badge-good">New offer added</span>
-                    <span className="num">
-                      {formatPKR(offer.unitPrice)} per unit × {offer.qty} = {formatPKR(offer.total)}
+        {rfqs.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-medium">
+                {polling ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60" />
+                      <span className="relative inline-flex size-2 rounded-full bg-primary" />
                     </span>
-                    {offer.deliveryDays != null && <span className="badge-muted">delivery {offer.deliveryDays} days</span>}
-                    {offer.warrantyMonths != null && <span className="badge-muted">warranty {offer.warrantyMonths} months</span>}
-                  </div>
+                    Waiting for replies (checking every 10 s)
+                  </span>
                 ) : (
-                  <p className="badge-warn mt-2 whitespace-normal rounded-md py-1">
-                    Price unclear, owner to confirm: {notes[e.id] ?? "no clear unit price in this reply."}
-                  </p>
+                  <span className="inline-flex items-center gap-2">
+                    <Inbox className="size-4 text-muted-foreground" />
+                    Replies
+                  </span>
                 )}
-                {offer?.summary && <p className="mt-1 text-xs text-muted">AI read: {offer.summary}</p>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {(suppliers.length > 0 || rfqs.length > 0) && (
-        <details className="rounded-lg border border-dashed border-line p-3 text-sm" open={Boolean(inboxStatus && !polling)}>
-          <summary className="cursor-pointer font-medium">Paste a reply</summary>
-          <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <select className="input w-auto" value={pasteSupplier} onChange={(e) => setPasteSupplier(e.target.value)}>
-                {suppliers.length === 0 && <option value="">Supplier</option>}
-                {suppliers.map((s) => (
-                  <option key={s.name} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <button className="btn-ghost text-xs" onClick={() => setPasteText(DEMO_SUPPLIER_B_REPLY)}>
-                Use demo reply
-              </button>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => void checkInbox()} disabled={checking}>
+                  {checking ? <Spinner data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
+                  {checking ? "Checking…" : "Check inbox now"}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void checkInbox({ earlier: true })} disabled={checking}>
+                  Include last 24 h
+                </Button>
+              </div>
             </div>
-            <textarea
-              className="input min-h-20"
-              placeholder="e.g. Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty"
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-            />
-            <button className="btn-primary" onClick={() => void readPasted()} disabled={pasting || !pasteText.trim()}>
-              {pasting ? "Reading…" : "Read reply"}
-            </button>
+            {(inboxStatus || lastChecked) && (
+              <p className="text-xs text-muted-foreground">
+                {inboxStatus}
+                {lastChecked && ` Last checked ${lastChecked}.`}
+              </p>
+            )}
           </div>
-        </details>
+        )}
+
+        {replies.length > 0 && (
+          <ul className="flex flex-col gap-3">
+            {replies.map((e) => {
+              const offer = e.offerId ? state.offers.find((o) => o.id === e.offerId) : null;
+              return (
+                <li key={e.id} className="rounded-lg border p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{offer?.supplierName ?? e.toFrom}</p>
+                    <span className="text-xs text-muted-foreground">
+                      {e.subject} · {new Date(e.sentAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <blockquote className="mt-2 border-l-2 border-primary/40 pl-3 whitespace-pre-wrap italic">{e.body}</blockquote>
+                  {offer ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge className="bg-success/10 text-success">New offer added</Badge>
+                      <span className="font-mono tabular-nums">
+                        {formatPKR(offer.unitPrice)} per unit × {offer.qty} = {formatPKR(offer.total)}
+                      </span>
+                      {offer.deliveryDays != null && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          delivery {offer.deliveryDays} days
+                        </Badge>
+                      )}
+                      {offer.warrantyMonths != null && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          warranty {offer.warrantyMonths} months
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <WarningNote className="mt-3">
+                      Price unclear, owner to confirm: {notes[e.id] ?? "no clear unit price in this reply."}
+                    </WarningNote>
+                  )}
+                  {offer?.summary && (
+                    <p className="mt-2 inline-flex items-start gap-1 text-xs text-muted-foreground">
+                      <Sparkles className="mt-px size-3 shrink-0" />
+                      AI read: {offer.summary}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {(suppliers.length > 0 || rfqs.length > 0) && (
+          <Collapsible open={pasteOpen} onOpenChange={setPasteOpen} className="rounded-lg border border-dashed p-3 text-sm">
+            <CollapsibleTrigger className="group/paste flex w-full items-center gap-2 rounded-md text-left font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+              <ClipboardPaste className="size-4 text-muted-foreground" />
+              Paste a reply
+              <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-data-panel-open/paste:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Select
+                    value={pasteSupplier || suppliers[0]?.name || null}
+                    onValueChange={(v) => setPasteSupplier(typeof v === "string" ? v : "")}
+                  >
+                    <SelectTrigger className="min-w-48" aria-label="Supplier who replied">
+                      <SelectValue placeholder="Supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="sm" className="h-8" onClick={() => setPasteText(DEMO_SUPPLIER_B_REPLY)}>
+                    <Sparkles data-icon="inline-start" />
+                    Use demo reply
+                  </Button>
+                </div>
+                <Textarea
+                  aria-label="Supplier reply"
+                  className="min-h-20"
+                  placeholder="e.g. Bhai, 4 machines 13.4 lakh per unit final, delivery 10 din, 1 saal warranty"
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                />
+                <Button className="w-fit" onClick={() => void readPasted()} disabled={pasting || !pasteText.trim()}>
+                  {pasting && <Spinner data-icon="inline-start" />}
+                  {pasting ? "Reading…" : "Read reply"}
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function WarningNote({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      role="alert"
+      className={cn(
+        "flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning",
+        className,
       )}
-    </section>
+    >
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <span className="min-w-0 leading-snug">{children}</span>
+    </div>
   );
 }

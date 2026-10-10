@@ -1,8 +1,29 @@
 "use client";
 // Step 6: decision memo (AI prose, code numbers, checked) + term-sheet request to the bank.
 import { Fragment, useState, type ReactNode } from "react";
+import {
+  CheckIcon,
+  CopyIcon,
+  FileTextIcon,
+  MailIcon,
+  PaperclipIcon,
+  PrinterIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/dateFormat";
 import { useStore } from "@/lib/store";
 import type { EmailRecord, MemoResult } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 
 type BankEmailResponse = {
   email: EmailRecord;
@@ -10,13 +31,25 @@ type BankEmailResponse = {
   error?: string;
 };
 
-// Prints only the memo (Download PDF = browser "Save as PDF").
+// Prints only the memo (Download PDF = browser "Save as PDF"). Everything that neither contains the memo nor
+// sits inside it is removed, the memo's ancestors (sidebar shell, tabs, cards) are flattened so it starts at
+// the top of page 1 and flows across pages, and it is forced to black on white whatever the theme.
 const PRINT_CSS = `
 @media print {
   @page { margin: 16mm; }
-  body * { visibility: hidden !important; }
-  .faisla-print-memo, .faisla-print-memo * { visibility: visible !important; }
-  .faisla-print-memo { position: absolute; left: 0; top: 0; width: 100%; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+  html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+  body *:not(:has(.faisla-print-memo)):not(.faisla-print-memo):not(.faisla-print-memo *) { display: none !important; }
+  body *:has(.faisla-print-memo) {
+    display: block !important; position: static !important; margin: 0 !important; padding: 0 !important;
+    border: 0 !important; box-shadow: none !important; background: transparent !important;
+    width: auto !important; max-width: none !important; height: auto !important; min-height: 0 !important;
+    max-height: none !important; overflow: visible !important; transform: none !important;
+  }
+  .faisla-print-memo {
+    display: block !important; position: static !important; width: 100% !important; max-width: none !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; opacity: 1 !important;
+  }
+  .faisla-print-memo, .faisla-print-memo * { color: #000 !important; background: transparent !important; border-color: #ccc !important; }
 }`;
 
 export default function MemoPanel() {
@@ -34,10 +67,12 @@ export default function MemoPanel() {
 
   if (!decision) {
     return (
-      <section className="card">
-        <h2 className="card-title">Decision memo</h2>
-        <p className="card-sub mt-1">Compare the ways to pay first. The memo is written from that calculation.</p>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Decision memo</CardTitle>
+          <CardDescription>Compare the ways to pay first. The memo is written from that calculation.</CardDescription>
+        </CardHeader>
+      </Card>
     );
   }
 
@@ -82,6 +117,8 @@ export default function MemoPanel() {
       const data = (await res.json()) as BankEmailResponse;
       setBankReply(data);
       addEmail(data.email);
+      if (data.email.simulated) toast.info("Term-sheet request saved (simulated, no email keys set)");
+      else toast.success(`Term-sheet request sent to ${data.email.toFrom}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Email failed");
     } finally {
@@ -94,6 +131,7 @@ export default function MemoPanel() {
     try {
       await navigator.clipboard.writeText(memo.memo);
       setCopied(true);
+      toast.success("Memo copied as markdown");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError("Could not copy to the clipboard");
@@ -104,89 +142,156 @@ export default function MemoPanel() {
     <section className="space-y-4">
       <style>{PRINT_CSS}</style>
 
-      <div className="card">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="card-title">Decision memo</h2>
-            <p className="card-sub mt-1">AI writes the words; every number comes from the calculation and is checked by code.</p>
+      <Card>
+        <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
+          <div className="space-y-1">
+            <CardTitle className="text-lg font-semibold">Decision memo</CardTitle>
+            <CardDescription>AI writes the words; every number comes from the calculation and is checked by code.</CardDescription>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-primary" onClick={writeMemo} disabled={memoLoading}>
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+            <Button onClick={writeMemo} disabled={memoLoading}>
+              {memoLoading ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
               {memoLoading ? "Writing memo…" : memo ? "Rewrite memo" : "Write decision memo"}
-            </button>
-            <button className="btn" onClick={requestTermSheet} disabled={emailLoading}>
+            </Button>
+            <Button variant="outline" onClick={requestTermSheet} disabled={emailLoading}>
+              {emailLoading ? <Spinner data-icon="inline-start" /> : <MailIcon data-icon="inline-start" />}
               {emailLoading ? "Sending…" : "Request term sheet"}
-            </button>
-            <button className="btn" onClick={() => window.print()} disabled={!memo || memoLoading}>
+            </Button>
+            <Separator orientation="vertical" className="mx-1 hidden h-6 sm:block" />
+            <Button variant="outline" onClick={() => window.print()} disabled={!memo || memoLoading}>
+              <PrinterIcon data-icon="inline-start" />
               Download PDF
-            </button>
-            <button className="btn-ghost" onClick={copyMemo} disabled={!memo || memoLoading}>
+            </Button>
+            <Button variant="ghost" onClick={copyMemo} disabled={!memo || memoLoading}>
+              {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
               {copied ? "Copied" : "Copy"}
-            </button>
+            </Button>
           </div>
-        </div>
-        {error && <p className="mt-3 text-sm text-bad">{error}</p>}
+        </CardHeader>
 
-        {memo && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <NumberCheckBadge memo={memo} />
-            <span className="badge-muted">{memo.source === "llm" ? "Written by AI (Claude)" : "Template"}</span>
-            {memo.source === "llm" && memo.numberCheck.attempts > 1 && (
-              <span className="badge-muted">passed on draft {memo.numberCheck.attempts}</span>
+        {(error || memo) && (
+          <CardContent className="space-y-3">
+            {error && (
+              <Alert variant="destructive">
+                <ShieldAlertIcon />
+                <AlertTitle>Something went wrong</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </div>
+            {memo && <NumberCheck memo={memo} />}
+          </CardContent>
         )}
-      </div>
+      </Card>
 
-      {memo && (
-        <article className={`card faisla-print-memo ${memoLoading ? "opacity-50" : ""}`}>
+      {memo ? (
+        <article
+          className={cn(
+            "faisla-print-memo mx-auto w-full max-w-3xl rounded-xl border bg-card px-6 py-8 text-card-foreground shadow-sm transition-opacity sm:px-10 sm:py-10",
+            memoLoading && "opacity-50",
+          )}
+        >
           <Markdown text={memo.memo} />
         </article>
+      ) : (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center">
+          <FileTextIcon className="size-6 text-muted-foreground" />
+          <p className="text-sm font-medium">No memo yet</p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Write the memo to get a one-page recommendation for the owner, ready to print or share with the bank.
+          </p>
+        </div>
       )}
 
       {bankEmail && (
-        <div className="card">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="card-title">Term-sheet request</h3>
-            {bankEmail.simulated ? (
-              <span className="badge-warn">Simulated (no email keys set)</span>
-            ) : (
-              <span className="badge-good">Sent</span>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <MailIcon className="size-4 text-muted-foreground" />
+                Term-sheet request
+              </CardTitle>
+              {bankEmail.simulated ? (
+                <Badge className="bg-warning/10 text-warning">Simulated (no email keys set)</Badge>
+              ) : (
+                <Badge className="bg-success/10 text-success">Sent</Badge>
+              )}
+            </div>
+            <CardDescription>
+              To <span className="font-medium text-foreground">{bankEmail.toFrom}</span> ·{" "}
+              {formatDateTime(bankEmail.sentAt)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm font-medium">{bankEmail.subject}</p>
+            <pre className="max-h-80 overflow-auto rounded-lg bg-muted/50 p-3 font-sans text-sm whitespace-pre-wrap">
+              {bankEmail.body}
+            </pre>
+            {bankReply?.attachment && (
+              <Collapsible>
+                <CollapsibleTrigger
+                  render={<Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" />}
+                >
+                  <PaperclipIcon data-icon="inline-start" />
+                  Attachment: {bankReply.attachment.filename}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-muted/50 p-3 font-mono text-xs tabular-nums">
+                    {bankReply.attachment.content}
+                  </pre>
+                </CollapsibleContent>
+              </Collapsible>
             )}
-          </div>
-          <p className="card-sub mt-1">
-            To <span className="font-medium text-ink">{bankEmail.toFrom}</span> ·{" "}
-            {new Date(bankEmail.sentAt).toLocaleString()}
-          </p>
-          <p className="mt-3 text-sm font-medium">{bankEmail.subject}</p>
-          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-paper p-3 font-sans text-sm">
-            {bankEmail.body}
-          </pre>
-          {bankReply?.attachment && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm text-muted">Attachment: {bankReply.attachment.filename}</summary>
-              <pre className="num mt-2 max-h-80 overflow-auto rounded-lg bg-paper p-3 text-xs">{bankReply.attachment.content}</pre>
-            </details>
-          )}
-          {bankReply?.error && <p className="mt-2 text-xs text-warn">Email not delivered: {bankReply.error}</p>}
-        </div>
+            {bankReply?.error && <p className="text-xs text-warning">Email not delivered: {bankReply.error}</p>}
+          </CardContent>
+        </Card>
       )}
     </section>
   );
 }
 
-function NumberCheckBadge({ memo }: { memo: MemoResult }) {
-  const { passed, unknownNumbers } = memo.numberCheck;
-  if (!passed) return <span className="badge-bad">Unchecked numbers: {unknownNumbers.join(", ")}</span>;
-  if (memo.source === "template") {
+function NumberCheck({ memo }: { memo: MemoResult }) {
+  const { passed, unknownNumbers, attempts } = memo.numberCheck;
+  const sourceBadges = (
+    <div className="flex flex-wrap gap-1.5">
+      {memo.source === "llm" ? (
+        <Badge variant="outline">Written by AI (Claude)</Badge>
+      ) : (
+        <Badge className="bg-warning/10 text-warning">Template memo used</Badge>
+      )}
+      {memo.source === "llm" && attempts > 1 && <Badge variant="outline">passed on draft {attempts}</Badge>}
+    </div>
+  );
+
+  if (!passed) {
     return (
-      <>
-        <span className="badge-warn">Template memo used</span>
-        <span className="badge-good">✓ Numbers filled from the calculation</span>
-      </>
+      <Alert variant="destructive">
+        <ShieldAlertIcon />
+        <AlertTitle>Unchecked numbers: {unknownNumbers.join(", ")}</AlertTitle>
+        <AlertDescription className="space-y-2">
+          <p>These figures were not found in the calculation. Do not rely on them.</p>
+          {sourceBadges}
+        </AlertDescription>
+      </Alert>
     );
   }
-  return <span className="badge-good">✓ Every number checked against the calculation</span>;
+  return (
+    <Alert className="border-success/30 bg-success/5">
+      <ShieldCheckIcon className="text-success" />
+      <AlertTitle className="text-success">
+        {memo.source === "template"
+          ? "✓ Numbers filled from the calculation"
+          : "✓ Every number checked against the calculation"}
+      </AlertTitle>
+      <AlertDescription className="space-y-2">
+        <p>
+          {memo.source === "template"
+            ? "Template memo used: the AI draft was unavailable or failed the number check."
+            : "Code compared every figure in the memo with the comparison table before showing it."}
+        </p>
+        {sourceBadges}
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 // ---------- tiny markdown renderer: headings, bullets, numbered lists, tables, bold/italic/code ----------
@@ -250,8 +355,20 @@ function parseBlocks(md: string): Block[] {
 
 function inline(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g).map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) return <code key={i}>{part.slice(1, -1)}</code>;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return (
+        <strong key={i} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return (
+        <code key={i} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
     if (/^([*_]).+\1$/.test(part)) return <em key={i}>{part.slice(1, -1)}</em>;
     return <Fragment key={i}>{part}</Fragment>;
   });
@@ -259,34 +376,65 @@ function inline(text: string): ReactNode[] {
 
 function Markdown({ text }: { text: string }) {
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-ink">
+    <div className="space-y-3 text-sm leading-relaxed text-foreground">
       {parseBlocks(text).map((b, i) => {
         if (b.kind === "h") {
-          if (b.level === 1) return <h2 key={i} className="text-xl font-semibold tracking-tight">{inline(b.text)}</h2>;
-          if (b.level === 2) return <h3 key={i} className="pt-2 text-base font-semibold text-brand">{inline(b.text)}</h3>;
-          return <h4 key={i} className="font-semibold">{inline(b.text)}</h4>;
+          if (b.level === 1) {
+            return (
+              <h2 key={i} className="border-b pb-3 text-2xl font-semibold tracking-tight">
+                {inline(b.text)}
+              </h2>
+            );
+          }
+          if (b.level === 2) {
+            return (
+              <h3 key={i} className="pt-3 text-base font-semibold text-primary">
+                {inline(b.text)}
+              </h3>
+            );
+          }
+          return (
+            <h4 key={i} className="pt-1 font-semibold">
+              {inline(b.text)}
+            </h4>
+          );
         }
         if (b.kind === "p") return <p key={i}>{inline(b.text)}</p>;
         if (b.kind === "list") {
           const items = b.items.map((item, j) => <li key={j}>{inline(item)}</li>);
           return b.ordered ? (
-            <ol key={i} className="list-decimal space-y-1 pl-5">{items}</ol>
+            <ol key={i} className="list-decimal space-y-1 pl-5 marker:text-muted-foreground">
+              {items}
+            </ol>
           ) : (
-            <ul key={i} className="list-disc space-y-1 pl-5">{items}</ul>
+            <ul key={i} className="list-disc space-y-1 pl-5 marker:text-muted-foreground">
+              {items}
+            </ul>
           );
         }
         return (
-          <div key={i} className="overflow-x-auto">
+          <div key={i} className="overflow-x-auto rounded-lg border">
             <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-line text-muted">
-                  {b.header.map((h, j) => <th key={j} className="px-2 py-1.5 font-medium">{inline(h)}</th>)}
+              <thead className="bg-muted/50">
+                <tr className="border-b text-muted-foreground">
+                  {b.header.map((h, j) => (
+                    <th key={j} className="px-2.5 py-2 font-medium">
+                      {inline(h)}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {b.rows.map((r, j) => (
-                  <tr key={j} className="border-b border-line/60">
-                    {r.map((c, k) => <td key={k} className={`px-2 py-1.5 ${/^(\*\*)?(Rs|\d)/.test(c) ? "num" : ""}`}>{inline(c)}</td>)}
+                  <tr key={j} className="border-b last:border-0">
+                    {r.map((c, k) => (
+                      <td
+                        key={k}
+                        className={cn("px-2.5 py-2", /^(\*\*)?(Rs|\d)/.test(c) && "font-mono whitespace-nowrap tabular-nums")}
+                      >
+                        {inline(c)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

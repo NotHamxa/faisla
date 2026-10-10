@@ -1,10 +1,19 @@
 "use client";
-// M1: company profile. Edits a local draft; "Save" writes it to the store and collapses to one line.
-import { useState } from "react";
+// M1: company profile (Settings). Edits a local draft; "Save" writes it to the store, which autosaves it to MongoDB.
+import { useEffect, useRef, useState } from "react";
+import { Building2Icon, CheckIcon, CircleAlertIcon, RotateCcwIcon, SaveIcon } from "lucide-react";
+import { toast } from "sonner";
 import { demoCompany } from "@/lib/demoData";
-import { formatLakh, formatPKR, groupPKR } from "@/lib/format";
+import { formatLakh, groupPKR } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import type { Company } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 
 type Draft = {
   name: string;
@@ -42,23 +51,40 @@ function sameCompany(a: Company, b: Company): boolean {
   return (Object.keys(a) as (keyof Company)[]).every((k) => a[k] === b[k]);
 }
 
-export default function ProfileForm() {
-  const { state, update } = useStore();
-  const company = state.company;
-  const [editing, setEditing] = useState(true);
-  const [draft, setDraft] = useState<Draft>(() => toDraft(company));
+function sameDraft(a: Draft, b: Draft): boolean {
+  return (Object.keys(a) as (keyof Draft)[]).every((k) => a[k] === b[k]);
+}
 
-  // Re-sync the draft when the store's company changes (localStorage load, demo reset).
+export default function ProfileForm() {
+  const { state, update, saveStatus } = useStore();
+  const company = state.company;
+  const [draft, setDraft] = useState<Draft>(() => toDraft(company));
+  const awaitingSave = useRef<string | null>(null); // toast message to show once the save lands
+
+  // Re-sync the draft when the store's company changes (demo load, edits elsewhere).
   const [syncedCompany, setSyncedCompany] = useState(company);
   if (company !== syncedCompany) {
     setSyncedCompany(company);
     setDraft(toDraft(company));
   }
 
+  // Toast when the autosave that follows a Save / demo load finishes.
+  useEffect(() => {
+    if (!awaitingSave.current) return;
+    if (saveStatus === "saved") {
+      toast.success(awaitingSave.current);
+      awaitingSave.current = null;
+    } else if (saveStatus === "error") {
+      toast.error("Could not save the company profile. Check your connection and try again.");
+      awaitingSave.current = null;
+    }
+  }, [saveStatus]);
+
   const isDemo = sameCompany(company, demoCompany);
   const taxRate = parsePct(draft.taxPct);
   const discountRate = parsePct(draft.discountPct);
-  const canSave = draft.name.trim() !== "" && taxRate !== null && discountRate !== null;
+  const dirty = !sameDraft(draft, toDraft(company));
+  const canSave = dirty && draft.name.trim() !== "" && taxRate !== null && discountRate !== null;
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -75,133 +101,145 @@ export default function ProfileForm() {
       taxRate: taxRate!,
       discountRate: discountRate!,
     };
+    awaitingSave.current = "Company profile saved";
     // Company feeds the comparison, so any earlier decision/memo is stale.
     update({ company: next, decision: null, memo: null });
-    setEditing(false);
   }
 
   function loadDemo() {
+    if (isDemo) {
+      setDraft(toDraft(demoCompany));
+      return;
+    }
+    awaitingSave.current = "Demo company loaded";
     update({ company: demoCompany, decision: null, memo: null });
     setDraft(toDraft(demoCompany));
   }
 
-  if (!editing) {
-    return (
-      <section className="card flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-        <span className="font-semibold text-ink">{company.name}</span>
-        <span className="text-sm text-muted">
-          {company.city}
-          {company.isExporter ? " · Exporter" : ""} · Cash <span className="num">{formatPKR(company.cashBalance)}</span> · Fixed
-          costs <span className="num">{formatPKR(company.monthlyFixedCosts)}</span>/month · Tax{" "}
-          <span className="num">{pctText(company.taxRate)}%</span> · Discount rate{" "}
-          <span className="num">{pctText(company.discountRate)}%</span>
-        </span>
-        {isDemo && <span className="badge-muted">Demo data</span>}
-        <button type="button" className="btn-ghost ml-auto px-3 py-1" onClick={() => setEditing(true)}>
-          Edit
-        </button>
-      </section>
-    );
-  }
-
   return (
-    <section className="card">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="card-title">Company profile</h2>
-          <p className="card-sub">Used for cash runway, tax and the cost of money. Set it once.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isDemo && <span className="badge-muted">Demo data</span>}
-          <button type="button" className="btn" onClick={loadDemo}>
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center gap-2">
+          <Building2Icon className="size-4 text-muted-foreground" />
+          Company profile
+        </CardTitle>
+        <CardDescription>Used for cash runway, tax and the cost of money. Set it once.</CardDescription>
+        <CardAction className="flex items-center gap-2">
+          {isDemo && <Badge variant="outline">Demo data</Badge>}
+          <Button variant="outline" size="sm" onClick={loadDemo}>
+            <RotateCcwIcon data-icon="inline-start" />
             Load demo company
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardAction>
+      </CardHeader>
 
       <form
-        className="grid gap-4 sm:grid-cols-2"
+        className="contents"
         onSubmit={(e) => {
           e.preventDefault();
           save();
         }}
       >
-        <div>
-          <label className="label" htmlFor="pf-name">
-            Business name
-          </label>
-          <input id="pf-name" className="input" value={draft.name} onChange={(e) => set("name", e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="pf-city">
-            City
-          </label>
-          <input id="pf-city" className="input" value={draft.city} onChange={(e) => set("city", e.target.value)} />
-        </div>
+        <CardContent>
+          <FieldGroup className="grid gap-5 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="pf-name">Business name</FieldLabel>
+              <Input
+                id="pf-name"
+                value={draft.name}
+                aria-invalid={draft.name.trim() === "" || undefined}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="pf-city">City</FieldLabel>
+              <Input id="pf-city" value={draft.city} onChange={(e) => set("city", e.target.value)} />
+            </Field>
 
-        <MoneyField
-          id="pf-cash"
-          label="Cash in bank"
-          value={draft.cashBalance}
-          onChange={(v) => set("cashBalance", v)}
-        />
-        <MoneyField
-          id="pf-fixed"
-          label="Monthly fixed costs"
-          hint="Salaries, rent, utilities, loan payments"
-          value={draft.monthlyFixedCosts}
-          onChange={(v) => set("monthlyFixedCosts", v)}
-        />
+            <MoneyField id="pf-cash" label="Cash in bank" value={draft.cashBalance} onChange={(v) => set("cashBalance", v)} />
+            <MoneyField
+              id="pf-fixed"
+              label="Monthly fixed costs"
+              hint="Salaries, rent, utilities, loan payments"
+              value={draft.monthlyFixedCosts}
+              onChange={(v) => set("monthlyFixedCosts", v)}
+            />
 
-        <PctField
-          id="pf-tax"
-          label="Tax rate"
-          value={draft.taxPct}
-          invalid={taxRate === null}
-          onChange={(v) => set("taxPct", v)}
-        />
-        <PctField
-          id="pf-discount"
-          label="Discount rate (cost of money)"
-          hint="≈ your bank borrowing rate, KIBOR + 3%"
-          value={draft.discountPct}
-          invalid={discountRate === null}
-          onChange={(v) => set("discountPct", v)}
-        />
+            <PctField
+              id="pf-tax"
+              label="Tax rate"
+              value={draft.taxPct}
+              invalid={taxRate === null}
+              onChange={(v) => set("taxPct", v)}
+            />
+            <PctField
+              id="pf-discount"
+              label="Discount rate (cost of money)"
+              hint="≈ your bank borrowing rate, KIBOR + 3%"
+              value={draft.discountPct}
+              invalid={discountRate === null}
+              onChange={(v) => set("discountPct", v)}
+            />
 
-        <label className="flex cursor-pointer items-center gap-3 sm:col-span-2">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-brand"
-            checked={draft.isExporter}
-            onChange={(e) => set("isExporter", e.target.checked)}
-          />
-          <span className="text-sm text-ink">
-            We are an exporter <span className="text-muted">(eligible for SBP LTFF cheap machinery loans)</span>
-          </span>
-        </label>
+            <Field orientation="horizontal" className="rounded-lg border p-3 sm:col-span-2">
+              <Switch id="pf-exporter" checked={draft.isExporter} onCheckedChange={(v) => set("isExporter", v)} />
+              <FieldContent>
+                <FieldLabel htmlFor="pf-exporter">We are an exporter</FieldLabel>
+                <FieldDescription>Eligible for SBP LTFF cheap machinery loans (policy rate − 3%).</FieldDescription>
+              </FieldContent>
+            </Field>
+          </FieldGroup>
+        </CardContent>
 
-        <div className="flex justify-end sm:col-span-2">
-          <button type="submit" className="btn-primary" disabled={!canSave}>
+        <CardFooter className="justify-between gap-3">
+          <SaveState dirty={dirty} status={saveStatus} />
+          <Button type="submit" disabled={!canSave}>
+            <SaveIcon data-icon="inline-start" />
             Save profile
-          </button>
-        </div>
+          </Button>
+        </CardFooter>
       </form>
-    </section>
+    </Card>
   );
+}
+
+function SaveState({ dirty, status }: { dirty: boolean; status: ReturnType<typeof useStore>["saveStatus"] }) {
+  if (status === "saving") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Spinner className="size-3.5" /> Saving…
+      </span>
+    );
+  }
+  if (dirty) return <span className="text-xs text-warning">Unsaved changes</span>;
+  if (status === "error") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-destructive">
+        <CircleAlertIcon className="size-3.5" /> Last save failed
+      </span>
+    );
+  }
+  if (status === "saved") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-success">
+        <CheckIcon className="size-3.5" /> All changes saved
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">Changes apply to new comparisons.</span>;
 }
 
 function MoneyField(props: { id: string; label: string; hint?: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div>
-      <label className="label" htmlFor={props.id}>
-        {props.label}
-      </label>
+    <Field>
+      <FieldLabel htmlFor={props.id}>{props.label}</FieldLabel>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">Rs</span>
-        <input
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+          Rs
+        </span>
+        <Input
           id={props.id}
-          className="input num pl-9"
+          className="pl-8 font-mono tabular-nums"
           inputMode="numeric"
           value={props.value ? groupPKR(props.value) : ""}
           placeholder="0"
@@ -211,12 +249,12 @@ function MoneyField(props: { id: string; label: string; hint?: string; value: nu
           }}
         />
       </div>
-      <p className="mt-1 text-xs text-muted">
+      <FieldDescription className="text-xs">
         {props.value > 0 ? `= ${formatLakh(props.value, 2)}` : ""}
         {props.value > 0 && props.hint ? " · " : ""}
         {props.hint}
-      </p>
-    </div>
+      </FieldDescription>
+    </Field>
   );
 }
 
@@ -229,21 +267,24 @@ function PctField(props: {
   onChange: (v: string) => void;
 }) {
   return (
-    <div>
-      <label className="label" htmlFor={props.id}>
-        {props.label}
-      </label>
+    <Field data-invalid={props.invalid || undefined}>
+      <FieldLabel htmlFor={props.id}>{props.label}</FieldLabel>
       <div className="relative">
-        <input
+        <Input
           id={props.id}
-          className={`input num pr-8 ${props.invalid ? "border-bad" : ""}`}
+          className="pr-8 font-mono tabular-nums"
           inputMode="decimal"
           value={props.value}
+          aria-invalid={props.invalid || undefined}
           onChange={(e) => props.onChange(e.target.value.replace(/[^\d.]/g, ""))}
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">%</span>
+        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
+          %
+        </span>
       </div>
-      <p className="mt-1 text-xs text-muted">{props.invalid ? "Enter a percentage between 0 and 100" : props.hint}</p>
-    </div>
+      <FieldDescription className="text-xs">
+        {props.invalid ? "Enter a percentage between 0 and 100" : props.hint}
+      </FieldDescription>
+    </Field>
   );
 }

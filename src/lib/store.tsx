@@ -65,9 +65,9 @@ type Store = {
 const StoreContext = createContext<Store | null>(null);
 
 function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): FaislaState {
-  const { id: _id, financing, updatedAt: _u, ...profile } = company;
+  const { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate, financing } = company;
   return {
-    company: profile,
+    company: { name, city, isExporter, cashBalance, monthlyFixedCosts, taxRate, discountRate },
     financing,
     title: decision?.title ?? "",
     quotation: decision?.quotation ?? null,

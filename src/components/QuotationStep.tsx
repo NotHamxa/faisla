@@ -3,6 +3,28 @@
 // Arithmetic checks run live in code on every edit; the AI never computes a total.
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  Camera,
+  Check,
+  CircleAlert,
+  CircleCheck,
+  ExternalLink,
+  FileText,
+  FileUp,
+  Pencil,
+  Plus,
+  Sparkles,
+  TriangleAlert,
+  Upload,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet, FieldTitle } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { demoQuotation } from "@/lib/demoData";
 import { formatPKR, groupPKR } from "@/lib/format";
 import {
@@ -15,6 +37,7 @@ import {
 } from "@/lib/quotation";
 import { useStore } from "@/lib/store";
 import type { ArithmeticIssue, NeedsOwnerInput, Quotation, QuotationItem } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type View = "auto" | "upload" | "confirm";
 type DraftSource = "ai" | "demo" | "manual" | "edit";
@@ -66,8 +89,10 @@ export default function QuotationStep() {
         signal: controller.signal,
       });
       const data = (await res.json().catch(() => null)) as ExtractResponse | null;
-      if (data && "quotation" in data) openForm(data.quotation, data.source);
-      else if (data && "needsOwnerInput" in data) openForm(emptyQuotation(), "manual", data.reason);
+      if (data && "quotation" in data) {
+        openForm(data.quotation, data.source);
+        if (data.source === "ai") toast.success("Quotation read", { description: "Check every field before confirming." });
+      } else if (data && "needsOwnerInput" in data) openForm(emptyQuotation(), "manual", data.reason);
       else if (data && "error" in data) setError(data.error);
       else setError(`Upload failed (${res.status}). Try a smaller photo, the demo quotation, or type it in.`);
     } catch {
@@ -105,6 +130,7 @@ export default function QuotationStep() {
     update({ quotation: clean, quotationConfirmed: true });
     upsertOffer(quotationToOffer(clean));
     setView("auto");
+    toast.success("Quotation confirmed", { description: "Faisla is checking the market price next." });
   }
 
   if (view === "confirm" && draft) {
@@ -185,106 +211,125 @@ function UploadPanel(props: {
   }
 
   return (
-    <section className="card">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="card-title">Supplier quotation</h2>
-          <p className="card-sub">Upload a photo or PDF. AI reads it, you check every number.</p>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Supplier quotation</CardTitle>
+        <CardDescription>Upload a photo or PDF. AI reads it, you check every number.</CardDescription>
         {props.onCancel && (
-          <button type="button" className="btn-ghost" onClick={props.onCancel}>
-            Cancel
-          </button>
+          <CardAction>
+            <Button variant="ghost" size="sm" onClick={props.onCancel}>
+              Cancel
+            </Button>
+          </CardAction>
         )}
-      </div>
+      </CardHeader>
 
-      <div
-        className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-6 text-center transition ${
-          dragging ? "border-brand bg-brand-soft" : "border-line bg-paper/60"
-        }`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          takeFile(e.dataTransfer.files);
-        }}
-      >
-        {props.preview && (
-          <PreviewThumb preview={props.preview} className={props.loading ? "opacity-50" : ""} />
-        )}
+      <CardContent className="flex flex-col gap-3">
+        <div
+          className={cn(
+            "flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors",
+            dragging ? "border-primary bg-primary/5" : "border-border bg-muted/30",
+          )}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            takeFile(e.dataTransfer.files);
+          }}
+        >
+          {props.preview ? (
+            <PreviewThumb preview={props.preview} className={props.loading ? "opacity-50" : ""} />
+          ) : (
+            !props.loading && (
+              <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Upload className="size-5" />
+              </div>
+            )
+          )}
 
-        {props.loading ? (
-          <div className="flex items-center gap-3 text-sm text-ink" role="status">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-            AI is reading the quotation…
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-muted">Drag a quotation here, or</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button type="button" className="btn-primary" onClick={() => pickerRef.current?.click()}>
-                Choose photo or PDF
-              </button>
-              <button type="button" className="btn" onClick={() => cameraRef.current?.click()}>
-                Take photo
-              </button>
-              <button type="button" className="btn" onClick={props.onDemo}>
-                Use demo quotation
-              </button>
+          {props.loading ? (
+            <div className="flex items-center gap-2 text-sm font-medium" role="status">
+              <Spinner className="text-primary" />
+              AI is reading the quotation…
             </div>
-          </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">Drag a quotation here, or</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={() => pickerRef.current?.click()}>
+                  <FileUp data-icon="inline-start" />
+                  Choose photo or PDF
+                </Button>
+                <Button variant="outline" onClick={() => cameraRef.current?.click()}>
+                  <Camera data-icon="inline-start" />
+                  Take photo
+                </Button>
+                <Button variant="outline" onClick={props.onDemo}>
+                  <Sparkles data-icon="inline-start" />
+                  Use demo quotation
+                </Button>
+              </div>
+            </>
+          )}
+
+          <input
+            ref={pickerRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              takeFile(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              takeFile(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </div>
+
+        {props.error && (
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription className="text-destructive">{props.error}</AlertDescription>
+          </Alert>
         )}
 
-        <input
-          ref={pickerRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(e) => {
-            takeFile(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            takeFile(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
-
-      {props.error && (
-        <p className="mt-3 rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad" role="alert">
-          {props.error}
-        </p>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-        <button type="button" className="underline hover:text-ink" onClick={props.onManual} disabled={props.loading}>
-          No photo? Type the quotation in yourself
-        </button>
-        <Link href="/demo/quotation" target="_blank" className="underline hover:text-ink">
-          Printable demo quotation
-        </Link>
-      </div>
-    </section>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <Button variant="link" size="xs" className="h-auto px-0 text-muted-foreground hover:text-foreground" onClick={props.onManual} disabled={props.loading}>
+            No photo? Type the quotation in yourself
+          </Button>
+          <Link
+            href="/demo/quotation"
+            target="_blank"
+            className="inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Printable demo quotation
+            <ExternalLink className="size-3" />
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function PreviewThumb({ preview, className = "" }: { preview: Preview; className?: string }) {
   if (preview.isPdf || !preview.url) {
     return (
-      <div className={`flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm ${className}`}>
-        <span className="badge-muted">PDF</span>
+      <div className={cn("flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm", className)}>
+        <FileText className="size-4 text-muted-foreground" />
+        <Badge variant="secondary">PDF</Badge>
         <span className="max-w-[16rem] truncate">{preview.name}</span>
       </div>
     );
@@ -295,12 +340,19 @@ function PreviewThumb({ preview, className = "" }: { preview: Preview; className
     <img
       src={preview.url}
       alt="Uploaded quotation"
-      className={`max-h-72 w-auto rounded-lg border border-line bg-white object-contain shadow-sm ${className}`}
+      className={cn("max-h-72 w-auto rounded-lg border bg-card object-contain shadow-sm", className)}
     />
   );
 }
 
 /* ---------- Confirm ---------- */
+
+const SOURCE_HINT: Record<DraftSource, string> = {
+  ai: "AI read this — please check every field.",
+  demo: "Demo quotation loaded — please check every field.",
+  manual: "Type the details exactly as printed.",
+  edit: "Edit any field, then confirm again.",
+};
 
 function ConfirmForm(props: {
   draft: Quotation;
@@ -334,288 +386,320 @@ function ConfirmForm(props: {
   const showPreview = props.preview && props.source !== "manual" && props.source !== "demo";
 
   return (
-    <section className="card">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="card-title">Check the quotation</h2>
-          {props.source === "ai" && <p className="card-sub">AI read this — please check every field.</p>}
-          {props.source === "demo" && <p className="card-sub">Demo quotation loaded — please check every field.</p>}
-          {props.source === "manual" && <p className="card-sub">Type the details exactly as printed.</p>}
-          {props.source === "edit" && <p className="card-sub">Edit any field, then confirm again.</p>}
+    <Card>
+      <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle>Check the quotation</CardTitle>
+            {props.source === "ai" && (
+              <Badge className="bg-warning/10 text-warning">
+                <Sparkles />
+                AI read this
+              </Badge>
+            )}
+            {props.source === "demo" && <Badge variant="secondary">Demo data</Badge>}
+          </div>
+          {props.source && <CardDescription>{SOURCE_HINT[props.source]}</CardDescription>}
         </div>
-        <div className="flex items-center gap-2">
-          {props.source === "ai" && <span className="badge-warn">AI read this</span>}
-          {props.source === "demo" && <span className="badge-muted">Demo data</span>}
+        <div className="flex flex-wrap items-center gap-2">
           {props.canCancel && (
-            <button type="button" className="btn-ghost" onClick={props.onCancel}>
+            <Button variant="ghost" size="sm" onClick={props.onCancel}>
               Cancel
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn-ghost" onClick={props.onRestart}>
+          <Button variant="outline" size="sm" onClick={props.onRestart}>
+            <Upload data-icon="inline-start" />
             Upload a different quotation
-          </button>
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
-      {props.reason && (
-        <p className="mb-4 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn" role="alert">
-          {props.reason}
-        </p>
-      )}
+      <CardContent className="flex flex-col gap-5">
+        {props.reason && <WarningNote>{props.reason}</WarningNote>}
 
-      <div className={showPreview ? "grid gap-5 lg:grid-cols-[minmax(0,260px)_1fr]" : ""}>
-        {showPreview && (
-          <div className="lg:sticky lg:top-4 lg:self-start">
-            <PreviewThumb preview={props.preview!} />
-          </div>
-        )}
-
-        <div className="space-y-6">
-          <IssueSummary issues={issues} />
-
-          {/* Supplier */}
-          <fieldset className="grid gap-3 sm:grid-cols-2">
-            <legend className="mb-2 text-sm font-semibold text-ink">Supplier</legend>
-            <Field label="Supplier name" id="q-supplier" className="sm:col-span-2">
-              <input
-                id="q-supplier"
-                className="input"
-                value={draft.supplierName}
-                onChange={(e) => patch({ supplierName: e.target.value })}
-              />
-            </Field>
-            <Field label="Phone" id="q-phone">
-              <input
-                id="q-phone"
-                className="input"
-                value={draft.supplierPhone ?? ""}
-                onChange={(e) => patch({ supplierPhone: e.target.value || null })}
-              />
-            </Field>
-            <Field label="Email" id="q-email">
-              <input
-                id="q-email"
-                type="email"
-                className="input"
-                value={draft.supplierEmail ?? ""}
-                onChange={(e) => patch({ supplierEmail: e.target.value || null })}
-              />
-            </Field>
-            <Field label="Quotation date" id="q-date">
-              <input
-                id="q-date"
-                type="date"
-                className="input"
-                value={draft.quoteDate ?? ""}
-                onChange={(e) => patch({ quoteDate: e.target.value || null })}
-              />
-            </Field>
-            <Field label="Valid for (days)" id="q-validity">
-              <NumInput
-                id="q-validity"
-                kind="int"
-                value={draft.validityDays}
-                onChange={(v) => patch({ validityDays: v })}
-                suffix="days"
-              />
-            </Field>
-          </fieldset>
-
-          {/* Items */}
-          <fieldset className="space-y-3">
-            <legend className="mb-2 text-sm font-semibold text-ink">Items</legend>
-            {draft.items.map((item, i) => (
-              <div key={i} className="rounded-lg border border-line p-3">
-                <div className="grid gap-3 sm:grid-cols-6">
-                  <Field label="Description" id={`q-desc-${i}`} className="sm:col-span-4">
-                    <input
-                      id={`q-desc-${i}`}
-                      className="input"
-                      value={item.description}
-                      onChange={(e) => patchItem(i, { description: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Model" id={`q-model-${i}`} className="sm:col-span-2">
-                    <input
-                      id={`q-model-${i}`}
-                      className="input"
-                      value={item.model ?? ""}
-                      onChange={(e) => patchItem(i, { model: e.target.value || null })}
-                    />
-                  </Field>
-                  <Field label="Qty" id={`q-qty-${i}`} issues={issuesFor(`items.${i}.qty`)}>
-                    <NumInput
-                      id={`q-qty-${i}`}
-                      kind="int"
-                      required
-                      value={item.qty}
-                      onChange={(v) => patchItem(i, { qty: v ?? 0 })}
-                    />
-                  </Field>
-                  <Field
-                    label="Unit price"
-                    id={`q-price-${i}`}
-                    className="sm:col-span-2"
-                    issues={issuesFor(`items.${i}.unitPrice`)}
-                  >
-                    <NumInput
-                      id={`q-price-${i}`}
-                      kind="money"
-                      required
-                      value={item.unitPrice}
-                      onChange={(v) => patchItem(i, { unitPrice: v ?? 0 })}
-                    />
-                  </Field>
-                  <Field
-                    label="Line total (as printed)"
-                    id={`q-line-${i}`}
-                    className="sm:col-span-3"
-                    issues={issuesFor(`items.${i}.lineTotal`)}
-                  >
-                    <NumInput
-                      id={`q-line-${i}`}
-                      kind="money"
-                      value={item.lineTotal}
-                      onChange={(v) => patchItem(i, { lineTotal: v })}
-                      placeholder="Not printed"
-                    />
-                  </Field>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    Faisla computes:{" "}
-                    <span className="num text-ink">
-                      {item.qty} × {formatPKR(item.unitPrice)} = {formatPKR(lineAmount(item))}
-                    </span>
-                  </span>
-                  {draft.items.length > 1 && (
-                    <button
-                      type="button"
-                      className="underline hover:text-bad"
-                      onClick={() => patch({ items: draft.items.filter((_, j) => j !== i) })}
-                    >
-                      Remove line
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-            <IssueList issues={issuesFor("items")} />
-            <button
-              type="button"
-              className="btn-ghost px-3 py-1 text-xs"
-              onClick={() =>
-                patch({ items: [...draft.items, { description: "", model: null, qty: 1, unitPrice: 0, lineTotal: null }] })
-              }
-            >
-              + Add line
-            </button>
-          </fieldset>
-
-          {/* Totals and payment terms */}
-          <fieldset className="grid gap-3 sm:grid-cols-2">
-            <legend className="mb-2 text-sm font-semibold text-ink">Totals and payment terms</legend>
-            <Field label="Total (as printed)" id="q-total" issues={issuesFor("printedTotal")}>
-              <NumInput
-                id="q-total"
-                kind="money"
-                value={draft.printedTotal}
-                onChange={(v) => patch({ printedTotal: v })}
-                placeholder="Not printed"
-              />
-              <p className="mt-1 text-xs text-muted">
-                Lines add up to <span className="num text-ink">{formatPKR(quotationListTotal(draft))}</span>
-              </p>
-            </Field>
-            <Field label="Cash discount" id="q-discount" issues={issuesFor("cashDiscountPct")}>
-              <DecimalInput
-                id="q-discount"
-                value={draft.cashDiscountPct}
-                onChange={(v) => patch({ cashDiscountPct: v })}
-                suffix="%"
-              />
-              {draft.cashDiscountPct ? (
-                <p className="mt-1 text-xs text-muted">
-                  Cash price <span className="num text-ink">{formatPKR(quotationCashPrice(draft))}</span>
-                </p>
-              ) : null}
-            </Field>
-            <Field label="Installments (months)" id="q-months">
-              <NumInput
-                id="q-months"
-                kind="int"
-                value={draft.installmentMonths}
-                onChange={(v) => patch({ installmentMonths: v })}
-                suffix="months"
-              />
-            </Field>
-            <Field label="Each installment" id="q-inst" issues={issuesFor("installmentAmount")}>
-              <NumInput
-                id="q-inst"
-                kind="money"
-                value={draft.installmentAmount}
-                onChange={(v) => patch({ installmentAmount: v })}
-              />
-            </Field>
-            <Field label='"Markup" claimed' id="q-markup">
-              <DecimalInput
-                id="q-markup"
-                value={draft.markupClaimedPct}
-                onChange={(v) => patch({ markupClaimedPct: v })}
-                suffix="%"
-              />
-              <p className="mt-1 text-xs text-muted">What the supplier says, e.g. &quot;0% markup&quot;</p>
-            </Field>
-            <div>
-              <span className="label">First installment due</span>
-              <TriToggle
-                value={draft.firstInstallmentOnDelivery}
-                onChange={(v) => patch({ firstInstallmentOnDelivery: v })}
-              />
-              <p className="mt-1 text-xs text-muted">If due on delivery, the hidden rate is higher.</p>
+        <div className={showPreview ? "grid gap-5 lg:grid-cols-[minmax(0,260px)_1fr]" : ""}>
+          {showPreview && (
+            <div className="lg:sticky lg:top-4 lg:self-start">
+              <PreviewThumb preview={props.preview!} />
             </div>
-          </fieldset>
+          )}
 
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
-            {missing.length > 0 && <span className="text-xs text-muted">Still needed: {missing.join(", ")}</span>}
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={missing.length > 0}
-              onClick={() => props.onConfirm(draft)}
-            >
-              Confirm quotation
-            </button>
+          <div className="flex flex-col gap-6">
+            <IssueSummary issues={issues} />
+
+            {/* Supplier */}
+            <FieldSet className="gap-3">
+              <FieldLegend variant="label">Supplier</FieldLegend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Supplier name" id="q-supplier" className="sm:col-span-2">
+                  <Input
+                    id="q-supplier"
+                    value={draft.supplierName}
+                    onChange={(e) => patch({ supplierName: e.target.value })}
+                  />
+                </FormField>
+                <FormField label="Phone" id="q-phone">
+                  <Input
+                    id="q-phone"
+                    value={draft.supplierPhone ?? ""}
+                    onChange={(e) => patch({ supplierPhone: e.target.value || null })}
+                  />
+                </FormField>
+                <FormField label="Email" id="q-email">
+                  <Input
+                    id="q-email"
+                    type="email"
+                    value={draft.supplierEmail ?? ""}
+                    onChange={(e) => patch({ supplierEmail: e.target.value || null })}
+                  />
+                </FormField>
+                <FormField label="Quotation date" id="q-date">
+                  <Input
+                    id="q-date"
+                    type="date"
+                    value={draft.quoteDate ?? ""}
+                    onChange={(e) => patch({ quoteDate: e.target.value || null })}
+                  />
+                </FormField>
+                <FormField label="Valid for (days)" id="q-validity">
+                  <NumInput
+                    id="q-validity"
+                    kind="int"
+                    value={draft.validityDays}
+                    onChange={(v) => patch({ validityDays: v })}
+                    suffix="days"
+                  />
+                </FormField>
+              </div>
+            </FieldSet>
+
+            {/* Items */}
+            <FieldSet className="gap-3">
+              <FieldLegend variant="label">Items</FieldLegend>
+              {draft.items.map((item, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="grid gap-3 sm:grid-cols-6">
+                    <FormField label="Description" id={`q-desc-${i}`} className="sm:col-span-4">
+                      <Input
+                        id={`q-desc-${i}`}
+                        value={item.description}
+                        onChange={(e) => patchItem(i, { description: e.target.value })}
+                      />
+                    </FormField>
+                    <FormField label="Model" id={`q-model-${i}`} className="sm:col-span-2">
+                      <Input
+                        id={`q-model-${i}`}
+                        value={item.model ?? ""}
+                        onChange={(e) => patchItem(i, { model: e.target.value || null })}
+                      />
+                    </FormField>
+                    <FormField label="Qty" id={`q-qty-${i}`} issues={issuesFor(`items.${i}.qty`)}>
+                      <NumInput
+                        id={`q-qty-${i}`}
+                        kind="int"
+                        required
+                        warn={issuesFor(`items.${i}.qty`).length > 0}
+                        value={item.qty}
+                        onChange={(v) => patchItem(i, { qty: v ?? 0 })}
+                      />
+                    </FormField>
+                    <FormField
+                      label="Unit price"
+                      id={`q-price-${i}`}
+                      className="sm:col-span-2"
+                      issues={issuesFor(`items.${i}.unitPrice`)}
+                    >
+                      <NumInput
+                        id={`q-price-${i}`}
+                        kind="money"
+                        required
+                        warn={issuesFor(`items.${i}.unitPrice`).length > 0}
+                        value={item.unitPrice}
+                        onChange={(v) => patchItem(i, { unitPrice: v ?? 0 })}
+                      />
+                    </FormField>
+                    <FormField
+                      label="Line total (as printed)"
+                      id={`q-line-${i}`}
+                      className="sm:col-span-3"
+                      issues={issuesFor(`items.${i}.lineTotal`)}
+                    >
+                      <NumInput
+                        id={`q-line-${i}`}
+                        kind="money"
+                        warn={issuesFor(`items.${i}.lineTotal`).length > 0}
+                        value={item.lineTotal}
+                        onChange={(v) => patchItem(i, { lineTotal: v })}
+                        placeholder="Not printed"
+                      />
+                    </FormField>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Faisla computes:{" "}
+                      <span className="font-mono text-foreground tabular-nums">
+                        {item.qty} × {formatPKR(item.unitPrice)} = {formatPKR(lineAmount(item))}
+                      </span>
+                    </span>
+                    {draft.items.length > 1 && (
+                      <Button
+                        variant="link"
+                        size="xs"
+                        className="h-auto px-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => patch({ items: draft.items.filter((_, j) => j !== i) })}
+                      >
+                        Remove line
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <IssueList issues={issuesFor("items")} />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() =>
+                  patch({ items: [...draft.items, { description: "", model: null, qty: 1, unitPrice: 0, lineTotal: null }] })
+                }
+              >
+                <Plus data-icon="inline-start" />
+                Add line
+              </Button>
+            </FieldSet>
+
+            {/* Totals and payment terms */}
+            <FieldSet className="gap-3">
+              <FieldLegend variant="label">Totals and payment terms</FieldLegend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Total (as printed)" id="q-total" issues={issuesFor("printedTotal")}>
+                  <NumInput
+                    id="q-total"
+                    kind="money"
+                    warn={issuesFor("printedTotal").length > 0}
+                    value={draft.printedTotal}
+                    onChange={(v) => patch({ printedTotal: v })}
+                    placeholder="Not printed"
+                  />
+                  <FieldDescription className="text-xs">
+                    Lines add up to{" "}
+                    <span className="font-mono text-foreground tabular-nums">{formatPKR(quotationListTotal(draft))}</span>
+                  </FieldDescription>
+                </FormField>
+                <FormField label="Cash discount" id="q-discount" issues={issuesFor("cashDiscountPct")}>
+                  <DecimalInput
+                    id="q-discount"
+                    value={draft.cashDiscountPct}
+                    onChange={(v) => patch({ cashDiscountPct: v })}
+                    suffix="%"
+                  />
+                  {draft.cashDiscountPct ? (
+                    <FieldDescription className="text-xs">
+                      Cash price{" "}
+                      <span className="font-mono text-foreground tabular-nums">{formatPKR(quotationCashPrice(draft))}</span>
+                    </FieldDescription>
+                  ) : null}
+                </FormField>
+                <FormField label="Installments (months)" id="q-months">
+                  <NumInput
+                    id="q-months"
+                    kind="int"
+                    value={draft.installmentMonths}
+                    onChange={(v) => patch({ installmentMonths: v })}
+                    suffix="months"
+                  />
+                </FormField>
+                <FormField label="Each installment" id="q-inst" issues={issuesFor("installmentAmount")}>
+                  <NumInput
+                    id="q-inst"
+                    kind="money"
+                    warn={issuesFor("installmentAmount").length > 0}
+                    value={draft.installmentAmount}
+                    onChange={(v) => patch({ installmentAmount: v })}
+                  />
+                </FormField>
+                <FormField label='"Markup" claimed' id="q-markup">
+                  <DecimalInput
+                    id="q-markup"
+                    value={draft.markupClaimedPct}
+                    onChange={(v) => patch({ markupClaimedPct: v })}
+                    suffix="%"
+                  />
+                  <FieldDescription className="text-xs">What the supplier says, e.g. &quot;0% markup&quot;</FieldDescription>
+                </FormField>
+                <Field className="gap-1.5">
+                  <FieldTitle>First installment due</FieldTitle>
+                  <TriToggle
+                    value={draft.firstInstallmentOnDelivery}
+                    onChange={(v) => patch({ firstInstallmentOnDelivery: v })}
+                  />
+                  <FieldDescription className="text-xs">If due on delivery, the hidden rate is higher.</FieldDescription>
+                </Field>
+              </div>
+            </FieldSet>
+
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
+              {missing.length > 0 && (
+                <span className="text-xs text-muted-foreground">Still needed: {missing.join(", ")}</span>
+              )}
+              <Button disabled={missing.length > 0} onClick={() => props.onConfirm(draft)}>
+                <Check data-icon="inline-start" />
+                Confirm quotation
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WarningNote({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      role="alert"
+      className={cn(
+        "flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning",
+        className,
+      )}
+    >
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+      <span className="min-w-0 leading-snug">{children}</span>
+    </div>
   );
 }
 
 function IssueSummary({ issues }: { issues: ArithmeticIssue[] }) {
-  if (issues.length === 0) return <span className="badge-good">Arithmetic checks pass</span>;
+  if (issues.length === 0) {
+    return (
+      <Badge className="bg-success/10 text-success">
+        <CircleCheck />
+        Arithmetic checks pass
+      </Badge>
+    );
+  }
   return (
-    <span className="badge-warn">
+    <Badge className="bg-warning/10 text-warning">
+      <TriangleAlert />
       {issues.length === 1 ? "1 thing to check" : `${issues.length} things to check`} — see highlighted fields
-    </span>
+    </Badge>
   );
 }
 
 function IssueList({ issues }: { issues: ArithmeticIssue[] }) {
   if (issues.length === 0) return null;
   return (
-    <div className="mt-1 space-y-1">
+    <div className="flex flex-col gap-1">
       {issues.map((issue, k) => (
-        <p key={k} className="badge-warn whitespace-normal rounded-md py-1 leading-snug">
+        <WarningNote key={k} className="px-2 py-1 text-xs">
           {issue.message}
-        </p>
+        </WarningNote>
       ))}
     </div>
   );
 }
 
-function Field(props: {
+function FormField(props: {
   label: string;
   id: string;
   className?: string;
@@ -623,13 +707,11 @@ function Field(props: {
   children: React.ReactNode;
 }) {
   return (
-    <div className={props.className}>
-      <label className="label" htmlFor={props.id}>
-        {props.label}
-      </label>
+    <Field className={cn("gap-1.5", props.className)}>
+      <FieldLabel htmlFor={props.id}>{props.label}</FieldLabel>
       {props.children}
       <IssueList issues={props.issues ?? []} />
-    </div>
+    </Field>
   );
 }
 
@@ -642,6 +724,7 @@ function NumInput(props: {
   required?: boolean;
   placeholder?: string;
   suffix?: string;
+  warn?: boolean;
 }) {
   const { value, kind } = props;
   const empty = value === null || (props.required && value === 0);
@@ -649,11 +732,18 @@ function NumInput(props: {
   return (
     <div className="relative">
       {kind === "money" && (
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">Rs</span>
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+          Rs
+        </span>
       )}
-      <input
+      <Input
         id={props.id}
-        className={`input num ${kind === "money" ? "pl-9" : ""} ${props.suffix ? "pr-16" : ""}`}
+        className={cn(
+          "font-mono tabular-nums",
+          kind === "money" && "pl-8",
+          props.suffix && "pr-16",
+          props.warn && "border-warning focus-visible:border-warning focus-visible:ring-warning/30",
+        )}
         inputMode="numeric"
         value={display}
         placeholder={props.placeholder ?? (props.required ? "0" : "—")}
@@ -663,7 +753,7 @@ function NumInput(props: {
         }}
       />
       {props.suffix && (
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">
+        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
           {props.suffix}
         </span>
       )}
@@ -686,9 +776,9 @@ function DecimalInput(props: {
   }
   return (
     <div className="relative">
-      <input
+      <Input
         id={props.id}
-        className="input num pr-10"
+        className="pr-10 font-mono tabular-nums"
         inputMode="decimal"
         value={text}
         placeholder="—"
@@ -702,7 +792,7 @@ function DecimalInput(props: {
         }}
       />
       {props.suffix && (
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">
+        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground">
           {props.suffix}
         </span>
       )}
@@ -710,6 +800,7 @@ function DecimalInput(props: {
   );
 }
 
+// Three-way segmented control; "Not stated" keeps the field null.
 function TriToggle({ value, onChange }: { value: boolean | null; onChange: (v: boolean | null) => void }) {
   const options: { label: string; v: boolean | null }[] = [
     { label: "1 month after delivery", v: false },
@@ -717,16 +808,19 @@ function TriToggle({ value, onChange }: { value: boolean | null; onChange: (v: b
     { label: "Not stated", v: null },
   ];
   return (
-    <div className="flex overflow-hidden rounded-lg border border-line text-xs" role="radiogroup">
+    <div className="flex gap-0.5 rounded-lg border bg-muted/40 p-0.5 text-xs" role="radiogroup">
       {options.map((o) => (
         <button
           key={o.label}
           type="button"
           role="radio"
           aria-checked={value === o.v}
-          className={`flex-1 px-2 py-2 font-medium transition ${
-            value === o.v ? "bg-brand text-white" : "bg-white text-ink hover:bg-paper"
-          }`}
+          className={cn(
+            "flex-1 rounded-md px-2 py-1.5 font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            value === o.v
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
           onClick={() => onChange(o.v)}
         >
           {o.label}
@@ -755,50 +849,56 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
   if (q.validityDays) terms.push(`Valid ${q.validityDays} days`);
 
   return (
-    <section className="card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="card-title">{q.supplierName}</h2>
-            <span className="badge-good">Quotation confirmed</span>
-            {isDemo && <span className="badge-muted">Demo data</span>}
+    <Card>
+      <CardHeader>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <CardTitle className="truncate">{q.supplierName}</CardTitle>
+          <Badge className="bg-success/10 text-success">
+            <CircleCheck />
+            Quotation confirmed
+          </Badge>
+          {isDemo && <Badge variant="secondary">Demo data</Badge>}
+        </div>
+        {first && (
+          <CardDescription>
+            {first.description}
+            {first.model ? ` · ${first.model}` : ""}
+            {q.quoteDate ? ` · ${q.quoteDate}` : ""}
+          </CardDescription>
+        )}
+        <CardAction>
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Pencil data-icon="inline-start" />
+            Edit
+          </Button>
+        </CardAction>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        {first && (
+          <p className="font-mono text-xl font-semibold tabular-nums sm:text-2xl">
+            {first.qty} × {formatPKR(first.unitPrice)} = {formatPKR(lineAmount(first))}
+          </p>
+        )}
+        {q.items.length > 1 && (
+          <p className="text-xs text-muted-foreground">
+            + {q.items.length - 1} more line{q.items.length > 2 ? "s" : ""} (all lines: {formatPKR(quotationListTotal(q))});
+            the comparison uses the first line.
+          </p>
+        )}
+
+        {terms.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {terms.map((t) => (
+              <Badge key={t} variant="outline" className="h-auto py-1 whitespace-normal text-muted-foreground">
+                {t}
+              </Badge>
+            ))}
           </div>
-          {first && (
-            <p className="card-sub">
-              {first.description}
-              {first.model ? ` · ${first.model}` : ""}
-              {q.quoteDate ? ` · ${q.quoteDate}` : ""}
-            </p>
-          )}
-        </div>
-        <button type="button" className="btn-ghost" onClick={onEdit}>
-          Edit
-        </button>
-      </div>
+        )}
 
-      {first && (
-        <p className="num mt-3 text-xl font-semibold text-ink">
-          {first.qty} × {formatPKR(first.unitPrice)} = {formatPKR(lineAmount(first))}
-        </p>
-      )}
-      {q.items.length > 1 && (
-        <p className="mt-1 text-xs text-muted">
-          + {q.items.length - 1} more line{q.items.length > 2 ? "s" : ""} (all lines: {formatPKR(quotationListTotal(q))});
-          the comparison uses the first line.
-        </p>
-      )}
-
-      {terms.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {terms.map((t) => (
-            <span key={t} className="badge-muted">
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <IssueList issues={issues} />
-    </section>
+        <IssueList issues={issues} />
+      </CardContent>
+    </Card>
   );
 }
