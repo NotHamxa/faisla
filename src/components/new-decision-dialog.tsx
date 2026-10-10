@@ -69,8 +69,10 @@ export default function NewDecisionDialog({
       toast.success("Decision created", {
         description: origin === "need" ? "Start by describing what you need." : "Start by uploading the supplier's quotation.",
       });
-      setOpen(false);
+      // Navigate without closing through onOpenChange: the list page's close handler strips ?new=1
+      // with router.replace, which can win the race and leave the owner on the list.
       router.push(`/decisions/${data.decision.id}`);
+      if (open === undefined) setInnerOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't create the decision");
     } finally {
