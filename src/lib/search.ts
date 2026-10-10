@@ -63,22 +63,44 @@ export function isSimulatedSeller(name: string): boolean {
   );
 }
 
-// Cache first, then Tavily. Returns [] when nothing is cached and search is unavailable or fails.
-export async function webSearch(query: string, opts: { maxResults?: number } = {}): Promise<SearchResult[]> {
-  const cached = lookupCache(query);
-  if (cached) return cached.results;
-  if (!searchEnabled()) return [];
+export type SearchOptions = {
+  maxResults?: number;
+  depth?: "basic" | "advanced"; // advanced = better product-page snippets (2 credits)
+  excludeDomains?: string[];
+};
 
-  const results = await tavilySearch(query, opts.maxResults ?? 8);
-  if (results.length) {
-    const entry: SearchCacheEntry = { query, fetchedAt: new Date().toISOString(), results };
-    runtimeEntries.set(normalizeQuery(query), entry);
-    await persistInDev(normalizeQuery(query), entry);
-  }
-  return results;
+// Live results are cached per query and options, so a retail-only search never reuses a broad one.
+function runtimeKey(query: string, opts: SearchOptions): string {
+  const extra = [opts.depth === "advanced" ? "adv" : "", ...(opts.excludeDomains ?? []).map((d) => `-${d}`)].filter(Boolean);
+  return [normalizeQuery(query), ...extra].join(" ");
 }
 
-async function tavilySearch(query: string, maxResults: number): Promise<SearchResult[]> {
+// Cache first, then Tavily. Returns [] when nothing is cached and search is unavailable or fails.
+export async function webSearch(query: string, opts: SearchOptions = {}): Promise<SearchResult[]> {
+  return (await searchWithCache(query, opts)).results;
+}
+
+// Same as webSearch, also saying whether the answer came from the cache (no live call).
+export async function searchWithCache(query: string, opts: SearchOptions = {}): Promise<{ results: SearchResult[]; cached: boolean }> {
+  const fileHit = fileEntries[normalizeQuery(query)];
+  if (fileHit) return { results: fileHit.results, cached: true };
+  const key = runtimeKey(query, opts);
+  const runtimeHit = runtimeEntries.get(key);
+  if (runtimeHit) return { results: runtimeHit.results, cached: true };
+  if (!searchEnabled()) return { results: [], cached: false };
+
+  const results = await tavilySearch(query, opts);
+  if (results.length) {
+    const entry: SearchCacheEntry = { query, fetchedAt: new Date().toISOString(), results };
+    runtimeEntries.set(key, entry);
+    // Only the plain search goes to the dev cache file (keyed by query alone).
+    if (key === normalizeQuery(query)) await persistInDev(key, entry);
+  }
+  return { results, cached: false };
+}
+
+async function tavilySearch(query: string, opts: SearchOptions): Promise<SearchResult[]> {
+  const advanced = opts.depth === "advanced";
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
@@ -86,9 +108,16 @@ async function tavilySearch(query: string, maxResults: number): Promise<SearchRe
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
       },
-      // Pakistani results first: local marketplaces (OLX, Daraz) list prices in PKR.
-      body: JSON.stringify({ query, max_results: maxResults, search_depth: "basic", country: "pakistan" }),
-      signal: AbortSignal.timeout(8000),
+      // Pakistani results first: local shops list prices in PKR.
+      body: JSON.stringify({
+        query,
+        max_results: opts.maxResults ?? 8,
+        search_depth: advanced ? "advanced" : "basic",
+        ...(advanced ? { chunks_per_source: 3 } : {}),
+        country: "pakistan",
+        ...(opts.excludeDomains?.length ? { exclude_domains: opts.excludeDomains } : {}),
+      }),
+      signal: AbortSignal.timeout(advanced ? 15000 : 8000),
     });
     if (!res.ok) {
       console.error(`[search] Tavily ${res.status}`);
@@ -97,11 +126,62 @@ async function tavilySearch(query: string, maxResults: number): Promise<SearchRe
     const data = (await res.json()) as { results?: { title?: string; url?: string; content?: string }[] };
     return (data.results ?? [])
       .filter((r) => r.url)
-      .map((r) => ({ title: r.title ?? "", url: r.url ?? "", content: (r.content ?? "").slice(0, 1500) }));
+      .map((r) => ({ title: r.title ?? "", url: r.url ?? "", content: (r.content ?? "").slice(0, advanced ? 2500 : 1500) }));
   } catch (error) {
     console.error("[search] Tavily request failed", error instanceof Error ? error.message : error);
     return [];
   }
+}
+
+// Tavily Extract: the readable text of one page, fetched by Tavily (our server never opens the URL).
+// null when search is off or the page could not be read.
+export async function tavilyExtract(url: string): Promise<string | null> {
+  return (await tavilyExtractMany([url])).get(url) ?? null;
+}
+
+const extractCache = new Map<string, string>(); // per server process
+
+// Several pages in one call (1 credit per 5 pages). With `query`, Tavily returns the chunks most
+// relevant to it (price and specs) instead of the whole page. Pages that fail are simply missing.
+export async function tavilyExtractMany(urls: string[], opts: { query?: string } = {}): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const keyOf = (u: string) => `${opts.query ?? ""}|${u}`;
+  const todo = urls.filter((u) => {
+    const hit = extractCache.get(keyOf(u));
+    if (hit) out.set(u, hit);
+    return !hit;
+  });
+  if (!todo.length || !searchEnabled()) return out;
+  try {
+    const res = await fetch("https://api.tavily.com/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.TAVILY_API_KEY}` },
+      body: JSON.stringify({
+        urls: todo.slice(0, 20),
+        extract_depth: "basic",
+        format: "text",
+        timeout: 12,
+        ...(opts.query ? { query: opts.query, chunks_per_source: 4 } : {}),
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      console.error(`[search] Tavily extract ${res.status}`);
+      return out;
+    }
+    const data = (await res.json()) as { results?: { url?: string; raw_content?: string }[] };
+    for (const r of data.results ?? []) {
+      const text = r.raw_content?.trim();
+      // Tavily may normalise the URL: match it back to the one we asked for.
+      const asked = todo.find((u) => u === r.url) ?? todo.find((u) => r.url && u.replace(/\/$/, "") === r.url.replace(/\/$/, ""));
+      if (!asked || !text) continue;
+      out.set(asked, text);
+      extractCache.set(keyOf(asked), text);
+    }
+  } catch (error) {
+    console.error("[search] Tavily extract failed", error instanceof Error ? error.message : error);
+  }
+  return out;
 }
 
 // Dev only: append new live results to the cache file so rehearsal queries become demo-safe.

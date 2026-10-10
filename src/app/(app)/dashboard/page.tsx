@@ -20,7 +20,7 @@ import { LoadSampleButton } from "@/components/dashboard/load-sample-button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { loadSampleData } from "@/lib/auth/actions";
@@ -36,14 +36,30 @@ export const metadata: Metadata = { title: "Dashboard — Faisla" };
 const TIME_ZONE = "Asia/Karachi";
 
 function greeting(now: Date): string {
-  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: TIME_ZONE }).format(now));
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: TIME_ZONE,
+    }).format(now),
+  );
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
 }
 
-function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }): string {
-  return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: TIME_ZONE }).format(new Date(iso));
+function formatDate(
+  iso: string,
+  opts: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  },
+): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    ...opts,
+    timeZone: TIME_ZONE,
+  }).format(new Date(iso));
 }
 
 function timeAgo(iso: string, now: Date): string {
@@ -79,16 +95,9 @@ export default async function DashboardPage() {
             {greeting(now)}, {firstName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {company.name} · {company.city}
-            {company.isExporter ? " · Exporter (Islamic LTFF eligible)" : ""} · figures as of {formatDate(now.toISOString())}
+            {company.name} · {formatDate(now.toISOString())}
           </p>
         </div>
-        {decisions.length > 0 && (
-          <Button variant="outline" nativeButton={false} render={<Link href="/decisions" />}>
-            All decisions
-            <ArrowRight data-icon="inline-end" />
-          </Button>
-        )}
       </div>
 
       <KpiCards kpis={dash.kpis} />
@@ -102,9 +111,7 @@ export default async function DashboardPage() {
                   <FilePlus2 />
                 </EmptyMedia>
                 <EmptyTitle className="text-base">No decisions yet</EmptyTitle>
-                <EmptyDescription>
-                  Upload a supplier&apos;s quotation and Faisla checks the market, finds other offers and compares every way to pay.
-                </EmptyDescription>
+                <EmptyDescription>Upload a supplier&apos;s quotation to begin.</EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="sm:flex-row sm:justify-center">
                 <Button nativeButton={false} render={<Link href="/decisions?new=1" />}>
@@ -121,13 +128,13 @@ export default async function DashboardPage() {
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <CashChart data={dash.cashProjection} monthlyFixedCosts={dash.kpis.monthlyFixedCosts} />
-            </div>
+            <RecentDecisionsCard dash={dash} now={now} className="lg:col-span-2" />
             <AlertsCard alerts={dash.alerts} />
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
-            <RecentDecisionsCard dash={dash} now={now} className="lg:col-span-2" />
+            <div className="lg:col-span-2">
+              <CashChart data={dash.cashProjection} monthlyFixedCosts={dash.kpis.monthlyFixedCosts} />
+            </div>
             <UpcomingPaymentsCard payments={dash.upcomingPayments} />
           </div>
         </>
@@ -198,7 +205,7 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
       />
       <KpiCard
         icon={Timer}
-        label="Runway after commitments"
+        label="Cash left (months)"
         tone={tight ? "warning" : "default"}
         value={
           <>
@@ -219,20 +226,17 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
           <span>
             Today <span className="font-mono text-foreground tabular-nums">{months(kpis.runwayToday)}</span> mo
           </span>
-          <span className={cn(tight && "font-medium text-warning")}>{tight ? `Below ${SAFE_RUNWAY}-month safety line` : "No sales counted"}</span>
+          <span className={cn(tight && "font-medium text-warning")}>
+            {tight ? `Below ${SAFE_RUNWAY}-month safe level` : "After planned payments"}
+          </span>
         </div>
       </KpiCard>
       <KpiCard
         icon={PiggyBank}
-        label="Savings found (after tax)"
+        label="Money saved"
         tone={kpis.savingsFoundAfterTax > 0 ? "success" : "default"}
         value={formatPKR(kpis.savingsFoundAfterTax)}
-        sub={
-          <span>
-            <span className="font-mono tabular-nums">{formatPKR(kpis.savingsFoundBeforeTax)}</span> before tax ·{" "}
-            {kpis.decidedCount} decided
-          </span>
-        }
+        sub={<span>After tax · {kpis.decidedCount} decided</span>}
       />
       <KpiCard
         icon={ListChecks}
@@ -240,7 +244,7 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
         value={kpis.openDecisions}
         sub={
           <Link href="/decisions" className="inline-flex items-center gap-1 hover:text-foreground">
-            {kpis.openDecisions > 0 ? "Pick up where you left off" : "Nothing waiting"}
+            {kpis.openDecisions > 0 ? "Continue" : "Nothing waiting"}
             <ArrowUpRight className="size-3" />
           </Link>
         }
@@ -249,7 +253,14 @@ function KpiCards({ kpis }: { kpis: DashboardKpis }) {
   );
 }
 
-const ALERT_STYLE: Record<AlertLevel, { icon: React.ComponentType<{ className?: string }>; className: string; label: string }> = {
+const ALERT_STYLE: Record<
+  AlertLevel,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    className: string;
+    label: string;
+  }
+> = {
   high: { icon: AlertTriangle, className: "text-destructive", label: "High" },
   medium: { icon: CircleAlert, className: "text-warning", label: "Medium" },
   info: { icon: Info, className: "text-muted-foreground", label: "Info" },
@@ -260,7 +271,6 @@ function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
     <Card className="h-full">
       <CardHeader className="border-b">
         <CardTitle>Alerts</CardTitle>
-        <CardDescription>What needs your attention</CardDescription>
         {alerts.length > 0 && (
           <CardAction>
             <Badge variant="outline" className="font-mono tabular-nums">
@@ -273,7 +283,7 @@ function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
         {alerts.length === 0 ? (
           <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
             <CheckCircle2 className="size-6 text-success" />
-            All clear. No costly deferred-price plans, red flags or expiring quotes.
+            All clear.
           </div>
         ) : (
           <ul className="-mx-2 -my-1 divide-y">
@@ -308,7 +318,6 @@ function UpcomingPaymentsCard({ payments }: { payments: UpcomingPayment[] }) {
     <Card className="h-full">
       <CardHeader className="border-b">
         <CardTitle>Upcoming payments</CardTitle>
-        <CardDescription>From decided purchases</CardDescription>
         <CardAction>
           <CalendarClock className="size-4 text-muted-foreground" />
         </CardAction>
@@ -353,7 +362,6 @@ function RecentDecisionsCard({ dash, now, className }: { dash: ReturnType<typeof
     <Card className={cn("h-full", className)}>
       <CardHeader className="border-b">
         <CardTitle>Recent decisions</CardTitle>
-        <CardDescription>Latest activity across your purchases</CardDescription>
         <CardAction>
           <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/decisions" />}>
             View all
@@ -368,7 +376,7 @@ function RecentDecisionsCard({ dash, now, className }: { dash: ReturnType<typeof
               <TableHead className="pl-4">Decision</TableHead>
               <TableHead className="hidden sm:table-cell">Status</TableHead>
               <TableHead className="hidden md:table-cell">Best option</TableHead>
-              <TableHead className="text-right">Saved (after tax)</TableHead>
+              <TableHead className="text-right">Saved</TableHead>
               <TableHead className="hidden pr-4 text-right lg:table-cell">Updated</TableHead>
             </TableRow>
           </TableHeader>
@@ -384,7 +392,9 @@ function RecentDecisionsCard({ dash, now, className }: { dash: ReturnType<typeof
                 <TableCell className="hidden sm:table-cell">
                   <StatusBadge status={d.status} />
                 </TableCell>
-                <TableCell className="hidden text-muted-foreground md:table-cell">{d.recommendedLabel ?? "—"}</TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {d.chosenLabel ? `Your choice: ${d.chosenLabel}` : (d.recommendedLabel ?? "—")}
+                </TableCell>
                 <TableCell className="text-right font-mono tabular-nums">
                   {d.savingsAfterTax !== null && d.savingsAfterTax > 0 ? (
                     <span className="text-success" title={formatPKR(d.savingsAfterTax)}>

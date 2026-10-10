@@ -5,7 +5,6 @@ import { Fragment, useState, type ReactNode } from "react";
 import {
   CheckIcon,
   CopyIcon,
-  FileTextIcon,
   MailIcon,
   PaperclipIcon,
   PrinterIcon,
@@ -16,16 +15,16 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/dateFormat";
-import { isFinancedMethod, isShariahRow } from "@/lib/finance";
+import { effectiveRow, isFinancedMethod, isShariahRow, overrideRow } from "@/lib/finance";
 import { useStore } from "@/lib/store";
 import type { EmailRecord, MemoResult } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Details, HelpTip } from "@/components/simple";
 
 type BankEmailResponse = {
   email: EmailRecord;
@@ -66,14 +65,15 @@ export default function MemoPanel() {
 
   // Survives a refresh via the stored email log (attachment preview only for this session).
   const bankEmail =
-    bankReply?.email ?? [...state.emails].reverse().find((e) => e.direction === "out" && e.subject.startsWith("Term sheet request"));
+    bankReply?.email ??
+    [...state.emails].reverse().find((e) => e.direction === "out" && e.subject.startsWith("Term sheet request"));
 
   if (!decision) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Decision memo</CardTitle>
-          <CardDescription>Compare the ways to pay first. The memo is written from that calculation.</CardDescription>
+          <CardDescription>Compare the ways to pay first.</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -91,7 +91,12 @@ export default function MemoPanel() {
           reputations: state.reputations,
           offers: state.offers,
           financing: state.financing,
-          paymentRisks: risks.map((r) => ({ supplierName: r.supplierName, level: r.level, confirmed: r.confirmed })),
+          chosenRowId: state.chosenRowId,
+          paymentRisks: risks.map((r) => ({
+            supplierName: r.supplierName,
+            level: r.level,
+            confirmed: r.confirmed,
+          })),
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `Memo failed (${res.status})`);
@@ -103,11 +108,15 @@ export default function MemoPanel() {
     }
   }
 
-  // The term sheet is for bank financing. When the recommendation needs none (cash, or the supplier's own plan), the
-  // button explains that, and the owner can still ask about the best Shariah-compliant financing row on purpose.
-  const recRow = decision.rows.find((r) => r.id === decision.recommendedId) ?? decision.rows.find((r) => r.recommended) ?? null;
+  // The term sheet is for bank financing, for the row the owner goes ahead with (their own pick, else the
+  // recommendation). When that needs none (cash, or the supplier's own plan), the button says so, and the owner can
+  // still ask about the best Shariah-compliant financing row on purpose.
+  const recRow = effectiveRow(decision, state.chosenRowId);
+  const ownChoice = !!overrideRow(decision, state.chosenRowId);
   const needsFinancing = !!recRow && isFinancedMethod(recRow.method);
-  const altFinancing = needsFinancing ? null : (decision.rows.find((r) => isFinancedMethod(r.method) && isShariahRow(r)) ?? null);
+  const altFinancing = needsFinancing
+    ? null
+    : (decision.rows.find((r) => isFinancedMethod(r.method) && isShariahRow(r)) ?? null);
 
   async function requestTermSheet(rowId?: string) {
     setEmailLoading(true);
@@ -121,15 +130,15 @@ export default function MemoPanel() {
           company: state.company,
           offers: state.offers,
           financing: state.financing,
-          ...(rowId ? { rowId } : {}),
+          rowId: rowId ?? recRow?.id,
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `Email failed (${res.status})`);
       const data = (await res.json()) as BankEmailResponse;
       setBankReply(data);
       addEmail(data.email);
-      if (data.email.simulated) toast.info("Term-sheet request saved (simulated, no email keys set)");
-      else toast.success(`Term-sheet request sent to ${data.email.toFrom}`);
+      if (data.email.simulated) toast.info("Bank request saved (simulated, no email keys set)");
+      else toast.success(`Request sent to ${data.email.toFrom}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Email failed");
     } finally {
@@ -149,63 +158,93 @@ export default function MemoPanel() {
     }
   }
 
+  const blockedBy = blocking.map((r) => r.supplierName).join(", ");
+  const termSheetTitle = blocking.length
+    ? "Blocked: confirm the flagged bank account by phone first (see the warning at the top)"
+    : !needsFinancing
+      ? `Not needed: ${ownChoice ? "your choice" : "the recommended option"} uses no bank financing`
+      : recRow
+        ? `Asks the bank about ${recRow.label}`
+        : undefined;
+
   return (
     <section className="space-y-4">
       <style>{PRINT_CSS}</style>
 
       <Card>
-        <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
-          <div className="space-y-1">
-            <CardTitle className="text-xl font-bold">Decision memo</CardTitle>
-            <CardDescription>AI writes the words; every number comes from the calculation and is checked by code.</CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 md:justify-end">
-            <Button onClick={writeMemo} disabled={memoLoading}>
-              {memoLoading ? <Spinner data-icon="inline-start" /> : <PenLineIcon data-icon="inline-start" />}
-              {memoLoading ? "Writing memo…" : memo ? "Rewrite memo" : "Write decision memo"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => requestTermSheet()}
-              disabled={emailLoading || blocking.length > 0 || !needsFinancing}
-              data-testid="term-sheet-button"
-              title={
-                blocking.length
-                  ? "Blocked: confirm the flagged bank account by phone first (see the warning at the top)"
-                  : !needsFinancing
-                    ? "Not needed: the recommended option uses no bank financing"
-                    : undefined
-              }
-            >
-              {emailLoading ? <Spinner data-icon="inline-start" /> : <MailIcon data-icon="inline-start" />}
-              {emailLoading ? "Sending…" : "Request term sheet"}
-            </Button>
-            <Separator orientation="vertical" className="mx-1 hidden h-6 sm:block" />
-            <Button variant="outline" onClick={() => window.print()} disabled={!memo || memoLoading}>
-              <PrinterIcon data-icon="inline-start" />
-              Download PDF
-            </Button>
-            <Button variant="ghost" onClick={copyMemo} disabled={!memo || memoLoading}>
-              {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-          </div>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold">Decision memo</CardTitle>
+          {memo && (
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={writeMemo}
+                disabled={memoLoading}
+              >
+                {memoLoading ? <Spinner data-icon="inline-start" /> : <PenLineIcon data-icon="inline-start" />}
+                {memoLoading ? "Writing…" : "Rewrite"}
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
 
-        {!needsFinancing && recRow && (
-          <CardContent>
+        <CardContent className="space-y-4">
+          {!memo && (
+            <div className="flex flex-col items-start gap-2 rounded-[2px] border border-dashed border-foreground/30 p-5">
+              <Button size="lg" className="h-11 px-5 text-base" onClick={writeMemo} disabled={memoLoading}>
+                {memoLoading ? <Spinner data-icon="inline-start" /> : <PenLineIcon data-icon="inline-start" />}
+                {memoLoading ? "Writing memo…" : "Write decision memo"}
+              </Button>
+              <p className="text-sm text-muted-foreground">A one-page recommendation to print or send to the bank.</p>
+            </div>
+          )}
+
+          {memo && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={() => requestTermSheet()}
+                  disabled={emailLoading || blocking.length > 0 || !needsFinancing}
+                  data-testid="term-sheet-button"
+                  title={termSheetTitle}
+                >
+                  {emailLoading ? <Spinner data-icon="inline-start" /> : <MailIcon data-icon="inline-start" />}
+                  {emailLoading
+                    ? "Sending…"
+                    : !needsFinancing && recRow
+                      ? `No bank needed for ${recRow.label}`
+                      : "Ask the bank for an offer"}
+                </Button>
+                <Button variant="outline" onClick={() => window.print()} disabled={memoLoading}>
+                  <PrinterIcon data-icon="inline-start" />
+                  Download PDF
+                </Button>
+                <Button variant="ghost" onClick={copyMemo} disabled={memoLoading}>
+                  {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <NumberCheck memo={memo} />
+            </>
+          )}
+
+          {!needsFinancing && recRow && (
             <div
-              className="flex flex-wrap items-center justify-between gap-2 rounded-[2px] border border-l-[3px] border-l-success px-3 py-2 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
               data-testid="no-financing-note"
             >
-              <span className="text-muted-foreground">
-                No term sheet needed: the recommendation ({recRow.label}) uses no bank financing.
+              <span>
+                {memo
+                  ? `${ownChoice ? "Your choice" : "The recommended option"} uses no bank financing.`
+                  : `No bank needed: ${recRow.label} uses no financing.`}
               </span>
               {altFinancing && (
                 <Button
-                  variant="ghost"
+                  variant="link"
                   size="sm"
-                  className="h-auto whitespace-normal text-left"
+                  className="h-auto px-0 whitespace-normal text-left"
                   onClick={() => requestTermSheet(altFinancing.id)}
                   disabled={emailLoading || blocking.length > 0}
                 >
@@ -214,37 +253,26 @@ export default function MemoPanel() {
                 </Button>
               )}
             </div>
-          </CardContent>
-        )}
+          )}
 
-        {blocking.length > 0 && (
-          <CardContent>
+          {blocking.length > 0 && (
+            <p className="flex items-start gap-2 text-sm font-medium text-destructive" data-testid="term-sheet-blocked">
+              <ShieldAlertIcon className="mt-0.5 size-4 shrink-0" />
+              Bank request blocked: confirm {blockedBy}&apos;s account by phone first.
+            </p>
+          )}
+
+          {error && (
             <Alert variant="destructive">
               <ShieldAlertIcon />
-              <AlertTitle>Term-sheet request blocked by the payment-fraud check</AlertTitle>
-              <AlertDescription>
-                {blocking.map((r) => r.supplierName).join(", ")}: confirm the bank account by phone on a known number (see the
-                warning at the top), then the request unlocks.
-              </AlertDescription>
+              <AlertTitle>Something went wrong</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
-          </CardContent>
-        )}
-
-        {(error || memo) && (
-          <CardContent className="space-y-3">
-            {error && (
-              <Alert variant="destructive">
-                <ShieldAlertIcon />
-                <AlertTitle>Something went wrong</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {memo && <NumberCheck memo={memo} />}
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
 
-      {memo ? (
+      {memo && (
         <article
           className={cn(
             "faisla-print-memo mx-auto w-full max-w-4xl rounded-[2px] border border-foreground/25 bg-card px-6 py-8 text-card-foreground transition-opacity sm:px-14 sm:py-12",
@@ -253,14 +281,6 @@ export default function MemoPanel() {
         >
           <Markdown text={memo.memo} />
         </article>
-      ) : (
-        <div className="flex flex-col items-center gap-2 rounded-[2px] border border-dashed border-foreground/25 px-6 py-10 text-center">
-          <FileTextIcon className="size-6 text-muted-foreground" />
-          <p className="text-sm font-medium">No memo yet</p>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Write the memo to get a one-page recommendation for the owner, ready to print or share with the bank.
-          </p>
-        </div>
       )}
 
       {bankEmail && (
@@ -269,39 +289,37 @@ export default function MemoPanel() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2">
                 <MailIcon className="size-4 text-muted-foreground" />
-                Term-sheet request
+                Request sent to the bank
               </CardTitle>
-              {bankEmail.simulated ? (
-                <Badge variant="warning">Simulated (no email keys set)</Badge>
-              ) : (
-                <Badge variant="success">Sent</Badge>
-              )}
+              {bankEmail.simulated ? <Badge variant="warning">Simulated</Badge> : <Badge variant="success">Sent</Badge>}
             </div>
             <CardDescription>
               To <span className="font-medium text-foreground">{bankEmail.toFrom}</span> ·{" "}
               {formatDateTime(bankEmail.sentAt)}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-1">
             <p className="text-sm font-medium">{bankEmail.subject}</p>
-            <pre className="max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-sans text-sm whitespace-pre-wrap">
-              {bankEmail.body}
-            </pre>
-            {bankReply?.attachment && (
-              <Collapsible>
-                <CollapsibleTrigger
-                  render={<Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" />}
-                >
-                  <PaperclipIcon data-icon="inline-start" />
-                  Attachment: {bankReply.attachment.filename}
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <pre className="mt-2 max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-mono text-xs tabular-nums">
-                    {bankReply.attachment.content}
-                  </pre>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
+            <Details title="See email" className="border-t-0">
+              <pre className="max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-sans text-sm whitespace-pre-wrap">
+                {bankEmail.body}
+              </pre>
+              {bankReply?.attachment && (
+                <Collapsible className="mt-2">
+                  <CollapsibleTrigger
+                    render={<Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" />}
+                  >
+                    <PaperclipIcon data-icon="inline-start" />
+                    Attachment: {bankReply.attachment.filename}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <pre className="mt-2 max-h-80 overflow-auto rounded-[2px] border bg-muted/50 p-3 font-mono text-xs tabular-nums">
+                      {bankReply.attachment.content}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </Details>
             {bankReply?.error && <p className="text-xs text-warning">Email not delivered: {bankReply.error}</p>}
           </CardContent>
         </Card>
@@ -310,48 +328,35 @@ export default function MemoPanel() {
   );
 }
 
+// One small line: did every number in the memo match the calculation?
 function NumberCheck({ memo }: { memo: MemoResult }) {
   const { passed, unknownNumbers, attempts } = memo.numberCheck;
-  const sourceBadges = (
-    <div className="flex flex-wrap gap-1.5">
-      {memo.source === "llm" ? (
-        <Badge variant="outline">Written by AI</Badge>
-      ) : (
-        <Badge variant="warning">Template memo used</Badge>
-      )}
-      {memo.source === "llm" && attempts > 1 && <Badge variant="outline">passed on draft {attempts}</Badge>}
-    </div>
-  );
-
+  const source =
+    memo.source === "llm" ? `Written by AI${attempts > 1 ? ` (draft ${attempts})` : ""}` : "Template memo used";
   if (!passed) {
     return (
-      <Alert variant="destructive">
-        <ShieldAlertIcon />
-        <AlertTitle>Unchecked numbers: {unknownNumbers.join(", ")}</AlertTitle>
-        <AlertDescription className="space-y-2">
-          <p>These figures were not found in the calculation. Do not rely on them.</p>
-          {sourceBadges}
-        </AlertDescription>
-      </Alert>
+      <p className="flex items-start gap-2 text-sm text-destructive">
+        <ShieldAlertIcon className="mt-0.5 size-4 shrink-0" />
+        <span>
+          <span className="font-semibold">Unchecked numbers: {unknownNumbers.join(", ")}.</span> Do not rely on them. ·{" "}
+          {source}
+        </span>
+      </p>
     );
   }
   return (
-    <Alert className="border-success/40 border-l-success">
-      <ShieldCheckIcon className="text-success" />
-      <AlertTitle className="text-success">
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+      <ShieldCheckIcon className="size-4 shrink-0 text-success" />
+      <span className="text-success">
         {memo.source === "template"
-          ? "✓ Numbers filled from the calculation"
-          : "✓ Every number checked against the calculation"}
-      </AlertTitle>
-      <AlertDescription className="space-y-2">
-        <p>
-          {memo.source === "template"
-            ? "Template memo used: the AI draft was unavailable or failed the number check."
-            : "Code compared every figure in the memo with the comparison table before showing it."}
-        </p>
-        {sourceBadges}
-      </AlertDescription>
-    </Alert>
+          ? "Numbers filled from the calculation"
+          : "Every number checked against the calculation"}
+      </span>
+      <span className="text-muted-foreground">· {source}</span>
+      {memo.source === "template" && (
+        <HelpTip>The AI draft was unavailable or failed the number check, so a template was used.</HelpTip>
+      )}
+    </p>
   );
 }
 
@@ -374,7 +379,7 @@ function parseBlocks(md: string): Block[] {
       .split("|")
       .map((c) => c.trim());
 
-  for (let i = 0; i < lines.length; ) {
+  for (let i = 0; i < lines.length;) {
     const line = lines[i];
     if (!line.trim()) {
       i++;
@@ -390,7 +395,11 @@ function parseBlocks(md: string): Block[] {
       const tableLines: string[] = [];
       while (i < lines.length && lines[i].trim().startsWith("|")) tableLines.push(lines[i++]);
       const rows = tableLines.filter((l) => !/^\s*\|?\s*:?-{3,}/.test(l)).map(cells);
-      blocks.push({ kind: "table", header: rows[0] ?? [], rows: rows.slice(1) });
+      blocks.push({
+        kind: "table",
+        header: rows[0] ?? [],
+        rows: rows.slice(1),
+      });
       continue;
     }
     const listKind = /^\s*[-*+]\s+/.test(line) ? "ul" : /^\s*\d+[.)]\s+/.test(line) ? "ol" : null;
@@ -402,11 +411,7 @@ function parseBlocks(md: string): Block[] {
       continue;
     }
     const para: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() &&
-      !/^(#{1,4})\s|^\s*\||^\s*[-*+]\s+|^\s*\d+[.)]\s+/.test(lines[i])
-    ) {
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4})\s|^\s*\||^\s*[-*+]\s+|^\s*\d+[.)]\s+/.test(lines[i])) {
       para.push(lines[i++].trim());
     }
     blocks.push({ kind: "p", text: para.join(" ") });
@@ -449,7 +454,10 @@ function Markdown({ text }: { text: string }) {
           }
           if (b.level === 2) {
             return (
-              <h3 key={i} className="border-b pt-4 pb-1 font-sans text-[0.8125rem] font-bold tracking-[0.04em] text-primary">
+              <h3
+                key={i}
+                className="border-b pt-4 pb-1 font-sans text-[0.8125rem] font-bold tracking-[0.04em] text-primary"
+              >
                 {inline(b.text)}
               </h3>
             );
@@ -491,7 +499,10 @@ function Markdown({ text }: { text: string }) {
                     {r.map((c, k) => (
                       <td
                         key={k}
-                        className={cn("px-2.5 py-2", /^(\*\*)?(Rs|\d)/.test(c) && "font-mono whitespace-nowrap tabular-nums")}
+                        className={cn(
+                          "px-2.5 py-2",
+                          /^(\*\*)?(Rs|\d)/.test(c) && "font-mono whitespace-nowrap tabular-nums",
+                        )}
                       >
                         {inline(c)}
                       </td>

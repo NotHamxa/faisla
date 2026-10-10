@@ -1,5 +1,6 @@
 // Supplier directory: merges every supplier seen across a company's decisions (offers, quotations, RFQ
 // lists, reputations, emails) by normalized name. Pure and serialisable, so the page builds it on the server.
+import { effectiveRow } from "@/lib/finance";
 import type { DecisionRecord, EmailRecord, OfferSource, ReputationResult } from "@/lib/types";
 
 export type SupplierOfferRef = {
@@ -75,7 +76,7 @@ export function buildSupplierDirectory(decisions: DecisionRecord[]): SupplierEnt
   }
 
   for (const d of decisions) {
-    const chosenOfferId = d.decision?.rows.find((r) => r.recommended)?.offerId ?? null;
+    const chosenOfferId = effectiveRow(d.decision, d.chosenRowId)?.offerId ?? null;
 
     if (d.quotation?.supplierName) {
       touch(

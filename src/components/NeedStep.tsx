@@ -1,10 +1,11 @@
 "use client";
 // Step 1 for a decision that starts from a need: the owner describes what they need in plain words,
-// Faisla searches the web and reads listings (AI), code filters and ranks them, and the owner ticks
-// 1–3 options that become offers. Prices are copied from listings; every total is qty × unit price in code.
+// Faisla searches new-item shops and reads the listings (AI), code checks prices and specs and ranks
+// them, and the owner ticks 1–3 options that become offers. The owner can also paste a product link.
+// Prices are copied from listings; every total is qty × unit price in code.
 import { useState } from "react";
 import { toast } from "sonner";
-import { CircleAlert, CircleCheck, ExternalLink, Mail, Pencil, Phone, Search, Sparkles } from "lucide-react";
+import { CircleAlert, CircleCheck, ExternalLink, Link2, Pencil, Search, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,9 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { Details, HelpTip } from "@/components/simple";
 import { formatLakh, formatPKR, groupPKR } from "@/lib/format";
 import {
-  budgetFit,
   MAX_SELECTED_OPTIONS,
   needToQuotation,
   optionToOffer,
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 type View = "auto" | "form" | "results";
 type SourcingApiResponse = SourcingResponse | NeedsOwnerInput | { error: string };
+type LinkApiResponse = { option: SourcedOption | null; offer: unknown; note?: string };
 
 const REQUEST_TIMEOUT_MS = 75_000;
 
@@ -40,7 +42,7 @@ const EXAMPLES = [
     text: "80 direct-drive lockstitch sewing machines for my garment factory in Faisalabad, budget around 60 lakh",
   },
   { label: "2 embroidery machines", text: "2 industrial embroidery machines for Lahore, budget 20 lakh" },
-  { label: "6 overlock machines", text: "6 four-thread overlock machines for Lahore, budget 6 lakh" },
+  { label: "Gaming PC", text: "Gaming PC with current generation Intel Core i9 and RTX 4050, budget 6 lakh" },
 ];
 
 export default function NeedStep() {
@@ -81,7 +83,7 @@ export default function NeedStep() {
         update({ sourcing: result });
         setPicked([]);
         setView("results");
-        toast.success(result.options.length ? `Found ${result.options.length} options` : "No usable listings found");
+        if (result.options.length) toast.success(`Found ${result.options.length} option${result.options.length > 1 ? "s" : ""}`);
       } else if (data && "needsOwnerInput" in data) setError(data.reason);
       else if (data && "error" in data) setError(data.error);
       else setError(`Search failed (${res.status}). Try again, or upload a quotation instead.`);
@@ -113,13 +115,21 @@ export default function NeedStep() {
       memo: null,
     }));
     setView("auto");
-    toast.success(`${chosen.length} offer${chosen.length > 1 ? "s" : ""} added`, {
-      description: "Faisla is checking the market price and reputation next.",
-    });
+    toast.success(`${chosen.length} offer${chosen.length > 1 ? "s" : ""} added`, { description: "Next: the price check." });
   }
 
   function togglePick(id: string) {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_SELECTED_OPTIONS ? p : [...p, id]));
+  }
+
+  // A pasted link's option joins the list (cheapest-first order kept) and is ticked when there is room.
+  function addLinkedOption(option: SourcedOption) {
+    if (!sourcing || sourcing.options.some((o) => o.id === option.id || sameUrl(o.url) === sameUrl(option.url))) return;
+    const options = [...sourcing.options, option];
+    update({ sourcing: { ...sourcing, options } });
+    // Ticked straight away when there is room, unless the page contradicts what was asked.
+    if (option.specStatus !== "mismatch") setPicked((p) => (p.length < MAX_SELECTED_OPTIONS ? [...p, option.id] : p));
+    toast.success("Link added", { description: `${option.seller} · ${formatPKR(option.unitPrice)}` });
   }
 
   const chosenView = view === "auto" && state.quotationConfirmed && sourcing && sourcing.selectedIds.length > 0;
@@ -143,6 +153,7 @@ export default function NeedStep() {
         onToggle={togglePick}
         onUse={() => applySelection(sourcing)}
         onEdit={() => setView("form")}
+        onAddOption={addLinkedOption}
         onCancel={state.quotationConfirmed && sourcing.selectedIds.length > 0 ? () => setView("auto") : undefined}
       />
     );
@@ -152,9 +163,6 @@ export default function NeedStep() {
     <Card>
       <CardHeader>
         <CardTitle>What do you need?</CardTitle>
-        <CardDescription>
-          Describe it in your own words. Faisla searches the web, reads the listings, and you pick the offers to compare.
-        </CardDescription>
         {sourcing && (
           <CardAction>
             <Button variant="ghost" size="sm" onClick={() => setView("results")} disabled={loading}>
@@ -163,22 +171,25 @@ export default function NeedStep() {
           </CardAction>
         )}
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-3">
         <Field>
-          <FieldLabel htmlFor="need-text">Your need</FieldLabel>
+          <FieldLabel htmlFor="need-text" className="sr-only">
+            Your need
+          </FieldLabel>
           <Textarea
             id="need-text"
             rows={3}
             maxLength={600}
             className="min-h-20"
-            placeholder="e.g. 80 direct-drive lockstitch sewing machines for my garment factory in Faisalabad, budget around 60 lakh"
+            placeholder="In your own words, e.g. 2 embroidery machines for Lahore, budget 20 lakh"
             value={need}
             onChange={(e) => setNeed(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void search();
             }}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Try:</span>
             {EXAMPLES.map((ex) => (
               <Button
                 key={ex.label}
@@ -196,43 +207,45 @@ export default function NeedStep() {
           </div>
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field>
-            <FieldLabel htmlFor="need-qty">How many</FieldLabel>
-            <Input
-              id="need-qty"
-              inputMode="numeric"
-              className="font-mono tabular-nums placeholder:font-sans"
-              placeholder="From your text"
-              value={qty}
-              onChange={(e) => setQty(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="need-city">City</FieldLabel>
-            <Input id="need-city" maxLength={60} value={city} onChange={(e) => setCity(e.target.value)} />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="need-budget">Budget (total, optional)</FieldLabel>
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
-                Rs
-              </span>
+        <Details title="More details (optional)" className="mt-1">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="need-qty">How many</FieldLabel>
               <Input
-                id="need-budget"
-                className="pl-8 font-mono tabular-nums placeholder:font-sans"
+                id="need-qty"
                 inputMode="numeric"
-                placeholder="From your text"
-                value={budget ? groupPKR(budget) : ""}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
-                  setBudget(digits ? Number(digits) : 0);
-                }}
+                className="font-mono tabular-nums placeholder:font-sans"
+                placeholder="From your words"
+                value={qty}
+                onChange={(e) => setQty(e.target.value.replace(/\D/g, "").slice(0, 4))}
               />
-            </div>
-            <FieldDescription className="text-xs">{budget > 0 ? `= ${formatLakh(budget, 2)}` : " "}</FieldDescription>
-          </Field>
-        </div>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="need-city">City</FieldLabel>
+              <Input id="need-city" maxLength={60} value={city} onChange={(e) => setCity(e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="need-budget">Total budget</FieldLabel>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                  Rs
+                </span>
+                <Input
+                  id="need-budget"
+                  className="pl-8 font-mono tabular-nums placeholder:font-sans"
+                  inputMode="numeric"
+                  placeholder="From your words"
+                  value={budget ? groupPKR(budget) : ""}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
+                    setBudget(digits ? Number(digits) : 0);
+                  }}
+                />
+              </div>
+              {budget > 0 && <FieldDescription className="text-xs">= {formatLakh(budget, 2)}</FieldDescription>}
+            </Field>
+          </div>
+        </Details>
 
         {error && (
           <Alert variant="destructive">
@@ -248,7 +261,7 @@ export default function NeedStep() {
           </Button>
           {loading && (
             <span className="text-sm text-muted-foreground" role="status">
-              Searching the web and reading listings…
+              Checking shops. This can take up to a minute.
             </span>
           )}
         </div>
@@ -265,6 +278,7 @@ function Results(props: {
   onToggle: (id: string) => void;
   onUse: () => void;
   onEdit: () => void;
+  onAddOption: (option: SourcedOption) => void;
   onCancel?: () => void;
 }) {
   const { sourcing: s, picked } = props;
@@ -272,57 +286,8 @@ function Results(props: {
   const pickedCount = selectedOptions(s.options, picked).length;
 
   return (
-    <div className="flex flex-col gap-5">
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>What Faisla understood</CardTitle>
-          <CardDescription className="line-clamp-2">&ldquo;{req.need}&rdquo;</CardDescription>
-          <CardAction>
-            <Button variant="outline" size="sm" onClick={props.onEdit}>
-              <Pencil data-icon="inline-start" />
-              Edit need
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <Fact label="Item" value={req.item} />
-            <Fact label="How many" value={<span className="font-mono tabular-nums">{req.qty}</span>} />
-            <Fact
-              label="Budget"
-              value={
-                req.budgetPkr ? (
-                  <span className="font-mono tabular-nums" title={formatLakh(req.budgetPkr, 2)}>
-                    {formatPKR(req.budgetPkr)}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Not given</span>
-                )
-              }
-            />
-            <Fact label="City" value={req.city ?? <span className="text-muted-foreground">Any</span>} />
-          </dl>
-          {req.modelCandidates.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              Models:
-              {req.modelCandidates.map((m) => (
-                <Badge key={m} variant="secondary">
-                  {m}
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            Searched:
-            {req.searchQueries.map((q) => (
-              <Badge key={q} variant="outline" className="font-mono font-normal text-muted-foreground">
-                {q}
-              </Badge>
-            ))}
-            <span>· {s.cached ? "from cached search results" : "live web search"}</span>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-4">
+      <Understood sourcing={s} onEdit={props.onEdit} />
 
       <Card>
         <CardHeader>
@@ -331,11 +296,8 @@ function Results(props: {
             <Badge variant="secondary" className="font-mono tabular-nums">
               {s.options.length}
             </Badge>
-            {s.simulated && <Badge variant="outline">simulated listings</Badge>}
           </div>
-          <CardDescription>
-            Tick 1–{MAX_SELECTED_OPTIONS} options to compare. Each becomes an offer; you can still ask other suppliers later.
-          </CardDescription>
+          {s.options.length > 0 && <CardDescription>Tick up to {MAX_SELECTED_OPTIONS} to compare.</CardDescription>}
           {props.onCancel && (
             <CardAction>
               <Button variant="ghost" size="sm" onClick={props.onCancel}>
@@ -345,12 +307,9 @@ function Results(props: {
           )}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <MedianLine sourcing={s} />
-
           {s.options.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No usable listings: none had a written PKR price for a new, matching machine. Edit the need and try other
-              words, or switch to uploading a quotation.
+            <p className="border border-dashed px-3 py-4 text-sm text-muted-foreground" data-testid="need-empty">
+              {emptyLine(s)}
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -359,7 +318,6 @@ function Results(props: {
                   key={o.id}
                   option={o}
                   qty={req.qty}
-                  budget={req.budgetPkr}
                   checked={picked.includes(o.id)}
                   disabled={!picked.includes(o.id) && pickedCount >= MAX_SELECTED_OPTIONS}
                   onToggle={() => props.onToggle(o.id)}
@@ -368,11 +326,26 @@ function Results(props: {
             </ul>
           )}
 
-          <p className="text-xs text-muted-foreground">
-            {s.note ? `${s.note} ` : ""}
-            Prices are copied from the listings (AI reads, code checks the number is written there); totals = quantity ×
-            unit price, computed in code.
-          </p>
+          <AddLink sourcing={s} onAdd={props.onAddOption} />
+
+          <Details title="Details">
+            <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+              {s.medianUnitPrice != null && (
+                <p>
+                  Middle price of {s.options.length} listings:{" "}
+                  <span className="font-mono text-foreground tabular-nums">{formatPKR(s.medianUnitPrice)}</span> per unit.
+                </p>
+              )}
+              {s.note && s.options.length > 0 && <p>{s.note}</p>}
+              <p>
+                Prices are copied from each listing; code checks the number is written there and that the listing mentions what
+                you asked for. Totals are quantity × price.
+              </p>
+              <p>
+                Searched {s.cached ? "(saved results)" : "live"}: {req.searchQueries.join(" · ")}
+              </p>
+            </div>
+          </Details>
         </CardContent>
         {s.options.length > 0 && (
           <CardFooter className="flex flex-wrap items-center justify-between gap-3">
@@ -390,58 +363,77 @@ function Results(props: {
   );
 }
 
-function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+// The honest one-liner when nothing is left (the route writes it; older saved results may not have it).
+function emptyLine(s: SourcingResult): string {
+  const first = s.note?.split(/(?<=quotation\.)\s/)[0];
+  if (first && first.startsWith("No ")) return first;
+  return "No new listings match what you asked. Try other words, paste a link you found, or upload a quotation.";
+}
+
+// "What Faisla understood": one compact line of tags, with an Edit link.
+function Understood({ sourcing: s, onEdit }: { sourcing: SourcingResult; onEdit: () => void }) {
+  const req = s.request;
+  const specs = (req.requirements ?? []).filter((r) => r.mustHave);
   return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 truncate font-medium">{value}</dd>
+    <div className="flex flex-wrap items-center gap-1.5 border bg-card px-3 py-2 text-sm" data-testid="need-understood">
+      <span className="ledger-label mr-1">Looking for</span>
+      <Badge variant="outline">{req.item}</Badge>
+      <Badge variant="outline" className="font-mono tabular-nums">
+        {req.qty} ×
+      </Badge>
+      {specs.map((r) => (
+        <Badge key={r.label} variant="secondary" title={`Listings must mention: ${r.anyOf.join(", ")}`}>
+          {r.label}
+        </Badge>
+      ))}
+      {req.condition && <Badge variant="outline">{req.condition === "used" ? "Used OK" : "New"}</Badge>}
+      {req.budgetPkr ? (
+        <Badge variant="outline" className="font-mono tabular-nums" title={formatLakh(req.budgetPkr, 2)}>
+          Budget {formatPKR(req.budgetPkr)}
+        </Badge>
+      ) : null}
+      {req.city && <Badge variant="outline">{req.city}</Badge>}
+      <HelpTip label="How Faisla checks">
+        {specs.length
+          ? "Every listing must mention each grey tag. Listings that say something else (like a lower model) are left out."
+          : "Faisla shows new listings with a price written on the page."}
+      </HelpTip>
+      <Button variant="link" size="sm" className="ml-auto h-auto px-1" onClick={onEdit}>
+        <Pencil data-icon="inline-start" />
+        Edit
+      </Button>
     </div>
   );
 }
 
-function MedianLine({ sourcing: s }: { sourcing: SourcingResult }) {
-  if (!s.options.length) return null;
-  if (!s.enoughData || s.medianUnitPrice == null) {
-    return (
-      <p className="text-sm">
-        <Badge variant="secondary">Not enough market data</Badge>{" "}
-        <span className="text-muted-foreground">Fewer than 3 usable prices, so no market median.</span>
-      </p>
-    );
-  }
+function MatchBadge({ option: o }: { option: SourcedOption }) {
+  const status = o.specStatus ?? (o.exactModel ? "matched" : "unverified");
+  if (status === "matched") return <Badge variant="success">Matches what you asked</Badge>;
+  if (status === "mismatch") return <Badge variant="warning">Doesn&apos;t match</Badge>;
   return (
-    <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-      Median of {s.options.length} listings:{" "}
-      <span className="font-mono font-semibold text-foreground tabular-nums">{formatPKR(s.medianUnitPrice)}</span> per unit
-      {s.minUnitPrice != null && (
-        <>
-          {" "}
-          · lowest <span className="font-mono text-foreground tabular-nums">{formatPKR(s.minUnitPrice)}</span>
-        </>
-      )}
-    </p>
+    <span className="inline-flex items-center gap-1">
+      <Badge variant="muted">Couldn&apos;t check</Badge>
+      <HelpTip label="Why couldn't Faisla check?">
+        {o.missingSpecs?.length
+          ? `The listing doesn't say: ${o.missingSpecs.join(", ")}. Open it to check.`
+          : "The listing has too little text to check. Open it to check."}
+      </HelpTip>
+    </span>
   );
 }
 
-function OptionCard(props: {
-  option: SourcedOption;
-  qty: number;
-  budget: number | null;
-  checked: boolean;
-  disabled: boolean;
-  onToggle: () => void;
-}) {
+function OptionCard(props: { option: SourcedOption; qty: number; checked: boolean; disabled: boolean; onToggle: () => void }) {
   const { option: o, qty } = props;
   const total = optionTotal(o, qty);
-  const fit = budgetFit(total, props.budget);
   return (
     <li
       className={cn(
-        "flex gap-3 rounded-lg border p-3 transition-colors",
+        "flex gap-3 border p-3 transition-colors",
         props.checked ? "border-primary border-l-[3px] bg-card" : "bg-card",
         props.disabled ? "opacity-60" : "cursor-pointer hover:bg-muted/40",
       )}
       onClick={() => !props.disabled && props.onToggle()}
+      data-testid="need-option"
     >
       <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
         <Checkbox
@@ -455,72 +447,115 @@ function OptionCard(props: {
         <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
           <div className="min-w-0">
             <p className="truncate font-medium">{o.seller}</p>
-            <p className="truncate text-xs text-muted-foreground">{o.title || o.model || o.item}</p>
+            <p className="line-clamp-2 text-xs text-muted-foreground" title={o.title}>
+              {o.title || o.model || o.item}
+            </p>
           </div>
           <div className="text-right">
-            <p className="font-mono font-semibold tabular-nums">
-              {formatPKR(o.unitPrice)}
-              <span className="font-sans text-xs font-normal text-muted-foreground"> /unit</span>
-            </p>
-            <p className="font-mono text-xs text-muted-foreground tabular-nums">
-              {qty} × = {formatPKR(total)}
-            </p>
+            <p className="font-mono font-semibold tabular-nums">{formatPKR(o.unitPrice)}</p>
+            {qty > 1 && (
+              <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                Total {formatPKR(total)} for {qty}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {o.model && (
-            <Badge variant="secondary" className="font-normal">
-              {o.model}
-            </Badge>
-          )}
-          <Badge variant="outline" className="font-normal text-muted-foreground">
-            {o.exactModel ? "Exact model" : "Similar model"}
-          </Badge>
-          <Badge variant="outline" className="font-normal text-muted-foreground">
-            {o.condition === "new" ? "New" : "Condition not stated"}
-          </Badge>
-          {fit &&
-            (fit.within ? (
-              <Badge variant="success">Within budget</Badge>
-            ) : (
-              <Badge variant="warning">
-                Over budget by <span className="font-mono tabular-nums">{formatPKR(fit.over)}</span>
-              </Badge>
-            ))}
-          {o.simulated && (
-            <Badge variant="outline" className="text-muted-foreground">
-              simulated
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <MatchBadge option={o} />
           {o.url && (
             <a
               href={o.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline"
               onClick={(e) => e.stopPropagation()}
+              data-testid="open-listing"
             >
-              View listing
+              Open listing
               <ExternalLink className="size-3" />
             </a>
-          )}
-          {o.contactPhone && (
-            <span className="inline-flex items-center gap-1 text-muted-foreground">
-              <Phone className="size-3" />
-              {o.contactPhone}
-            </span>
-          )}
-          {o.contactEmail && (
-            <span className="inline-flex items-center gap-1 text-muted-foreground">
-              <Mail className="size-3" />
-              {o.contactEmail}
-            </span>
           )}
         </div>
       </div>
     </li>
+  );
+}
+
+/* ---------- Paste your own link ---------- */
+
+// The same page with or without tracking parameters or a trailing slash.
+function sameUrl(u: string): string {
+  return u.replace(/[?#].*$/, "").replace(/\/$/, "");
+}
+
+function AddLink({ sourcing: s, onAdd }: { sourcing: SourcingResult; onAdd: (option: SourcedOption) => void }) {
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function add() {
+    const clean = url.trim();
+    if (!clean || busy) return;
+    if (s.options.some((o) => sameUrl(o.url) === sameUrl(clean))) {
+      setNote("That link is already in the list.");
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch("/api/listing/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: clean, qty: s.request.qty, requirements: s.request.requirements ?? null }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      const data = (await res.json().catch(() => null)) as LinkApiResponse | null;
+      const listed = data?.option && s.options.some((o) => o.id === data.option!.id || sameUrl(o.url) === sameUrl(data.option!.url));
+      if (data?.option && !listed) {
+        onAdd(data.option);
+        setUrl("");
+      }
+      setNote(
+        listed
+          ? "That link is already in the list."
+          : (data?.note ?? (data?.option ? null : `Couldn't read that page (${res.status}). Enter the price yourself.`)),
+      );
+    } catch {
+      setNote("That page took too long to open. Enter the price yourself.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <FieldLabel htmlFor="need-link" className="text-sm">
+        Add a link you found
+      </FieldLabel>
+      <div className="flex gap-2">
+        <Input
+          id="need-link"
+          type="url"
+          inputMode="url"
+          placeholder="https://shop.pk/product/…"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void add();
+          }}
+          disabled={busy}
+        />
+        <Button variant="outline" onClick={() => void add()} disabled={!url.trim() || busy}>
+          {busy ? <Spinner data-icon="inline-start" /> : <Link2 data-icon="inline-start" />}
+          {busy ? "Reading…" : "Add"}
+        </Button>
+      </div>
+      {note && (
+        <p className="text-xs text-muted-foreground" role="status" data-testid="link-note">
+          {note}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -538,12 +573,10 @@ function ChosenSummary({ sourcing: s, onChange }: { sourcing: SourcingResult; on
             <CircleCheck />
             {chosen.length} option{chosen.length > 1 ? "s" : ""} chosen
           </Badge>
-          {s.simulated && <Badge variant="secondary">Demo data</Badge>}
         </div>
         <CardDescription>
           {qty} needed{s.request.city ? ` · ${s.request.city}` : ""}
           {s.request.budgetPkr ? ` · budget ${formatPKR(s.request.budgetPkr)}` : ""}
-          {s.medianUnitPrice != null ? ` · market median ${formatPKR(s.medianUnitPrice)} per unit` : ""}
         </CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" onClick={onChange}>
@@ -553,7 +586,7 @@ function ChosenSummary({ sourcing: s, onChange }: { sourcing: SourcingResult; on
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y border">
           {chosen.map((o, i) => (
             <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
@@ -561,11 +594,6 @@ function ChosenSummary({ sourcing: s, onChange }: { sourcing: SourcingResult; on
                   {String.fromCharCode(65 + i)}
                 </span>
                 <span className="truncate font-medium">{o.seller}</span>
-                {o.simulated && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    simulated
-                  </Badge>
-                )}
               </div>
               <span className="font-mono text-sm tabular-nums">
                 {qty} × {formatPKR(o.unitPrice)} = {formatPKR(optionTotal(o, qty))}

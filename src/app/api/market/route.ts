@@ -8,7 +8,9 @@ import { benchmarkFor } from "@/data/benchmarks";
 import { aiJson } from "@/lib/ai";
 import { DEMO_MODEL } from "@/lib/demoData";
 import { describeDropped, filterMarketPrices, MIN_WEB_PRICES, type PriceCandidate } from "@/lib/marketPrices";
+import { parseAmounts } from "@/lib/replyParser";
 import { lookupCache, lookupCacheByModel, webSearch, type SearchResult } from "@/lib/search";
+import { FOREIGN_MARKETS, isUsedListing, listingUrlProblem, NOT_SHOPS, USED_MARKETPLACES } from "@/lib/sourcing";
 import type { MarketResult } from "@/lib/types";
 
 const cleaningSchema = z.object({
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
   const query = `${model} price Pakistan`;
 
   const cachedEntry = lookupCache(query) ?? lookupCacheByModel(model);
-  const results: SearchResult[] = cachedEntry ? cachedEntry.results : await webSearch(query);
+  const results: SearchResult[] = cachedEntry ? cachedEntry.results : await liveRetailResults(query);
 
   let candidates: PriceCandidate[] | null = null;
   if (cachedEntry?.cleaned && !body.fresh) {
@@ -112,5 +114,17 @@ async function cleanWithAi(model: string, results: SearchResult[]): Promise<Pric
   if (!out) return null;
   return out.items
     .filter((item) => item.index >= 0 && item.index < results.length)
-    .map((item) => toCandidate(results, item.index, { ...item, price: item.pricePkr }));
+    .map((item) => {
+      // Code check: the price must be written in that result (otherwise it counts as "no price").
+      const source = results[item.index];
+      const written = parseAmounts(`${source.title}\n${source.content}`).map((a) => a.value);
+      const price = item.pricePkr != null && written.some((v) => Math.abs(v - item.pricePkr!) <= 1) ? item.pricePkr : null;
+      return toCandidate(results, item.index, { ...item, price });
+    });
+}
+
+// Live (cache miss): new-item retail only, single product pages, no used or refurbished listings.
+async function liveRetailResults(query: string): Promise<SearchResult[]> {
+  const results = await webSearch(query, { maxResults: 8, depth: "advanced", excludeDomains: [...USED_MARKETPLACES, ...NOT_SHOPS, ...FOREIGN_MARKETS] });
+  return results.filter((r) => !listingUrlProblem(r.url) && !isUsedListing(r.title, r.content));
 }

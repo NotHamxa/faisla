@@ -242,7 +242,22 @@ export type NeedRequest = {
   city: string | null;
   budgetPkr: number | null; // total budget, only when the owner wrote one
   searchQueries: string[]; // at most 3
+  requirements?: SpecRequirement[]; // specs the code checks against every listing's text
+  condition?: "new" | "used"; // "new" unless the owner asked for used
 };
+
+// One spec the owner asked for, as checkable keyword alternatives (lowercase). The AI writes these;
+// code decides whether a listing mentions one of them (lib/sourcing.ts checkRequirements).
+export type SpecRequirement = {
+  label: string; // "Core i9", "RTX 4050"
+  mustHave: boolean;
+  anyOf: string[]; // ["i9", "core i9", "ultra 9"]
+  noneOf?: string[]; // clear conflicts: ["i5", "i7", "4th gen"]
+};
+
+// matched = every must-have spec is written in the listing; unverified = too little text to tell;
+// mismatch = only for links the owner pasted (search results that mismatch are dropped).
+export type SpecStatus = "matched" | "unverified" | "mismatch";
 
 // One web listing that survived the code filters. unitPrice is copied from the listing text, never estimated.
 export type SourcedOption = {
@@ -258,6 +273,9 @@ export type SourcedOption = {
   contactEmail: string | null;
   contactPhone: string | null;
   simulated: boolean; // demo listing written by the team (labelled in the UI)
+  specStatus?: SpecStatus; // absent on the cached demo listings (exact model checked there)
+  missingSpecs?: string[]; // labels of must-have specs not found (unverified / mismatch)
+  fromLink?: boolean; // added by the owner from a pasted link
 };
 
 export type SourcingResult = {
@@ -298,6 +316,8 @@ export type DecisionRecord = {
   suppliers: Supplier[];
   emails: EmailRecord[];
   decision: DecideResult | null;
+  // The row the owner picked on Compare (ComparisonRow.id); null = go with the recommended row.
+  chosenRowId: string | null;
   memo: MemoResult | null;
   paymentConfirmations: string[]; // payment-risk ids the owner confirmed by phone on a known number
 };
@@ -317,6 +337,7 @@ export type DecisionPatch = Partial<
     | "suppliers"
     | "emails"
     | "decision"
+    | "chosenRowId"
     | "memo"
     | "paymentConfirmations"
   >

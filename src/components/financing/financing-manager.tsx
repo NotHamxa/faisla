@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Details, HelpTip } from "@/components/simple";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -263,9 +264,9 @@ export function FinancingManager() {
               <MoonStarIcon className="size-4 text-muted-foreground" />
               Islamic finance first
             </CardTitle>
-            <CardDescription>
-              Comparisons include Shariah-compliant financing by default. Pakistan&apos;s 26th Amendment sets eliminating
-              riba before 1 January 2028.
+            <CardDescription className="flex items-center gap-1">
+              Shariah-compliant financing is shown by default.
+              <HelpTip>Pakistan&apos;s 26th Amendment sets eliminating riba (interest) before 1 January 2028.</HelpTip>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -275,9 +276,6 @@ export function FinancingManager() {
         <EligibilityCard company={company} options={valid} />
       </div>
 
-      <IslamicModesCard />
-      <RatesCard />
-
       <Card>
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
@@ -285,11 +283,8 @@ export function FinancingManager() {
             Financing options
           </CardTitle>
           <CardDescription>
-            Each decision offers these on the cheapest supplier&apos;s price. Islamic LTFF is skipped for non-exporters
-            {hiddenConventional > 0
-              ? `; ${hiddenConventional} conventional option${hiddenConventional === 1 ? " is" : "s are"} left out while the preference is Shariah-compliant only`
-              : ""}
-            .
+            Offered in every decision
+            {hiddenConventional > 0 ? ` · ${hiddenConventional} conventional left out` : ""}.
           </CardDescription>
           <CardAction>
             <Button variant="outline" size="sm" onClick={resetDefaults}>
@@ -342,6 +337,20 @@ export function FinancingManager() {
       </Card>
 
       <InstallmentCalculator options={financingForPreference(valid, preference)} company={company} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Learn more</CardTitle>
+        </CardHeader>
+        <CardContent className="-mb-2">
+          <Details title="How Islamic machinery financing works">
+            <IslamicModes />
+          </Details>
+          <Details title="Reference rates (KIBOR, SBP policy rate)">
+            <Rates />
+          </Details>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -405,23 +414,12 @@ function RateTile({
   );
 }
 
-function RatesCard({ className }: { className?: string }) {
+function Rates() {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>Reference rates</CardTitle>
-        <CardDescription>
-          KIBOR is the benchmark Islamic banks use to price profit and rentals; the SBP policy rate sets Islamic LTFF.
-          Code uses these; AI never sets a rate.
-        </CardDescription>
-        <CardAction>
-          <Badge variant="warning">
-            <TriangleAlertIcon data-icon="inline-start" />
-            Bank confirms
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        KIBOR prices Islamic profit and rentals; the SBP policy rate sets Islamic LTFF. The bank confirms the final rate.
+      </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <RateTile
             label="KIBOR (benchmark)"
@@ -469,31 +467,24 @@ function RatesCard({ className }: { className?: string }) {
           phased out over FY24–28, so the bank confirms the exact rate and approval time.
           Conventional loans use the same KIBOR + spread and are shown only when the preference includes them.
         </p>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
-function IslamicModesCard() {
+function IslamicModes() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>How Islamic machinery financing works</CardTitle>
-        <CardDescription>
-          Asset-backed: the bank buys, co-owns or leases the machines and earns profit or rent on them, instead of lending money.
-        </CardDescription>
-        <CardAction>
-          <a
-            href={LINKS.islamic}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
-          >
-            Example: Meezan Bank <ExternalLinkIcon className="size-3" />
-          </a>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        The bank buys, co-owns or leases the machines instead of lending money.{" "}
+        <a
+          href={LINKS.islamic}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+        >
+          Example: Meezan Bank <ExternalLinkIcon className="size-3" />
+        </a>
+      </p>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {ISLAMIC_MODES.map((m) => (
             <div key={m.name} className="rounded-[2px] border border-t-[3px] border-t-primary p-3 text-sm">
@@ -518,8 +509,7 @@ function IslamicModesCard() {
             ))}
           </ul>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -536,19 +526,13 @@ function EligibilityCard({ company, options }: { company: Company; options: Fina
           <Alert className="border-success/40 border-l-success">
             <BadgeCheckIcon className="text-success" />
             <AlertTitle className="text-success">Exporter: Islamic LTFF eligible</AlertTitle>
-            <AlertDescription>
-              Exporter-only options ({exporterOnly.length}) are included in every comparison. The bank confirms
-              eligibility on the term sheet.
-            </AlertDescription>
+            <AlertDescription>Exporter-only options ({exporterOnly.length}) are included.</AlertDescription>
           </Alert>
         ) : (
           <Alert className="border-warning/50 border-l-warning">
             <TriangleAlertIcon className="text-warning" />
             <AlertTitle className="text-warning">Not marked as an exporter</AlertTitle>
-            <AlertDescription>
-              Islamic LTFF requires export business, so exporter-only options ({exporterOnly.length}) are skipped in
-              comparisons.
-            </AlertDescription>
+            <AlertDescription>Islamic LTFF needs export business, so it is skipped.</AlertDescription>
           </Alert>
         )}
         <Button variant="outline" size="sm" render={<Link href="/settings#company" />} nativeButton={false}>
@@ -777,9 +761,12 @@ function InstallmentCalculator({ options, company }: { options: FinancingOption[
     <Card>
       <CardHeader>
         <CardTitle>{principal > 0 ? title : "Financing cost calculator"}</CardTitle>
-        <CardDescription>
-          Monthly installment or rental (i = rate ÷ 12 on the outstanding amount, never compounded) and the bank&apos;s
-          total profit for each option. Before tax; each decision&apos;s comparison adds tax savings and present value.
+        <CardDescription className="flex items-center gap-1">
+          Monthly payment and the bank&apos;s total profit, before tax.
+          <HelpTip>
+            i = rate ÷ 12 on the outstanding amount, never compounded. Each decision&apos;s comparison adds tax savings and
+            present value.
+          </HelpTip>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

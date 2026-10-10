@@ -1,6 +1,6 @@
 "use client";
 // Decisions list: status filter, search, table (cards on mobile), row actions (open, rename, delete).
-// "?new=1" in the URL opens the New decision dialog (the sidebar and top bar link there).
+// "?new=1" in the URL opens the New decision dialog (the top bar links there).
 import { formatDateTime } from "@/lib/dateFormat";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -94,14 +94,8 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-foreground/80 pb-4">
         <div className="min-w-0">
           <h1 className="font-heading text-[1.75rem] leading-tight font-bold">Decisions</h1>
-          <p className="text-sm text-muted-foreground">
-            Every big purchase, from quotation to a signed-off way to pay.
-          </p>
+          <p className="text-sm text-muted-foreground">Every big purchase, from quotation to decision.</p>
         </div>
-        <Button onClick={() => setNewOpen(true)}>
-          <Plus data-icon="inline-start" />
-          New decision
-        </Button>
       </div>
 
       <NewDecisionDialog open={newOpen || wantsNew} onOpenChange={onNewOpenChange} />
@@ -113,9 +107,7 @@ export default function DecisionsView({ decisions }: { decisions: DecisionSummar
               <Scale />
             </EmptyMedia>
             <EmptyTitle>No decisions yet</EmptyTitle>
-            <EmptyDescription>
-              Start with a supplier&apos;s quotation. Faisla checks the price, finds other suppliers and compares every way to pay.
-            </EmptyDescription>
+            <EmptyDescription>Start with a supplier&apos;s quotation or what you need.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button onClick={() => setNewOpen(true)}>

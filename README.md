@@ -18,23 +18,31 @@ Open https://faisla-xi.vercel.app and press **Sign in as demo** (or type `demo@f
 company is fictional; the first sign-in seeds 3 sample decisions. Nothing you do emails a real company: all mail goes to
 team test inboxes.
 
-1. **Dashboard:** cash, runway, the savings already found, upcoming Islamic LTFF installments, alerts.
-2. **Decisions → New decision → Upload a quotation**, then **Use demo quotation** and **Confirm quotation** (80 × Jack F5
-   at Rs 75,000, "12 × Rs 5,00,000 at 0% markup" or 8% off for cash).
-3. **Price & reputation:** the quote is ~9% above the simulated benchmark (~7% above the real web median of Rs 70,000);
-   supplier reviews are scored by code.
-4. **Competing offers:** **Find other suppliers → Send RFQ to all**. Under *Paste a reply*, press **Use demo reply →
-   Read reply** (Roman Urdu: "67 hazar per unit") to add Supplier B. Then press **Demo fraud email**: a "new bank
-   account" email raises a high-risk payment-fraud warning (IBAN changed, urgency wording, title mismatch).
-5. **Compare:** six Shariah-compliant ways to pay; **B, Islamic LTFF 8.5%** is recommended (Rs 40,13,687 after tax).
-   Open **Show calculation** on any row, move the **KIBOR stress** slider, read the Assumptions and Shariah notes.
-6. **Decide:** **Write decision memo** (every number checked against the calculation). **Request term sheet** stays
-   blocked until you tick that the flagged account was confirmed by phone.
-7. **Settings toggles:** switch the financing preference to **Islamic and conventional** and press Compare again:
-   two conventional rows appear, labelled interest-based, and are never recommended. Turn on **Pay in full when we can
-   afford it** and set cash to Rs 2,00,00,000: Compare now recommends **B, cash**, says Islamic LTFF would cost
-   Rs 2,78,722 less after tax, and the term-sheet button explains no financing is needed. Use **Load demo company** in
-   Settings to put the profile back.
+Demo helpers (demo quotation, demo reply, demo fraud email) sit in a small **Demo** menu at the top right of each step.
+
+1. **Dashboard:** cash, cash left (months), money saved, open decisions, then alerts and recent decisions.
+2. **New decision** (top bar) → **I have a quotation** → **Create decision**. On step **1 Quote**, open **Demo → Use demo
+   quotation**, then **Confirm quotation** (80 × Jack F5 at Rs 75,000, "12 × Rs 5,00,000 at 0% markup" or 8% off for
+   cash). Dates, totals and the bank account are under **More details**.
+3. **2 Price check:** "This price is about 9% above the market"; **See prices** opens the benchmark and the real web
+   listings. Supplier reviews are scored by code.
+4. **3 Other offers:** **Ask suppliers for prices** (finds two suppliers and emails both a price request). Then
+   **Demo → Use demo reply → Read reply** (Roman Urdu: "67 hazar per unit") adds "New offer: Rs 67,000 each". Then
+   **Demo → Demo fraud email**: a "new bank account" email raises a high-risk payment-fraud warning (IBAN changed,
+   urgency wording, title mismatch). **Add an offer from a link** reads one web listing.
+5. **4 Compare:** the answer card says **Best way to pay: Islamic LTFF 8.5% with Madina Sewing Solutions**, saves
+   Rs 4,73,603 vs the quote, Rs 5,36,000 now + Rs 1,52,282 × 36, cash left 2.59 months. The table lists six
+   Shariah-compliant options (true cost in today's money, cash left, a short tag). **How we worked this out** holds
+   **Show calculation** per row, the **KIBOR stress** slider, the chart, Assumptions and Shariah notes. Press **Choose
+   this** on **B, Ijarah 14.8%**: the card says **Your choice** and "Costs Rs 1,76,585 more than Islamic LTFF 8.5% in
+   today's money"; the memo, bank request and dashboard follow the choice. **Use recommended** switches back.
+6. **5 Decide:** **Write decision memo** (every number checked against the calculation). **Ask the bank for an offer**
+   (the term-sheet request) stays blocked until you tick that the flagged account was confirmed by phone.
+7. **Settings toggles:** switch the financing preference to **Islamic and conventional**, then on Compare press
+   **Recalculate**: two conventional rows appear, tagged "Comparison only", and are never recommended. Turn on **Pay in
+   full when we can afford it** and set cash to Rs 2,00,00,000: Compare now recommends **B, cash**, says Islamic LTFF
+   would cost Rs 2,78,722 less after tax, and Decide says no bank is needed. Use **Load demo company** in Settings to put
+   the profile back.
 
 ## Problem
 
@@ -77,11 +85,11 @@ Each purchase is a **decision** with five steps (tabs). There are two ways to st
 
 | Step | What happens |
 | --- | --- |
-| 1. Quotation / Your need | One of the two starts above |
-| 2. Price & reputation | Quoted price vs the simulated benchmark median ("% above the benchmark") and the real web listings (median shown alongside); supplier and product reviews scored by code as good / mixed / red flags |
-| 3. Competing offers | For the demo machine, two fictional suppliers (no web call); for any other item, Faisla searches the web for dealers (Tavily + AI, names and phones only as printed). RFQs are emailed to team test inboxes. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("67 hazar per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback |
-| 4. Compare | Every way to pay: cash, the supplier's deferred-price plan, Diminishing Musharakah, Ijarah, Islamic LTFF (conventional rows only if the preference includes them). PV before and after tax, cash runway, verdict, "Show calculation" per row, KIBOR stress slider, break-even discount rate, Assumptions card with Shariah notes |
-| 5. Decide | Decision memo built from the code's numbers (every number checked, Islamic finance terms), PDF export, and a "Request term sheet" email to an Islamic bank's SME desk (profit rate, takaful, security deposit, late-payment charity undertaking, Shariah board approval) with a 36-month installment schedule attached. If the recommendation is cash, no term sheet is needed and the button says so |
+| 1. Quote / Your need | One of the two starts above |
+| 2. Price check | One sentence ("about 9% above the market"), then under *See prices*: quoted price vs the simulated benchmark median ("% above the benchmark") and the real web listings (median shown alongside); supplier and product reviews scored by code as good / mixed / red flags |
+| 3. Other offers | One button, **Ask suppliers for prices**, finds suppliers and emails each a price request (RFQ). For the demo machine, two fictional suppliers (no web call); for any other item, Faisla searches the web for dealers (Tavily + AI, names and phones only as printed). RFQs are emailed to team test inboxes. The inbox is polled every 10 s; AI reads replies, Roman Urdu included ("67 hazar per unit"), and each confirmed price becomes an offer. "Paste a reply" is the fallback; "Add an offer from a link" reads one web listing |
+| 4. Compare | Every way to pay: cash, the supplier's deferred-price plan, Diminishing Musharakah, Ijarah, Islamic LTFF (conventional rows only if the preference includes them). Leads with one answer card (best way to pay, savings vs the quote, what you pay, cash left), then a simple table (you pay, true cost = PV after tax, cash left, short tag). The owner can **Choose this** on any row: the card then shows "Your choice" and how much more it costs than the recommendation, and the memo (which says what Faisla recommended), the bank request and the dashboard follow the choice. *How we worked this out* holds PV before and after tax, full verdicts, "Show calculation" per row, KIBOR stress slider, chart, break-even discount rate, Assumptions and Shariah notes |
+| 5. Decide | Decision memo built from the code's numbers (every number checked, Islamic finance terms), PDF export, Copy, and an "Ask the bank for an offer" (term sheet) email to an Islamic bank's SME desk (profit rate, takaful, security deposit, late-payment charity undertaking, Shariah board approval) with a 36-month installment schedule attached. If the recommendation is cash, no term sheet is needed and the button says so |
 
 **Recommendation rule (code, `compareOptions`).** Among Shariah-compliant rows (cash, the supplier's plan, Islamic
 financing), pick the lowest PV after tax that still leaves at least 2 months of fixed costs in the bank; if none does,
@@ -136,9 +144,9 @@ already reads quotations and replies, so it checks the bank details in them with
 The output is a risk level with reasons (`src/lib/fraud.ts`, unit-tested). Wording is caught by code patterns
 (English and Roman Urdu); the AI only adds a quoted sentence the patterns miss, and the level always comes from
 the rules. The warning shows at the top of the decision, on the email, in the memo's Risks and as a dashboard
-alert. **High risk blocks the "Request term sheet" action** until the owner ticks that they confirmed the account
-by phone on a number they already had. Demo: confirm the demo quotation (its IBAN is kept on file), then use
-"Demo fraud email" under *Paste a reply* on the Competing offers step.
+alert. **High risk blocks the "Ask the bank for an offer" (term sheet) action** until the owner ticks that they
+confirmed the account by phone on a number they already had. Demo: confirm the demo quotation (its IBAN is kept on
+file), then use **Demo → Demo fraud email** on the Other offers step.
 
 ## Architecture
 

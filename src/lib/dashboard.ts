@@ -3,9 +3,12 @@
 import { assessPaymentRisks, blockingRisks } from "./fraud";
 import {
   FINANCING_NAMES,
+  effectiveRow,
   hiddenMonthlyRate,
   isFinancedMethod,
   offerCashPrice,
+  overrideRow,
+  recommendedRowOf,
   runwayMonths,
   SAFE_RUNWAY,
   yearlyFromMonthly,
@@ -56,6 +59,7 @@ export type RecentDecision = {
   status: DecisionStatus;
   updatedAt: string;
   recommendedLabel: string | null;
+  chosenLabel: string | null; // the owner's own pick, only when it differs from the recommendation
   savingsAfterTax: number | null;
   savingsBeforeTax: number | null;
 };
@@ -85,9 +89,13 @@ function monthKey(date: Date): string {
 }
 
 export function recommendedRow(d: DecisionRecord): ComparisonRow | null {
-  const result = d.decision;
-  if (!result) return null;
-  return result.rows.find((r) => r.id === result.recommendedId) ?? result.rows.find((r) => r.recommended) ?? null;
+  return recommendedRowOf(d.decision);
+}
+
+// The row the owner goes ahead with: their own pick on Compare, else the recommendation. Payments, commitments,
+// runway and term-sheet alerts all follow it.
+export function plannedRow(d: DecisionRecord): ComparisonRow | null {
+  return effectiveRow(d.decision, d.chosenRowId);
 }
 
 // Short product name for alerts and payment labels ("Islamic LTFF", "Ijarah", "conventional loan").
@@ -105,7 +113,7 @@ function paymentName(row: ComparisonRow): string {
 
 // Every scheduled monthly payment of a decided purchase (upfront excluded: paid at delivery).
 function paymentSchedule(d: DecisionRecord): UpcomingPayment[] {
-  const row = recommendedRow(d);
+  const row = plannedRow(d);
   if (d.status !== "decided" || !row || row.months <= 0 || row.monthlyPayment <= 0) return [];
   const start = new Date(d.decidedAt ?? d.updatedAt);
   const offer = d.offers.find((o) => o.id === row.offerId);
@@ -154,7 +162,7 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
   for (const d of decisions) {
     const href = `/decisions/${d.id}`;
     const open = d.status !== "decided";
-    const rec = recommendedRow(d);
+    const rec = plannedRow(d);
 
     // Payment-fraud check: unconfirmed high-risk payment emails come first.
     for (const risk of blockingRisks(
@@ -222,10 +230,14 @@ function buildAlerts(decisions: DecisionRecord[], kpis: DashboardKpis, now: Date
     }
 
     if (d.status === "comparing" && rec) {
+      const recommended = recommendedRow(d);
       alerts.push({
         level: "info",
         title: "Comparison ready to confirm",
-        detail: `${d.title}: ${rec.label} is recommended.`,
+        detail:
+          recommended && recommended.id !== rec.id
+            ? `${d.title}: you chose ${rec.label} (Faisla recommends ${recommended.label}).`
+            : `${d.title}: ${rec.label} is recommended.`,
         href,
       });
     }
@@ -246,7 +258,7 @@ export function buildDashboard(company: CompanyRecord, decisions: DecisionRecord
   let savingsFoundAfterTax = 0;
   let savingsFoundBeforeTax = 0;
   for (const d of decided) {
-    const rec = recommendedRow(d);
+    const rec = plannedRow(d);
     if (rec) {
       committedUpfront += rec.upfront;
       // Only plans that still have payments ahead weigh on the monthly burn.
@@ -291,6 +303,7 @@ export function buildDashboard(company: CompanyRecord, decisions: DecisionRecord
       status: d.status,
       updatedAt: d.updatedAt,
       recommendedLabel: recommendedRow(d)?.label ?? null,
+      chosenLabel: overrideRow(d.decision, d.chosenRowId)?.label ?? null,
       savingsAfterTax: d.decision?.savingsVsBaseline?.afterTax ?? null,
       savingsBeforeTax: d.decision?.savingsVsBaseline?.beforeTax ?? null,
     }));

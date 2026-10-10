@@ -2,7 +2,6 @@
 // M2: upload a quotation → AI extraction → owner checks every field → confirmed offer.
 // Arithmetic checks run live in code on every edit; the AI never computes a total.
 import { formatIban, isValidIban, normalizeIban } from "@/lib/fraud";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -12,7 +11,6 @@ import {
   CircleCheck,
   ExternalLink,
   FileText,
-  FileUp,
   Pencil,
   Plus,
   Sparkles,
@@ -25,8 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet, FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DemoMenu, Details, HelpTip } from "@/components/simple";
 import { Spinner } from "@/components/ui/spinner";
-import { demoQuotation } from "@/lib/demoData";
 import { formatPKR, groupPKR } from "@/lib/format";
 import {
   checkArithmetic,
@@ -43,7 +41,11 @@ import { cn } from "@/lib/utils";
 type View = "auto" | "upload" | "confirm";
 type DraftSource = "ai" | "demo" | "manual" | "edit";
 type Preview = { url: string | null; name: string; isPdf: boolean };
-type ExtractOk = { quotation: Quotation; issues: ArithmeticIssue[]; source: "ai" | "demo" };
+type ExtractOk = {
+  quotation: Quotation;
+  issues: ArithmeticIssue[];
+  source: "ai" | "demo";
+};
 type ExtractResponse = ExtractOk | NeedsOwnerInput | { error: string };
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -92,7 +94,10 @@ export default function QuotationStep() {
       const data = (await res.json().catch(() => null)) as ExtractResponse | null;
       if (data && "quotation" in data) {
         openForm(data.quotation, data.source);
-        if (data.source === "ai") toast.success("Quotation read", { description: "Check every field before confirming." });
+        if (data.source === "ai")
+          toast.success("Quotation read", {
+            description: "Check every field before confirming.",
+          });
       } else if (data && "needsOwnerInput" in data) openForm(emptyQuotation(), "manual", data.reason);
       else if (data && "error" in data) setError(data.error);
       else setError(`Upload failed (${res.status}). Try a smaller photo, the demo quotation, or type it in.`);
@@ -115,7 +120,11 @@ export default function QuotationStep() {
       setError("File is larger than 10 MB. Try a smaller photo.");
       return;
     }
-    setPreview({ url: isPdf ? null : URL.createObjectURL(upload), name: file.name, isPdf });
+    setPreview({
+      url: isPdf ? null : URL.createObjectURL(upload),
+      name: file.name,
+      isPdf,
+    });
     const form = new FormData();
     const name = isPdf ? file.name : file.name.replace(/\.\w+$/, "") + (upload.type === "image/jpeg" ? ".jpg" : "");
     form.append("file", upload, name || "quotation");
@@ -126,12 +135,17 @@ export default function QuotationStep() {
     const clean: Quotation = {
       ...q,
       supplierName: q.supplierName.trim(),
-      items: q.items.map((item) => ({ ...item, description: item.description.trim() })),
+      items: q.items.map((item) => ({
+        ...item,
+        description: item.description.trim(),
+      })),
     };
     update({ quotation: clean, quotationConfirmed: true });
     upsertOffer(quotationToOffer(clean));
     setView("auto");
-    toast.success("Quotation confirmed", { description: "Faisla is checking the market price next." });
+    toast.success("Quotation confirmed", {
+      description: "Next: the price check.",
+    });
   }
 
   if (view === "confirm" && draft) {
@@ -214,21 +228,35 @@ function UploadPanel(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Supplier quotation</CardTitle>
-        <CardDescription>Upload a photo or PDF. AI reads it, you check every number.</CardDescription>
-        {props.onCancel && (
-          <CardAction>
+        <CardTitle>Supplier&apos;s quotation</CardTitle>
+        <CardAction className="flex items-center gap-1">
+          {props.onCancel && (
             <Button variant="ghost" size="sm" onClick={props.onCancel}>
               Cancel
             </Button>
-          </CardAction>
-        )}
+          )}
+          <DemoMenu
+            actions={[
+              {
+                label: "Use demo quotation",
+                onClick: props.onDemo,
+                disabled: props.loading,
+                icon: <Sparkles />,
+              },
+              {
+                label: "Printable demo quotation",
+                onClick: () => window.open("/demo/quotation", "_blank", "noopener"),
+                icon: <ExternalLink />,
+              },
+            ]}
+          />
+        </CardAction>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
         <div
           className={cn(
-            "flex flex-col items-center justify-center gap-4 rounded-[2px] border border-dashed px-4 py-9 text-center transition-colors",
+            "flex flex-col items-center justify-center gap-4 rounded-[2px] border border-dashed px-4 py-10 text-center transition-colors",
             dragging ? "border-primary bg-muted" : "border-foreground/30 bg-background",
           )}
           onDragOver={(e) => {
@@ -242,38 +270,20 @@ function UploadPanel(props: {
             takeFile(e.dataTransfer.files);
           }}
         >
-          {props.preview ? (
-            <PreviewThumb preview={props.preview} className={props.loading ? "opacity-50" : ""} />
-          ) : (
-            !props.loading && (
-              <div className="flex size-11 items-center justify-center rounded-[2px] border border-foreground/20 bg-card text-primary">
-                <Upload className="size-5" />
-              </div>
-            )
-          )}
+          {props.preview && <PreviewThumb preview={props.preview} className={props.loading ? "opacity-50" : ""} />}
 
           {props.loading ? (
             <div className="flex items-center gap-2 text-sm font-medium" role="status">
               <Spinner className="text-primary" />
-              AI is reading the quotation…
+              Reading the quotation…
             </div>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">Drag a quotation here, or</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button onClick={() => pickerRef.current?.click()}>
-                  <FileUp data-icon="inline-start" />
-                  Choose photo or PDF
-                </Button>
-                <Button variant="outline" onClick={() => cameraRef.current?.click()}>
-                  <Camera data-icon="inline-start" />
-                  Take photo
-                </Button>
-                <Button variant="outline" onClick={props.onDemo}>
-                  <Sparkles data-icon="inline-start" />
-                  Use demo quotation
-                </Button>
-              </div>
+              <Button size="lg" className="h-11 px-5 text-base" onClick={() => pickerRef.current?.click()}>
+                <Upload data-icon="inline-start" />
+                Upload quotation photo
+              </Button>
+              <p className="text-sm text-muted-foreground">Photo or PDF. We read it, you check it.</p>
             </>
           )}
 
@@ -307,18 +317,27 @@ function UploadPanel(props: {
           </Alert>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <Button variant="link" size="xs" className="h-auto px-0 text-muted-foreground hover:text-foreground" onClick={props.onManual} disabled={props.loading}>
-            No photo? Type the quotation in yourself
-          </Button>
-          <Link
-            href="/demo/quotation"
-            target="_blank"
-            className="inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+          <Button
+            variant="link"
+            size="xs"
+            className="h-auto px-0 text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => cameraRef.current?.click()}
+            disabled={props.loading}
           >
-            Printable demo quotation
-            <ExternalLink className="size-3" />
-          </Link>
+            <Camera data-icon="inline-start" />
+            Take a photo
+          </Button>
+          <Button
+            variant="link"
+            size="xs"
+            className="h-auto px-0 text-sm text-muted-foreground hover:text-foreground"
+            onClick={props.onManual}
+            disabled={props.loading}
+          >
+            <Pencil data-icon="inline-start" />
+            Type it in
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -349,11 +368,14 @@ function PreviewThumb({ preview, className = "" }: { preview: Preview; className
 /* ---------- Confirm ---------- */
 
 const SOURCE_HINT: Record<DraftSource, string> = {
-  ai: "AI read this — please check every field.",
-  demo: "Demo quotation loaded — please check every field.",
-  manual: "Type the details exactly as printed.",
-  edit: "Edit any field, then confirm again.",
+  ai: "Our AI read this. Check the numbers against the paper.",
+  demo: "Demo quotation. Check the numbers, then confirm.",
+  manual: "Type the details as printed.",
+  edit: "Change anything, then confirm again.",
 };
+
+// Problems in fields kept under "More details" open it by themselves.
+const isHiddenField = (field: string) => field === "printedTotal" || /^items\.\d+\.lineTotal$/.test(field);
 
 function ConfirmForm(props: {
   draft: Quotation;
@@ -369,22 +391,28 @@ function ConfirmForm(props: {
   const { draft, setDraft } = props;
   const issues = useMemo(() => checkArithmetic(draft), [draft]);
   const first = draft.items[0];
+  const hiddenIssue = issues.some((x) => isHiddenField(x.field));
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const missing: string[] = [];
   if (!draft.supplierName.trim()) missing.push("supplier name");
-  if (!first || !first.description.trim()) missing.push("item description");
+  if (!first || !first.description.trim()) missing.push("item");
   if (!first || !(first.qty > 0)) missing.push("quantity");
-  if (!first || !(first.unitPrice > 0)) missing.push("unit price");
+  if (!first || !(first.unitPrice > 0)) missing.push("price");
 
   function patch(p: Partial<Quotation>) {
     setDraft({ ...draft, ...p });
   }
   function patchItem(i: number, p: Partial<QuotationItem>) {
-    setDraft({ ...draft, items: draft.items.map((item, j) => (j === i ? { ...item, ...p } : item)) });
+    setDraft({
+      ...draft,
+      items: draft.items.map((item, j) => (j === i ? { ...item, ...p } : item)),
+    });
   }
   const issuesFor = (field: string) => issues.filter((x) => x.field === field);
 
   const showPreview = props.preview && props.source !== "manual" && props.source !== "demo";
+  const ibanOk = draft.iban ? isValidIban(draft.iban) : null;
 
   return (
     <Card>
@@ -398,19 +426,18 @@ function ConfirmForm(props: {
                 AI read this
               </Badge>
             )}
-            {props.source === "demo" && <Badge variant="secondary">Demo data</Badge>}
           </div>
           {props.source && <CardDescription>{SOURCE_HINT[props.source]}</CardDescription>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1">
           {props.canCancel && (
             <Button variant="ghost" size="sm" onClick={props.onCancel}>
               Cancel
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={props.onRestart}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={props.onRestart}>
             <Upload data-icon="inline-start" />
-            Upload a different quotation
+            Upload a different one
           </Button>
         </div>
       </CardHeader>
@@ -428,106 +455,45 @@ function ConfirmForm(props: {
           <div className="flex flex-col gap-6">
             <IssueSummary issues={issues} />
 
-            {/* Supplier */}
-            <FieldSet className="gap-3">
-              <FieldLegend variant="label">Supplier</FieldLegend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField label="Supplier name" id="q-supplier" className="sm:col-span-2">
-                  <Input
-                    id="q-supplier"
-                    value={draft.supplierName}
-                    onChange={(e) => patch({ supplierName: e.target.value })}
-                  />
-                </FormField>
-                <FormField label="Phone" id="q-phone">
-                  <Input
-                    id="q-phone"
-                    value={draft.supplierPhone ?? ""}
-                    onChange={(e) => patch({ supplierPhone: e.target.value || null })}
-                  />
-                </FormField>
-                <FormField label="Email" id="q-email">
-                  <Input
-                    id="q-email"
-                    type="email"
-                    value={draft.supplierEmail ?? ""}
-                    onChange={(e) => patch({ supplierEmail: e.target.value || null })}
-                  />
-                </FormField>
-                <FormField label="Quotation date" id="q-date">
-                  <Input
-                    id="q-date"
-                    type="date"
-                    value={draft.quoteDate ?? ""}
-                    onChange={(e) => patch({ quoteDate: e.target.value || null })}
-                  />
-                </FormField>
-                <FormField label="Valid for (days)" id="q-validity">
-                  <NumInput
-                    id="q-validity"
-                    kind="int"
-                    value={draft.validityDays}
-                    onChange={(v) => patch({ validityDays: v })}
-                    suffix="days"
-                  />
-                </FormField>
-              </div>
-            </FieldSet>
-
-            {/* Bank details: kept on file for the payment-fraud check */}
-            <FieldSet className="gap-3">
-              <FieldLegend variant="label">Bank details (for payment)</FieldLegend>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <FormField label="Bank" id="q-bank">
-                  <Input id="q-bank" value={draft.bankName ?? ""} onChange={(e) => patch({ bankName: e.target.value || null })} />
-                </FormField>
-                <FormField label="Account title" id="q-title">
-                  <Input
-                    id="q-title"
-                    value={draft.accountTitle ?? ""}
-                    onChange={(e) => patch({ accountTitle: e.target.value || null })}
-                  />
-                </FormField>
-                <FormField label="IBAN" id="q-iban">
-                  <Input
-                    id="q-iban"
-                    className="font-mono"
-                    value={draft.iban ? formatIban(draft.iban) : ""}
-                    onChange={(e) => patch({ iban: e.target.value.trim() ? normalizeIban(e.target.value) : null })}
-                    placeholder="PK00 BANK 0000 0000 0000 0000"
-                  />
-                </FormField>
-              </div>
-              {draft.iban && (
-                <p className={cn("text-xs", isValidIban(draft.iban) ? "text-success" : "text-destructive")}>
-                  {isValidIban(draft.iban)
-                    ? "IBAN checksum OK. Faisla will warn you if a later email asks you to pay a different account."
-                    : "This IBAN fails the checksum: check it against the paper quotation before paying."}
-                </p>
-              )}
-            </FieldSet>
+            <FormField label="Supplier name" id="q-supplier">
+              <Input
+                id="q-supplier"
+                value={draft.supplierName}
+                onChange={(e) => patch({ supplierName: e.target.value })}
+              />
+            </FormField>
 
             {/* Items */}
             <FieldSet className="gap-3">
-              <FieldLegend variant="label">Items</FieldLegend>
+              <FieldLegend variant="label" className="ledger-label">
+                What you are buying
+              </FieldLegend>
               {draft.items.map((item, i) => (
-                <div key={i} className="rounded-lg border p-3">
-                  <div className="grid gap-3 sm:grid-cols-6">
-                    <FormField label="Description" id={`q-desc-${i}`} className="sm:col-span-4">
+                <div
+                  key={i}
+                  className={cn("flex flex-col gap-3", draft.items.length > 1 && "rounded-[2px] border p-3")}
+                >
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+                    <FormField label="Item" id={`q-desc-${i}`} className="col-span-2 sm:col-span-4">
                       <Input
                         id={`q-desc-${i}`}
                         value={item.description}
                         onChange={(e) => patchItem(i, { description: e.target.value })}
                       />
                     </FormField>
-                    <FormField label="Model" id={`q-model-${i}`} className="sm:col-span-2">
+                    <FormField label="Model" id={`q-model-${i}`} className="col-span-2 sm:col-span-2">
                       <Input
                         id={`q-model-${i}`}
                         value={item.model ?? ""}
                         onChange={(e) => patchItem(i, { model: e.target.value || null })}
                       />
                     </FormField>
-                    <FormField label="Qty" id={`q-qty-${i}`} issues={issuesFor(`items.${i}.qty`)}>
+                    <FormField
+                      label="Quantity"
+                      id={`q-qty-${i}`}
+                      className="col-span-1 sm:col-span-2"
+                      issues={issuesFor(`items.${i}.qty`)}
+                    >
                       <NumInput
                         id={`q-qty-${i}`}
                         kind="int"
@@ -538,9 +504,9 @@ function ConfirmForm(props: {
                       />
                     </FormField>
                     <FormField
-                      label="Unit price"
+                      label="Price each"
                       id={`q-price-${i}`}
-                      className="sm:col-span-2"
+                      className="col-span-1 sm:col-span-2"
                       issues={issuesFor(`items.${i}.unitPrice`)}
                     >
                       <NumInput
@@ -552,75 +518,62 @@ function ConfirmForm(props: {
                         onChange={(v) => patchItem(i, { unitPrice: v ?? 0 })}
                       />
                     </FormField>
-                    <FormField
-                      label="Line total (as printed)"
-                      id={`q-line-${i}`}
-                      className="sm:col-span-3"
-                      issues={issuesFor(`items.${i}.lineTotal`)}
-                    >
-                      <NumInput
-                        id={`q-line-${i}`}
-                        kind="money"
-                        warn={issuesFor(`items.${i}.lineTotal`).length > 0}
-                        value={item.lineTotal}
-                        onChange={(v) => patchItem(i, { lineTotal: v })}
-                        placeholder="Not printed"
-                      />
-                    </FormField>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span>
-                      Faisla computes:{" "}
-                      <span className="font-mono text-foreground tabular-nums">
-                        {item.qty} × {formatPKR(item.unitPrice)} = {formatPKR(lineAmount(item))}
+                    <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-2">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="flex h-8 items-center font-mono text-base font-semibold tabular-nums">
+                        {formatPKR(lineAmount(item))}
                       </span>
-                    </span>
-                    {draft.items.length > 1 && (
-                      <Button
-                        variant="link"
-                        size="xs"
-                        className="h-auto px-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => patch({ items: draft.items.filter((_, j) => j !== i) })}
-                      >
-                        Remove line
-                      </Button>
-                    )}
+                    </div>
                   </div>
+                  {draft.items.length > 1 && (
+                    <Button
+                      variant="link"
+                      size="xs"
+                      className="h-auto w-fit px-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => patch({ items: draft.items.filter((_, j) => j !== i) })}
+                    >
+                      Remove line
+                    </Button>
+                  )}
                 </div>
               ))}
               <IssueList issues={issuesFor("items")} />
               <Button
-                variant="outline"
-                size="sm"
-                className="w-fit"
+                variant="link"
+                size="xs"
+                className="h-auto w-fit px-0 text-muted-foreground hover:text-foreground"
                 onClick={() =>
-                  patch({ items: [...draft.items, { description: "", model: null, qty: 1, unitPrice: 0, lineTotal: null }] })
+                  patch({
+                    items: [
+                      ...draft.items,
+                      {
+                        description: "",
+                        model: null,
+                        qty: 1,
+                        unitPrice: 0,
+                        lineTotal: null,
+                      },
+                    ],
+                  })
                 }
               >
                 <Plus data-icon="inline-start" />
-                Add line
+                Add another item
               </Button>
             </FieldSet>
 
-            {/* Totals and payment terms */}
+            {/* Payment plan */}
             <FieldSet className="gap-3">
-              <FieldLegend variant="label">Totals and payment terms</FieldLegend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField label="Total (as printed)" id="q-total" issues={issuesFor("printedTotal")}>
-                  <NumInput
-                    id="q-total"
-                    kind="money"
-                    warn={issuesFor("printedTotal").length > 0}
-                    value={draft.printedTotal}
-                    onChange={(v) => patch({ printedTotal: v })}
-                    placeholder="Not printed"
-                  />
-                  <FieldDescription className="text-xs">
-                    Lines add up to{" "}
-                    <span className="font-mono text-foreground tabular-nums">{formatPKR(quotationListTotal(draft))}</span>
-                  </FieldDescription>
-                </FormField>
-                <FormField label="Cash discount" id="q-discount" issues={issuesFor("cashDiscountPct")}>
+              <FieldLegend variant="label" className="ledger-label">
+                Payment plan
+              </FieldLegend>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <FormField
+                  label="Cash discount"
+                  id="q-discount"
+                  className="col-span-2 sm:col-span-1"
+                  issues={issuesFor("cashDiscountPct")}
+                >
                   <DecimalInput
                     id="q-discount"
                     value={draft.cashDiscountPct}
@@ -630,11 +583,13 @@ function ConfirmForm(props: {
                   {draft.cashDiscountPct ? (
                     <FieldDescription className="text-xs">
                       Cash price{" "}
-                      <span className="font-mono text-foreground tabular-nums">{formatPKR(quotationCashPrice(draft))}</span>
+                      <span className="font-mono text-foreground tabular-nums">
+                        {formatPKR(quotationCashPrice(draft))}
+                      </span>
                     </FieldDescription>
                   ) : null}
                 </FormField>
-                <FormField label="Installments (months)" id="q-months">
+                <FormField label="Installments" id="q-months">
                   <NumInput
                     id="q-months"
                     kind="int"
@@ -652,31 +607,170 @@ function ConfirmForm(props: {
                     onChange={(v) => patch({ installmentAmount: v })}
                   />
                 </FormField>
-                <FormField label='"Markup" claimed' id="q-markup">
-                  <DecimalInput
-                    id="q-markup"
-                    value={draft.markupClaimedPct}
-                    onChange={(v) => patch({ markupClaimedPct: v })}
-                    suffix="%"
-                  />
-                  <FieldDescription className="text-xs">The supplier&apos;s own wording, e.g. &quot;0% markup&quot;</FieldDescription>
-                </FormField>
-                <Field className="gap-1.5">
-                  <FieldTitle>First installment due</FieldTitle>
+                <Field className="col-span-2 gap-1.5 sm:col-span-3">
+                  <FieldTitle className="flex items-center gap-1">
+                    First installment due
+                    <HelpTip>If it is due on delivery, paying later costs more.</HelpTip>
+                  </FieldTitle>
                   <TriToggle
                     value={draft.firstInstallmentOnDelivery}
                     onChange={(v) => patch({ firstInstallmentOnDelivery: v })}
                   />
-                  <FieldDescription className="text-xs">If due on delivery, paying later costs more.</FieldDescription>
                 </Field>
               </div>
             </FieldSet>
+
+            <Details
+              title="More details"
+              testId="quotation-more"
+              hint={
+                hiddenIssue ? (
+                  <span className="text-warning">Something to check</span>
+                ) : draft.iban ? (
+                  ibanOk ? (
+                    "Bank account saved"
+                  ) : (
+                    <span className="text-destructive">Check the IBAN</span>
+                  )
+                ) : (
+                  "Dates, totals, bank account"
+                )
+              }
+              open={moreOpen || hiddenIssue}
+              onOpenChange={setMoreOpen}
+              className="-mb-2"
+            >
+              <div className="flex flex-col gap-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField label="Phone" id="q-phone">
+                    <Input
+                      id="q-phone"
+                      value={draft.supplierPhone ?? ""}
+                      onChange={(e) => patch({ supplierPhone: e.target.value || null })}
+                    />
+                  </FormField>
+                  <FormField label="Email" id="q-email">
+                    <Input
+                      id="q-email"
+                      type="email"
+                      value={draft.supplierEmail ?? ""}
+                      onChange={(e) => patch({ supplierEmail: e.target.value || null })}
+                    />
+                  </FormField>
+                  <FormField label="Quotation date" id="q-date">
+                    <Input
+                      id="q-date"
+                      type="date"
+                      value={draft.quoteDate ?? ""}
+                      onChange={(e) => patch({ quoteDate: e.target.value || null })}
+                    />
+                  </FormField>
+                  <FormField label="Valid for" id="q-validity">
+                    <NumInput
+                      id="q-validity"
+                      kind="int"
+                      value={draft.validityDays}
+                      onChange={(v) => patch({ validityDays: v })}
+                      suffix="days"
+                    />
+                  </FormField>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {draft.items.map((item, i) => (
+                    <FormField
+                      key={i}
+                      label={draft.items.length > 1 ? `Line ${i + 1} total (as printed)` : "Line total (as printed)"}
+                      id={`q-line-${i}`}
+                      issues={issuesFor(`items.${i}.lineTotal`)}
+                    >
+                      <NumInput
+                        id={`q-line-${i}`}
+                        kind="money"
+                        warn={issuesFor(`items.${i}.lineTotal`).length > 0}
+                        value={item.lineTotal}
+                        onChange={(v) => patchItem(i, { lineTotal: v })}
+                        placeholder="Not printed"
+                      />
+                    </FormField>
+                  ))}
+                  <FormField label="Total (as printed)" id="q-total" issues={issuesFor("printedTotal")}>
+                    <NumInput
+                      id="q-total"
+                      kind="money"
+                      warn={issuesFor("printedTotal").length > 0}
+                      value={draft.printedTotal}
+                      onChange={(v) => patch({ printedTotal: v })}
+                      placeholder="Not printed"
+                    />
+                    <FieldDescription className="text-xs">
+                      Lines add up to{" "}
+                      <span className="font-mono text-foreground tabular-nums">
+                        {formatPKR(quotationListTotal(draft))}
+                      </span>
+                    </FieldDescription>
+                  </FormField>
+                  <FormField label='"Markup" claimed' id="q-markup">
+                    <DecimalInput
+                      id="q-markup"
+                      value={draft.markupClaimedPct}
+                      onChange={(v) => patch({ markupClaimedPct: v })}
+                      suffix="%"
+                    />
+                    <FieldDescription className="text-xs">
+                      As the supplier wrote it, e.g. &quot;0% markup&quot;
+                    </FieldDescription>
+                  </FormField>
+                </div>
+
+                <FieldSet className="gap-3">
+                  <FieldLegend variant="label" className="ledger-label flex items-center gap-1">
+                    Bank account for payment
+                    <HelpTip>Saved so we can warn you if an email later asks you to pay a different account.</HelpTip>
+                  </FieldLegend>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <FormField label="Bank" id="q-bank">
+                      <Input
+                        id="q-bank"
+                        value={draft.bankName ?? ""}
+                        onChange={(e) => patch({ bankName: e.target.value || null })}
+                      />
+                    </FormField>
+                    <FormField label="Account title" id="q-title">
+                      <Input
+                        id="q-title"
+                        value={draft.accountTitle ?? ""}
+                        onChange={(e) => patch({ accountTitle: e.target.value || null })}
+                      />
+                    </FormField>
+                    <FormField label="IBAN" id="q-iban">
+                      <Input
+                        id="q-iban"
+                        className="font-mono"
+                        value={draft.iban ? formatIban(draft.iban) : ""}
+                        onChange={(e) =>
+                          patch({
+                            iban: e.target.value.trim() ? normalizeIban(e.target.value) : null,
+                          })
+                        }
+                        placeholder="PK00 BANK 0000 0000 0000 0000"
+                      />
+                    </FormField>
+                  </div>
+                  {draft.iban && (
+                    <p className={cn("text-xs", ibanOk ? "text-success" : "text-destructive")}>
+                      {ibanOk ? "IBAN checksum OK." : "This IBAN looks wrong. Check it against the paper."}
+                    </p>
+                  )}
+                </FieldSet>
+              </div>
+            </Details>
 
             <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
               {missing.length > 0 && (
                 <span className="text-xs text-muted-foreground">Still needed: {missing.join(", ")}</span>
               )}
-              <Button disabled={missing.length > 0} onClick={() => props.onConfirm(draft)}>
+              <Button size="lg" disabled={missing.length > 0} onClick={() => props.onConfirm(draft)}>
                 <Check data-icon="inline-start" />
                 Confirm quotation
               </Button>
@@ -708,14 +802,14 @@ function IssueSummary({ issues }: { issues: ArithmeticIssue[] }) {
     return (
       <Badge variant="success">
         <CircleCheck />
-        Arithmetic checks pass
+        The sums add up
       </Badge>
     );
   }
   return (
     <Badge variant="warning">
       <TriangleAlert />
-      {issues.length === 1 ? "1 thing to check" : `${issues.length} things to check`} — see highlighted fields
+      {issues.length === 1 ? "1 thing to check" : `${issues.length} things to check`}
     </Badge>
   );
 }
@@ -869,18 +963,14 @@ function TriToggle({ value, onChange }: { value: boolean | null; onChange: (v: b
 function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: () => void }) {
   const issues = useMemo(() => checkArithmetic(q), [q]);
   const first = q.items[0];
-  const isDemo = JSON.stringify(q) === JSON.stringify(demoQuotation);
 
   const terms: string[] = [];
-  if (q.cashDiscountPct) terms.push(`${q.cashDiscountPct}% cash discount → ${formatPKR(quotationCashPrice(q))} cash`);
-  if (q.installmentMonths && q.installmentAmount) {
-    terms.push(`${q.installmentMonths} × ${formatPKR(q.installmentAmount)} installments`);
-  }
-  if (q.markupClaimedPct !== null) terms.push(`"${q.markupClaimedPct}% markup" claimed`);
-  if (q.firstInstallmentOnDelivery !== null) {
-    terms.push(q.firstInstallmentOnDelivery ? "First installment on delivery" : "First installment 1 month after delivery");
-  }
-  if (q.validityDays) terms.push(`Valid ${q.validityDays} days`);
+  if (q.installmentMonths && q.installmentAmount)
+    terms.push(`${q.installmentMonths} × ${formatPKR(q.installmentAmount)} a month`);
+  if (q.cashDiscountPct) terms.push(`or ${formatPKR(quotationCashPrice(q))} cash (${q.cashDiscountPct}% off)`);
+  if (q.markupClaimedPct !== null) terms.push(`"${q.markupClaimedPct}% markup"`);
+  if (q.firstInstallmentOnDelivery) terms.push("first installment on delivery");
+  if (q.validityDays) terms.push(`valid ${q.validityDays} days`);
 
   return (
     <Card>
@@ -889,26 +979,24 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
           <CardTitle className="truncate">{q.supplierName}</CardTitle>
           <Badge variant="success">
             <CircleCheck />
-            Quotation confirmed
+            Confirmed
           </Badge>
-          {isDemo && <Badge variant="secondary">Demo data</Badge>}
         </div>
         {first && (
           <CardDescription>
             {first.description}
             {first.model ? ` · ${first.model}` : ""}
-            {q.quoteDate ? ` · ${q.quoteDate}` : ""}
           </CardDescription>
         )}
         <CardAction>
-          <Button variant="outline" size="sm" onClick={onEdit}>
+          <Button variant="ghost" size="sm" onClick={onEdit}>
             <Pencil data-icon="inline-start" />
             Edit
           </Button>
         </CardAction>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-2">
         {first && (
           <p className="font-mono text-xl font-medium tabular-nums sm:text-2xl">
             {first.qty} × {formatPKR(first.unitPrice)} = {formatPKR(lineAmount(first))}
@@ -916,21 +1004,11 @@ function SummaryCard({ quotation: q, onEdit }: { quotation: Quotation; onEdit: (
         )}
         {q.items.length > 1 && (
           <p className="text-xs text-muted-foreground">
-            + {q.items.length - 1} more line{q.items.length > 2 ? "s" : ""} (all lines: {formatPKR(quotationListTotal(q))});
-            the comparison prices every line together as one purchase.
+            + {q.items.length - 1} more line{q.items.length > 2 ? "s" : ""} · all lines{" "}
+            {formatPKR(quotationListTotal(q))}
           </p>
         )}
-
-        {terms.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {terms.map((t) => (
-              <Badge key={t} variant="outline" className="h-auto py-1 whitespace-normal text-muted-foreground">
-                {t}
-              </Badge>
-            ))}
-          </div>
-        )}
-
+        {terms.length > 0 && <p className="text-sm text-muted-foreground">{terms.join(" · ")}</p>}
         <IssueList issues={issues} />
       </CardContent>
     </Card>

@@ -15,6 +15,7 @@ type MemoRequest = {
   offers?: Offer[]; // optional: adds qty / unit price facts
   financing?: FinancingOption[]; // optional: exact profit / rental / interest rates
   paymentRisks?: MemoContext["paymentRisks"]; // optional: payment-fraud warnings for Risks
+  chosenRowId?: string | null; // optional: the owner's own pick on Compare (null = the recommended row)
 };
 
 const MAX_RETRIES = 2;
@@ -47,6 +48,13 @@ When the recommended way to pay is cash (the facts say no bank financing is need
   and that paying in full was chosen because of the owner's setting (no financing contract, approval or monthly payments).
 - Next steps: confirm the supplier's bank account by phone before paying, and recheck cash on the day of payment.
 
+When the facts include the owner's chosen option (they picked a different row than Faisla recommended):
+- The memo is about the owner's choice. Use "## Decision" instead of "## Recommendation" and describe the chosen option there.
+- Say honestly, in one short paragraph: Faisla recommended <recommended option>; the owner chose <chosen option>; it costs
+  <extra cost after tax> more (or less) in today's money after tax and leaves <runway with the choice> of cash. Use the facts.
+- Risks and next steps follow the chosen option. If the facts say the chosen option needs no bank financing, do not suggest a
+  term sheet. If the chosen option is conventional (interest-based), say plainly that it is not Shariah-compliant.
+
 Numbers (strict, checked by code):
 - Use ONLY the numbers in the facts list, written exactly as given (e.g. "Rs 49,87,935", "5.8 lakh", "16.9%", "2.59 months").
 - Do not calculate, round, convert or add any other number. No years, no dates, no counts, no percentages that are not in the facts.
@@ -67,7 +75,12 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "decision with at least one row is required" }, { status: 400 });
   }
 
-  const context: MemoContext = { offers: body.offers, financing: body.financing, paymentRisks: body.paymentRisks };
+  const context: MemoContext = {
+    offers: body.offers,
+    financing: body.financing,
+    paymentRisks: body.paymentRisks,
+    chosenRowId: typeof body.chosenRowId === "string" ? body.chosenRowId : null,
+  };
   const facts = memoFacts(decision, reputations, context);
   const allowed = allowedNumbers(facts);
   const template = () => memoTemplate(decision, reputations, context);
@@ -87,7 +100,7 @@ export async function POST(request: Request): Promise<Response> {
     factsJson,
     "",
     "Comparison table (copy exactly under ## Comparison):",
-    comparisonTable(decision),
+    comparisonTable(decision, context.chosenRowId),
     reputations && Object.keys(reputations).length
       ? "\nList any red-flag or mixed supplier reviews under Risks; they do not change the money figures."
       : "",

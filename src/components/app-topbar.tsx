@@ -73,7 +73,7 @@ export function AppTopbar() {
         </BreadcrumbList>
       </Breadcrumb>
       <div className="flex items-center gap-1.5">
-        <Badge variant="warning" className="hidden sm:inline-flex">
+        <Badge variant="outline" className="hidden text-muted-foreground sm:inline-flex" title="Fictional company and sample numbers">
           Demo data
         </Badge>
         <ThemeToggle />

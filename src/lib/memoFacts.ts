@@ -1,6 +1,6 @@
 // The only numbers the memo may use, preformatted by code. The memo prompt, the fallback template
 // and the number check all read from this list, so a number is either here or it is rejected.
-import { SAFE_RUNWAY, isFinancedMethod, isShariahRow } from "./finance";
+import { SAFE_RUNWAY, extraCostAfterTax, extraCostBeforeTax, isFinancedMethod, isShariahRow, overrideRow } from "./finance";
 import { formatLakh, formatMonths, formatPKR, formatPct, groupPKR } from "./format";
 import { extractNumbers } from "./numberCheck";
 import type { ComparisonRow, DecideResult, FinancingOption, Offer, ReputationResult } from "./types";
@@ -17,6 +17,8 @@ export type MemoContext = {
   financing?: FinancingOption[];
   // Payment-fraud warnings (no numbers, so the number check is unaffected).
   paymentRisks?: { supplierName: string; level: "high" | "medium" | "low"; confirmed: boolean }[];
+  // The row the owner picked on Compare; when it differs from the recommendation the memo is about the choice.
+  chosenRowId?: string | null;
 };
 
 // Runway the recommendation must keep (same rule as the finance engine), used in risks and next steps.
@@ -169,6 +171,37 @@ export function memoFacts(
     `Owner's setting "pay in full when we can afford it" (prefer cash whenever it leaves at least ${MIN_SAFE_RUNWAY_MONTHS} months of fixed costs)`,
     company.payInFullWhenAffordable ? "on" : "off",
   );
+  // The owner's own choice (only when it differs from the recommendation), with the honest cost of choosing it.
+  const choice = overrideRow(decision, context.chosenRowId);
+  if (choice) {
+    add(
+      "choice.option",
+      "Owner's chosen option (the owner picked it instead of Faisla's recommendation; the memo is about this choice)",
+      choice.label,
+    );
+    add("choice.supplier", "Owner's chosen supplier", choice.supplierName);
+    add("choice.method", "Owner's chosen way to pay", methodName(choice));
+    add(
+      "choice.bankFinancing",
+      "Bank financing needed for the owner's chosen option (if no, there is no term sheet to request)",
+      isFinanced(choice) ? "yes" : "no",
+    );
+    const after = extraCostAfterTax(choice, recommended);
+    const before = extraCostBeforeTax(choice, recommended);
+    const word = (n: number) => (n >= 0 ? "more" : "less");
+    addMoney(
+      "choice.extraCostAfterTax",
+      `How much ${word(after)} the owner's choice costs than the recommended option (${recommended.label}), after tax, in today's money`,
+      Math.abs(after),
+    );
+    addMoney(
+      "choice.extraCostBeforeTax",
+      `How much ${word(before)} the owner's choice costs than the recommended option (${recommended.label}), before tax, in today's money`,
+      Math.abs(before),
+    );
+    add("choice.runway", "Runway after buying with the owner's choice (months of fixed costs covered by cash)", formatMonths(choice.runwayMonths));
+    add("recommended.runway", "Runway after buying with the recommended option", formatMonths(recommended.runwayMonths));
+  }
   const cheapestCompliant = rows.find((r) => isShariahRow(r));
   if (cheapestCompliant && cheapestCompliant.id !== recommended.id) {
     add(

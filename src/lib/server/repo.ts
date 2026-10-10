@@ -30,7 +30,8 @@ type CompanyDoc = Omit<Company, "financingPreference"> & {
   updatedAt: Date;
 };
 
-type DecisionDoc = Omit<DecisionRecord, "id" | "createdAt" | "updatedAt" | "decidedAt"> & {
+type DecisionDoc = Omit<DecisionRecord, "id" | "createdAt" | "updatedAt" | "decidedAt" | "chosenRowId"> & {
+  chosenRowId?: string | null;
   companyId: ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -184,6 +185,7 @@ function decisionRecord(doc: WithId<DecisionDoc>): DecisionRecord {
     suppliers: doc.suppliers ?? [],
     emails: doc.emails ?? [],
     decision: doc.decision ?? null,
+    chosenRowId: doc.chosenRowId ?? null, // docs saved before "choose your own option" lack it
     memo: doc.memo ?? null,
     paymentConfirmations: doc.paymentConfirmations ?? [],
   };
@@ -225,6 +227,7 @@ export async function createDecision(
     suppliers: init.suppliers ?? [],
     emails: init.emails ?? [],
     decision: init.decision ?? null,
+    chosenRowId: init.chosenRowId ?? null,
     memo: init.memo ?? null,
     paymentConfirmations: init.paymentConfirmations ?? [],
   };
@@ -255,6 +258,7 @@ const PATCHABLE: (keyof DecisionPatch)[] = [
   "suppliers",
   "emails",
   "decision",
+  "chosenRowId",
   "memo",
   "paymentConfirmations",
 ];
@@ -269,6 +273,13 @@ export async function updateDecision(companyId: string, id: string, patch: Decis
       set[key] = patch[key];
       (next as Record<string, unknown>)[key] = patch[key];
     }
+  }
+  // A choice must point at a row of the current comparison; a recalculation that drops that row clears it.
+  const chosen = next.chosenRowId;
+  const validChoice = typeof chosen === "string" && (!next.decision || next.decision.rows.some((r) => r.id === chosen));
+  if (chosen !== null && !validChoice) {
+    set.chosenRowId = null;
+    next.chosenRowId = null;
   }
   const status = deriveStatus(next);
   set.status = status;

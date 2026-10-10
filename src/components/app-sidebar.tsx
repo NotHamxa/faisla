@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useTransition } from "react";
 import {
   ChevronsUpDown,
-  FilePlus2,
   Inbox,
   Landmark,
   LayoutDashboard,
@@ -54,9 +53,8 @@ const NAV: { label: string; items: NavItem[] }[] = [
   {
     label: "Decisions",
     items: [
-      { title: "All decisions", href: "/decisions", icon: ListChecks },
-      // Plain link until the shared NewDecisionDialog lands; /decisions opens it from ?new=1.
-      { title: "New decision", href: "/decisions?new=1", icon: FilePlus2, match: () => false },
+      // "New decision" lives in the top bar on every page; one entry point is enough.
+      { title: "Decisions", href: "/decisions", icon: ListChecks },
     ],
   },
   {

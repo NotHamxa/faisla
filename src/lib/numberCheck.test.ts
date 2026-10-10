@@ -212,3 +212,83 @@ describe("template memo when the recommendation is cash (pay in full)", () => {
     expect(byKey.get("cheapest.option")).toBe("B, Islamic LTFF 8.5%");
   });
 });
+
+describe("template memo when the owner chose a different row than recommended", () => {
+  const offers = [demoOfferA, demoOfferB];
+  const decision = decide({ company: demoCompany, offers, financing: demoFinancing });
+  const memoFor = (chosenRowId: string) => {
+    const ctx = { offers, financing: demoFinancing, chosenRowId };
+    return { memo: memoTemplate(decision, reputations, ctx), facts: memoFacts(decision, reputations, ctx) };
+  };
+
+  describe("chose Ijarah", () => {
+    const { memo, facts } = memoFor("offer-b:ijarah");
+    const byKey = new Map(facts.map((f) => [f.key, f.value]));
+
+    it("passes the number check", () => {
+      expect(checkMemoNumbers(memo, allowedNumbers(facts))).toEqual({ passed: true, unknownNumbers: [] });
+    });
+
+    it("is about the choice and says honestly what Faisla recommended and what it costs", () => {
+      expect(memo).toContain("## Decision");
+      expect(memo).not.toContain("## Recommendation");
+      expect(memo).toContain("Buy from **Madina Sewing Solutions** with **Ijarah (lease) from an Islamic bank** (B, Ijarah 14.8%)");
+      expect(memo).toContain("Faisla recommended B, Islamic LTFF 8.5% with Madina Sewing Solutions; you chose B, Ijarah 14.8%");
+      expect(memo).toContain("It costs **Rs 1,76,585 more** than the recommended option in today's money, after tax");
+      expect(memo).toContain("leaves 2.58 months of cash (against 2.59 months with the recommended option)");
+      expect(memo).toContain("| B, Ijarah 14.8% (your choice) |");
+      expect(memo).toContain("Request an Ijarah term sheet");
+    });
+
+    it("gives the AI the choice facts", () => {
+      expect(byKey.get("choice.option")).toBe("B, Ijarah 14.8%");
+      expect(byKey.get("choice.extraCostAfterTax")).toBe("Rs 1,76,585");
+      expect(byKey.get("choice.runway")).toBe("2.58 months");
+      expect(byKey.get("choice.bankFinancing")).toBe("yes");
+      expect(byKey.get("recommended.option")).toBe("B, Islamic LTFF 8.5%");
+    });
+
+    it("keeps Islamic wording", () => {
+      expect(memo).not.toMatch(/interest|\bloans?\b|\bEMI\b|markup/i);
+    });
+  });
+
+  describe("chose cash", () => {
+    const { memo, facts } = memoFor("offer-b:cash");
+
+    it("passes the number check, needs no bank and warns about cash", () => {
+      expect(checkMemoNumbers(memo, allowedNumbers(facts))).toEqual({ passed: true, unknownNumbers: [] });
+      expect(memo).toContain("you chose B, cash. It costs **Rs 2,78,722 more**");
+      expect(memo).toContain("No bank financing is needed");
+      expect(memo).toContain("cash covers only 1.33 months of fixed costs, under the 2 months minimum");
+      expect(memo).not.toMatch(/term sheet/i);
+      expect(new Map(facts.map((f) => [f.key, f.value])).get("choice.bankFinancing")).toBe("no");
+    });
+  });
+
+  describe("chose the supplier's deferred-price plan", () => {
+    const { memo, facts } = memoFor("offer-a:installments");
+
+    it("passes the number check and names the cost of paying later, never interest", () => {
+      expect(checkMemoNumbers(memo, allowedNumbers(facts))).toEqual({ passed: true, unknownNumbers: [] });
+      expect(memo).toContain("It costs **Rs 4,73,603 more**");
+      expect(memo).toContain("paying later costs 16.9% a year");
+      expect(memo).not.toMatch(/term sheet/i);
+      expect(memo).not.toMatch(/interest|\bloans?\b|\bEMI\b|markup/i);
+    });
+  });
+
+  it("choosing the recommended row itself leaves the memo unchanged", () => {
+    const same = memoFor("offer-b:iltf");
+    expect(same.memo).toBe(memoTemplate(decision, reputations, { offers, financing: demoFinancing }));
+    expect(same.facts.some((f) => f.key.startsWith("choice."))).toBe(false);
+  });
+
+  it("a conventional choice (preference 'both') is named as interest-based", () => {
+    const both = decide({ company: demoCompany, offers, financing: demoFinancing, preference: "both" });
+    const ctx = { offers, financing: demoFinancing, chosenRowId: "offer-b:bank" };
+    const memo = memoTemplate(both, reputations, ctx);
+    expect(checkMemoNumbers(memo, allowedNumbers(memoFacts(both, reputations, ctx))).passed).toBe(true);
+    expect(memo).toContain("is conventional (interest-based) financing and is not Shariah-compliant");
+  });
+});

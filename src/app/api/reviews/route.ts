@@ -1,5 +1,6 @@
-// POST { supplierName, model } → ReputationResult (plus `simulated` when served from demo reviews).
-// supplierName set → reviews of that supplier; supplierName empty → reviews of the machine model.
+// POST { supplierName, model, sourceLink? } → ReputationResult (plus `simulated` when served from demo reviews).
+// supplierName set → reviews of that supplier (store name, and its website when the offer has a link);
+// supplierName empty → reviews of the product model.
 // Cache first (demo-safe); on a miss with search + AI keys, the AI reads live results (spec §7.3).
 // The flag itself always comes from the code rules in lib/reputation.ts.
 import { apiUser } from "@/lib/auth/api";
@@ -7,7 +8,8 @@ import { z } from "zod";
 import reviewsCache from "@/data/cache/reviews.json";
 import { aiEnabled, aiJson } from "@/lib/ai";
 import { scoreReputation, type ScorableReview } from "@/lib/reputation";
-import { isSimulatedSeller, normalizeQuery, searchEnabled, webSearch } from "@/lib/search";
+import { isSimulatedSeller, normalizeQuery, searchEnabled, webSearch, type SearchResult } from "@/lib/search";
+import { domainOf, USED_MARKETPLACES } from "@/lib/sourcing";
 import type { ReputationResult, ReviewPoint } from "@/lib/types";
 
 type CachedReviews = { name: string; about: ReviewPoint["about"]; simulated?: boolean; reviews: ScorableReview[] };
@@ -43,8 +45,9 @@ function lookupReviews(name: string, about: ReviewPoint["about"]): CachedReviews
 export async function POST(request: Request) {
   const authed = await apiUser(request);
   if (authed instanceof Response) return authed;
-  const body = (await request.json().catch(() => ({}))) as { supplierName?: string; model?: string | null };
+  const body = (await request.json().catch(() => ({}))) as { supplierName?: string; model?: string | null; sourceLink?: string | null };
   const supplierName = body.supplierName?.trim() ?? "";
+  const sourceLink = typeof body.sourceLink === "string" ? body.sourceLink.trim() : "";
   const model = body.model?.trim() || null;
   const about: ReviewPoint["about"] = supplierName ? "supplier" : "product";
   const subject = supplierName || model || "";
@@ -62,7 +65,7 @@ export async function POST(request: Request) {
       // Sellers from the team-written demo listings are fictional: searching could match a real namesake.
       note = "Simulated demo listing: this seller is fictional, so there are no reviews to search.";
     } else if (searchEnabled() && aiEnabled()) {
-      reviews = await readLiveReviews(subject, about, model);
+      reviews = await readLiveReviews(subject, about, model, sourceLink);
     } else {
       note = "No cached reviews and live search is off.";
     }
@@ -82,26 +85,68 @@ export async function POST(request: Request) {
   return Response.json(result);
 }
 
+// "Galaxy Tech (Pvt) Ltd" → "Galaxy Tech": legal suffixes only make the search miss.
+function searchName(name: string): string {
+  return name.replace(/\(?\b(pvt|private)\.?\)?\s*(ltd|limited)?\.?/gi, " ").replace(/\s+/g, " ").trim() || name;
+}
+
 async function readLiveReviews(
   subject: string,
   about: ReviewPoint["about"],
   model: string | null,
+  sourceLink: string,
 ): Promise<ScorableReview[]> {
-  const query = about === "supplier" ? `"${subject}" reviews Pakistan` : `${subject} review`;
-  const results = await webSearch(query, { maxResults: 8 });
+  const name = searchName(subject);
+  // A store's own website (not a marketplace like OLX) is the best handle for its reviews.
+  const domain = sourceLink ? domainOf(sourceLink) : "";
+  const storeDomain = domain && !USED_MARKETPLACES.some((d) => domain.endsWith(d)) ? domain : "";
+  const queries =
+    about === "supplier"
+      ? [`${name} reviews Pakistan`, storeDomain ? `${storeDomain} reviews` : `${name} customer reviews complaints`]
+      : [`${name} review`];
+  const batches = await Promise.all(queries.map((q) => webSearch(q, { maxResults: 8, depth: about === "supplier" ? "advanced" : "basic" })));
+  const seen = new Set<string>();
+  const results: SearchResult[] = [];
+  for (const r of batches.flat()) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
+    results.push(r);
+  }
   if (!results.length) return [];
-  const listing = results.map((r, i) => `[${i}] ${r.title}\nURL: ${r.url}\n${r.content}`).join("\n\n");
+  const listing = results
+    .slice(0, 12)
+    .map((r, i) => `[${i}] ${r.title}\nURL: ${r.url}\n${r.content.slice(0, 1500)}`)
+    .join("\n\n");
   const out = await aiJson(reviewSchema, {
+    // A store name is easy to confuse with a namesake abroad: the better reader for store reviews.
+    tier: about === "supplier" ? "read" : "fast",
     system:
-      "You read web search results for customer reviews. For each result, return: about (supplier or product), " +
-      "rating out of 5 or null, complaint type (delivery, warranty, quality, service, fraud or none), a one-line quote, and the URL. " +
-      "Do not invent ratings. Set relevant=false when the result is not a review of the named subject. " +
-      "Skip results that contain no review at all.",
+      "You read web search results for customer reviews. A result may hold several separate customer reviews " +
+      "(review sites, forums, Google/Facebook/Trustpilot pages): return each one, at most 4 per result. For each review return: " +
+      "about ('supplier' when it is about the store or its service, delivery, warranty; 'product' when about the product itself), " +
+      "rating out of 5 or null, complaint type (delivery, warranty, quality, service, fraud or none), a one-line quote copied " +
+      "from the review, and the URL of the result. Do not invent ratings or reviews. Set relevant=false when the review is " +
+      "not about the named subject (another store with a similar name, another product). Skip results that contain no review.",
     prompt:
       `Subject (${about}): ${subject}` +
+      (storeDomain ? `\nTheir website: ${storeDomain}` : "") +
       (about === "supplier" && model ? `\nThey sell: ${model}` : "") +
       `\n\nSearch results:\n\n${listing}`,
     maxTokens: 4000,
   });
-  return out?.reviews ?? [];
+  // Code checks on what the AI read: only links that were in the search results; never employer
+  // reviews; for a store with a website, only pages that name that website (a namesake abroad
+  // doesn't count) and not the store's own testimonials page.
+  const byUrl = new Map(results.map((r) => [r.url, r]));
+  return (out?.reviews ?? []).filter((r) => {
+    const source = byUrl.get(r.url);
+    if (!source) return false;
+    const host = domainOf(r.url);
+    if (EMPLOYER_SITES.some((d) => host === d || host.endsWith(`.${d}`))) return false;
+    if (about !== "supplier" || !storeDomain) return true;
+    if (host === storeDomain || host.endsWith(`.${storeDomain}`)) return false;
+    return `${source.url} ${source.title} ${source.content}`.toLowerCase().includes(storeDomain);
+  });
 }
+
+const EMPLOYER_SITES = ["indeed.com", "glassdoor.com", "rozee.pk", "ambitionbox.com", "comparably.com"];

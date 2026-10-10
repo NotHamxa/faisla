@@ -17,15 +17,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import type { DecisionOrigin, DecisionRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const ORIGINS: { value: DecisionOrigin; label: string; hint: string; icon: typeof FileText }[] = [
-  { value: "quotation", label: "I have a supplier's quotation", hint: "Upload a photo or PDF", icon: FileText },
-  { value: "need", label: "Describe what I need", hint: "Faisla finds options on the web", icon: MessageSquareText },
+const ORIGINS: {
+  value: DecisionOrigin;
+  label: string;
+  hint: string;
+  icon: typeof FileText;
+}[] = [
+  {
+    value: "quotation",
+    label: "I have a quotation",
+    hint: "Upload a photo of it",
+    icon: FileText,
+  },
+  {
+    value: "need",
+    label: "I know what I need",
+    hint: "We find suppliers for you",
+    icon: MessageSquareText,
+  },
 ];
 
 export default function NewDecisionDialog({
@@ -64,7 +79,10 @@ export default function NewDecisionDialog({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: clean, origin }),
       });
-      const data = (await res.json().catch(() => null)) as { decision?: DecisionRecord; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as {
+        decision?: DecisionRecord;
+        error?: string;
+      } | null;
       if (!res.ok || !data?.decision) throw new Error(data?.error ?? `Couldn't create the decision (${res.status})`);
       toast.success("Decision created", {
         description: origin === "need" ? "Start by describing what you need." : "Start by uploading the supplier's quotation.",
@@ -86,10 +104,8 @@ export default function NewDecisionDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={create} className="grid gap-4">
           <DialogHeader>
-            <DialogTitle>New purchase decision</DialogTitle>
-            <DialogDescription>
-              Name what you&apos;re buying and how you want to start. Faisla then compares every way to pay.
-            </DialogDescription>
+            <DialogTitle>New decision</DialogTitle>
+            <DialogDescription className="sr-only">Name the purchase and choose how to start.</DialogDescription>
           </DialogHeader>
           <Field>
             <FieldLabel htmlFor="new-decision-title">What are you buying?</FieldLabel>
@@ -97,11 +113,11 @@ export default function NewDecisionDialog({
               id="new-decision-title"
               autoFocus
               maxLength={120}
-              placeholder="e.g. 80 × Jack F5 lockstitch machines"
+              className="h-10 text-base"
+              placeholder="e.g. 80 sewing machines"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <FieldDescription>You can rename it any time.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel id="new-decision-origin">How do you want to start?</FieldLabel>
@@ -116,15 +132,13 @@ export default function NewDecisionDialog({
                     aria-checked={active}
                     onClick={() => setOrigin(o.value)}
                     className={cn(
-                      "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                      active ? "border-primary border-l-[3px] bg-card" : "border-border hover:bg-muted/60",
+                      "flex flex-col items-start gap-2 rounded-[2px] border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      active ? "border-primary bg-card ring-1 ring-primary" : "border-border hover:bg-muted/60",
                     )}
                   >
-                    <o.icon className={cn("mt-0.5 size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium">{o.label}</span>
-                      <span className="text-xs text-muted-foreground">{o.hint}</span>
-                    </span>
+                    <o.icon className={cn("size-6", active ? "text-primary" : "text-muted-foreground")} />
+                    <span className="text-base font-semibold">{o.label}</span>
+                    <span className="text-xs text-muted-foreground">{o.hint}</span>
                   </button>
                 );
               })}

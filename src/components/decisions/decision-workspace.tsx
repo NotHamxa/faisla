@@ -3,9 +3,9 @@
 // as tabs. The open step lives in the URL (?step=compare) so a refresh keeps your place.
 import { PaymentRiskBanner } from "@/components/PaymentRisk";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, CircleAlert, CloudCheck, Pencil, RotateCcw } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, CircleAlert, CloudCheck, Pencil, RotateCcw } from "lucide-react";
 import ComparisonTable from "@/components/ComparisonTable";
 import MarketCard from "@/components/MarketCard";
 import MemoPanel from "@/components/MemoPanel";
@@ -34,11 +34,36 @@ import { cn } from "@/lib/utils";
 import { DecisionStatusBadge } from "./status-badge";
 
 const STEPS = [
-  { value: "quotation", label: "Quotation", done: (s: FaislaState) => s.quotationConfirmed },
-  { value: "market", label: "Price & reputation", done: (s: FaislaState) => s.market !== null },
-  { value: "offers", label: "Competing offers", done: (s: FaislaState) => s.offers.length > 1 },
-  { value: "compare", label: "Compare", done: (s: FaislaState) => s.decision !== null },
-  { value: "decide", label: "Decide", done: (s: FaislaState) => s.memo !== null },
+  {
+    value: "quotation",
+    label: "Quote",
+    hint: "Upload the supplier's quotation and check the numbers.",
+    done: (s: FaislaState) => s.quotationConfirmed,
+  },
+  {
+    value: "market",
+    label: "Price check",
+    hint: "Is the price fair, and can you trust the supplier?",
+    done: (s: FaislaState) => s.market !== null,
+  },
+  {
+    value: "offers",
+    label: "Other offers",
+    hint: "Ask other suppliers for their price.",
+    done: (s: FaislaState) => s.offers.length > 1,
+  },
+  {
+    value: "compare",
+    label: "Compare",
+    hint: "See the cheapest safe way to pay.",
+    done: (s: FaislaState) => s.decision !== null,
+  },
+  {
+    value: "decide",
+    label: "Decide",
+    hint: "Write the decision memo and ask the bank.",
+    done: (s: FaislaState) => s.memo !== null,
+  },
 ] as const;
 
 type StepValue = (typeof STEPS)[number]["value"];
@@ -46,6 +71,10 @@ type StepValue = (typeof STEPS)[number]["value"];
 // Step 1 is the quotation, or "Your need" when the decision starts from a described need.
 function stepLabel(step: (typeof STEPS)[number], origin: FaislaState["origin"]): string {
   return step.value === "quotation" && origin === "need" ? "Your need" : step.label;
+}
+
+function stepHint(step: (typeof STEPS)[number], origin: FaislaState["origin"]): string {
+  return step.value === "quotation" && origin === "need" ? "Say what you need. We find options for you." : step.hint;
 }
 
 function isStep(v: string | undefined): v is StepValue {
@@ -66,6 +95,18 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
     return STEPS[firstOpen === -1 ? STEPS.length - 1 : firstOpen].value;
   });
 
+  // On phones the step strip scrolls sideways: keep the open step in view.
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const active = strip?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    if (!strip || !active) return;
+    strip.scrollTo({
+      left: active.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [step]);
+
   function goTo(next: StepValue, scroll = false) {
     setStep(next);
     // Shallow URL update: Next keeps it in sync without re-rendering the server page.
@@ -76,8 +117,6 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
       topRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
-
-  const doneCount = done.filter(Boolean).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,7 +137,7 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
             </div>
           </div>
           <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
+            <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-muted-foreground" />}>
               <RotateCcw data-icon="inline-start" />
               Start over
             </AlertDialogTrigger>
@@ -133,26 +172,19 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
       <PaymentRiskBanner />
 
       <Tabs value={step} onValueChange={(v) => goTo(v as StepValue)} className="gap-5">
-        <div ref={topRef} className="flex scroll-mt-20 flex-col gap-2">
-          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>
-              Step {STEPS.findIndex((s) => s.value === step) + 1} of {STEPS.length}
-            </span>
-            <span className="font-mono tabular-nums">
-              {doneCount}/{STEPS.length} done
-            </span>
-          </div>
+        <div ref={topRef} className="scroll-mt-20">
           {/* Scrolls sideways on small screens. */}
-          <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <div ref={stripRef} className="relative -mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
             <TabsList
               variant="line"
+              aria-label="Steps"
               className="w-max min-w-full justify-start gap-0 border-b border-foreground/25 p-0 group-data-horizontal/tabs:h-auto"
             >
               {STEPS.map((s, i) => (
                 <TabsTrigger
                   key={s.value}
                   value={s.value}
-                  className="h-auto flex-none gap-2 rounded-none px-3 py-2.5 after:bg-foreground group-data-horizontal/tabs:after:bottom-[-1px] group-data-horizontal/tabs:after:h-[2px]"
+                  className="h-auto flex-none gap-2 rounded-none px-2.5 py-2.5 text-[0.9375rem] after:bg-foreground sm:px-3.5 group-data-horizontal/tabs:after:bottom-[-1px] group-data-horizontal/tabs:after:h-[2px]"
                 >
                   <span
                     className={cn(
@@ -172,26 +204,32 @@ export default function DecisionWorkspace({ initialStep }: { initialStep?: strin
         </div>
 
         {STEPS.map((s, i) => (
-          <TabsContent key={s.value} value={s.value} keepMounted={KEEP_MOUNTED.includes(s.value)} className="flex flex-col gap-5">
+          <TabsContent
+            key={s.value}
+            value={s.value}
+            keepMounted={KEEP_MOUNTED.includes(s.value)}
+            className="flex flex-col gap-5"
+          >
+            <p className="-mt-1 text-[0.9375rem] text-muted-foreground" data-testid="step-hint">
+              <span className="font-medium text-foreground">Step {i + 1}.</span> {stepHint(s, state.origin)}
+            </p>
             <StepBody step={s.value} origin={state.origin} />
-            <div className="flex items-center justify-between gap-3 border-t pt-4">
-              {i > 0 ? (
-                <Button variant="ghost" onClick={() => goTo(STEPS[i - 1].value, true)}>
-                  <ArrowLeft data-icon="inline-start" />
-                  <span className="hidden sm:inline">{labels[i - 1]}</span>
-                  <span className="sm:hidden">Back</span>
-                </Button>
-              ) : (
-                <span />
-              )}
-              {i < STEPS.length - 1 && (
-                <Button variant={done[i] ? "default" : "outline"} onClick={() => goTo(STEPS[i + 1].value, true)}>
-                  Next step
-                  <span className="hidden sm:inline">: {labels[i + 1]}</span>
+            {/* One "Continue" at the bottom; step 1 has its own Confirm button until the quotation is in. */}
+            {i < STEPS.length - 1 && (i > 0 || done[0]) && (
+              <div className="flex justify-end border-t pt-4">
+                <Button
+                  size="lg"
+                  variant={done[i] ? "default" : "outline"}
+                  onClick={() => goTo(STEPS[i + 1].value, true)}
+                >
+                  <span>
+                    Continue
+                    <span className="hidden sm:inline"> to {labels[i + 1]}</span>
+                  </span>
                   <ArrowRight data-icon="inline-end" />
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </TabsContent>
         ))}
       </Tabs>
@@ -308,10 +346,11 @@ function SaveIndicator({ saveStatus }: { saveStatus: SaveStatus }) {
       </span>
     );
   }
+  if (saveStatus !== "saved") return null;
   return (
     <span className={cn(base, "text-muted-foreground")} aria-live="polite">
       <CloudCheck className="size-3.5" />
-      {saveStatus === "saved" ? "Saved" : "Autosaves as you go"}
+      Saved
     </span>
   );
 }
@@ -324,11 +363,11 @@ function CompanyLine({ company }: { company: FaislaState["company"] }) {
         Cash <span className="font-mono text-foreground tabular-nums">{formatPKR(company.cashBalance)}</span>
       </span>
       <span>
-        Fixed costs <span className="font-mono text-foreground tabular-nums">{formatPKR(company.monthlyFixedCosts)}</span>/month
+        Costs <span className="font-mono text-foreground tabular-nums">{formatPKR(company.monthlyFixedCosts)}</span>
+        /month
       </span>
-      <span>{company.isExporter ? "Exporter · Islamic LTFF eligible" : "Not an exporter"}</span>
-      <Link href="/settings" className="ml-auto text-primary underline-offset-4 hover:underline">
-        Edit in Settings
+      <Link href="/settings" className="text-primary underline-offset-4 hover:underline">
+        Edit
       </Link>
     </p>
   );

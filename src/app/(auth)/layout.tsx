@@ -66,7 +66,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-sm">{children}</div>
         </div>
-        <p className="text-center text-xs text-muted-foreground">Demo data is fictional and labelled. Numbers are calculated in code, never by AI.</p>
+        <p className="text-center text-xs text-muted-foreground">Demo data is fictional. Numbers are calculated in code, never by AI.</p>
       </main>
     </div>
   );

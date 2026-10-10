@@ -429,10 +429,13 @@ Short answers first. Add a sentence only if the judge asks for more.
 11. **I prefer to pay in full. Can I?**
     Yes. Turn on "Pay in full when we can afford it" in Settings. Faisla then recommends cash whenever paying it still leaves at least 2 months of fixed costs. In this demo cash would leave only 1.33 months, so it still advises financing. With Rs 2 crore in the bank, it recommends paying Supplier B in cash.
 
-12. **Why a 2-month runway threshold?**
+12. **Can I pick a different option than Faisla recommends?**
+    Yes. Every row on Compare has a "Choose this" button. The answer card then says "Your choice" and, honestly, what it costs: choosing Ijarah 14.8% costs Rs 1,76,585 more than Islamic LTFF in today's money. The memo, the bank request and the dashboard follow your choice, and the memo says Faisla recommended Islamic LTFF. "Use recommended" switches back. If you choose cash, the bank button says no bank is needed.
+
+13. **Why a 2-month runway threshold?**
     It is a prudence rule: keep at least two months of salaries and rent in the bank. Runway counts no sales income, so it is a worst case. Below 1.5 months the verdict says "Salaries at risk". It is a fixed rule today; making it editable is easy.
 
-13. **Did you include tax? Is it correct?**
+14. **Did you include tax? Is it correct?**
     Yes:
     - 29% of profit (or Ijarah rentals) plus depreciation.
     - Depreciation is a 25% initial allowance in year 1, then 15% reducing balance, over 10 years, on what each option actually pays.
@@ -440,47 +443,47 @@ Short answers first. Add a sentence only if the judge asks for more.
 
     Islamic LTFF still wins. The simplifications (one rate, no minimum tax or super tax, tax saved 12 months after delivery) are on the Assumptions card, and the tax rate is editable. A sole proprietor would enter their marginal rate.
 
-14. **Why does Ijarah beat Diminishing Musharakah at the same 14.8%?**
+15. **Why does Ijarah beat Diminishing Musharakah at the same 14.8%?**
     Tax timing. The cash payments are identical. With Ijarah you deduct the full rentals as you pay them, within 3 years. With Diminishing Musharakah you deduct the profit plus depreciation spread over 10 years. The total deduction is the same, but Ijarah's comes earlier, so it is worth more today.
 
-15. **What's the difference between Ijarah and Diminishing Musharakah?**
+16. **What's the difference between Ijarah and Diminishing Musharakah?**
     - **Ijarah:** the bank owns the machines and rents them to you. You pay a security deposit and rentals, the bank as owner handles takaful, and ownership passes to you at the end by a separate sale.
     - **Diminishing Musharakah:** you and the bank co-own the machines from day one. Each month you pay rent on the bank's share and buy some of its units, until you own all of it.
 
-16. **What about fees, takaful and collateral?**
+17. **What about fees, takaful and collateral?**
     The processing-fee field is on the Assumptions card. Change it and every row recalculates. Takaful and collateral are listed as not included, and the term-sheet email asks the bank for all three.
 
-17. **How much of the 5.8 lakh is just Supplier B being cheaper?**
+18. **How much of the 5.8 lakh is just Supplier B being cheaper?**
     Rs 1.6 lakh. Rs 3.7 lakh comes from choosing Islamic LTFF over paying cash, and Rs 0.5 lakh from avoiding the "0%" plan.
 
-18. **What if rates change?**
+19. **What if rates change?**
     Use the stress slider. At KIBOR +2%, Diminishing Musharakah and Ijarah reprice to 16.8%, but Islamic LTFF follows the SBP rate, so the recommendation doesn't change.
 
 **Shariah**
 
-19. **Is this Shariah-compliant?**
+20. **Is this Shariah-compliant?**
     Islamic finance first:
     - By default only Shariah-compliant options are compared: Diminishing Musharakah, Ijarah, Islamic LTFF, and Murabaha as a preset.
     - Conventional rows appear only if the owner asks. They are labelled interest-based and never recommended.
     - Every comparison lists Shariah notes: asset-backed, no compounding, late payment to charity, takaful.
     - Final compliance is the bank's Shariah board's decision, so the term-sheet email asks for its approval reference.
 
-20. **Isn't the "0% markup" plan riba?**
+21. **Isn't the "0% markup" plan riba?**
     No. A credit sale at a higher fixed deferred price (bay' muajjal) is permissible, as long as nothing is added for late payment (IIFA Resolution 51). We don't call it interest. We show its effective yearly cost so the owner can compare.
 
-21. **Why is the Islamic profit calculated like a loan installment?**
+22. **Why is the Islamic profit calculated like a loan installment?**
     Pakistani Islamic banks price Diminishing Musharakah and Ijarah off KIBOR plus a spread. The schedule maths is the same annuity shape. What differs is the contract behind it (co-ownership or lease, real assets, no compounding, late payment to charity) and the tax treatment, which we model per mode.
 
 **Fraud, data and trust**
 
-22. **Won't the fraud check give false positives?**
+23. **Won't the fraud check give false positives?**
     Some, by design, because a missed fraud costs far more than a phone call:
     - Only an IBAN change or a failed checksum is High.
     - Wording, title and domain alone are Medium: a warning, not a block.
     - The block clears with one tick after a phone call on a number you already had.
     - Name matching ignores words like "Pvt Ltd" and "Industrial", so "Al Noor Industrial Machines (Pvt) Ltd" still matches.
 
-23. **What about data privacy?**
+24. **What about data privacy?**
     - Passwords are hashed with scrypt.
     - Session tokens are stored only as hashes.
     - Every database query is limited to your company.
@@ -488,15 +491,15 @@ Short answers first. Add a sentence only if the judge asks for more.
     - AI sees only the document it is reading. We never ask for bank logins.
     - All demo data is fictional, as the rulebook requires.
 
-24. **What does one decision cost to run?**
+25. **What does one decision cost to run?**
     About US$0.002 in AI calls for a full demo run, because cheap models do the easy reading. Hosting is Vercel and MongoDB Atlas.
 
-25. **What's the business model?**
+26. **What's the business model?**
     - SMEs pay a monthly subscription.
     - Islamic banks pay for qualified, documented financing requests that name the right product.
     - Later, suppliers pay to be listed in comparisons.
 
-26. **Does it scale?**
+27. **Does it scale?**
     - The maths is instant and runs anywhere.
     - AI calls are cheap and cached where possible.
     - Search results are cached.
@@ -504,22 +507,22 @@ Short answers first. Add a sentence only if the judge asks for more.
 
     The real scaling work is product, not infrastructure: WhatsApp intake, more payment shapes, more tax profiles.
 
-27. **What if a supplier doesn't reply?**
+28. **What if a supplier doesn't reply?**
     Faisla checks the inbox every 10 seconds for 5 minutes, then you can click "Check inbox now" or "Include last 24 h". The comparison works with any number of offers, even just the original quotation. A reply that arrives by WhatsApp or phone can be pasted in ("Paste a reply"). If the price is unclear, Faisla asks the owner rather than guessing.
 
-28. **What's real and what's simulated?**
+29. **What's real and what's simulated?**
     - **Fictional:** the company, suppliers, supplier reviews, the benchmark table and the bank desk, all labelled.
     - **Real:** the Jack F5 web prices and product reviews (with links), the AI calls, and the emails through our test Gmail.
     - **Typed demo texts:** the demo reply and the fraud email. A real email goes through the same path.
 
-29. **Is this financial advice?**
+30. **Is this financial advice?**
     It compares options for a business decision, shows every number and source, and the owner decides. Settings says "Not financial or religious advice".
 
-30. **What did you build versus use?**
+31. **What did you build versus use?**
     - **We built:** the finance engine with Islamic modes and tax, the AI-plus-checks pipeline, the fraud rules, the whole app, and the automated tests (145 on the slides). That is all 16 commits, made during the event.
     - **We used:** OpenAI, Tavily, Gmail, MongoDB, Next.js, shadcn/ui and other open-source libraries, plus AI coding assistants. All are listed in the README.
 
-31. **Is this really Financial Operations?**
+32. **Is this really Financial Operations?**
     Yes:
     - **Financial planning:** the true cost of credit, PV, tax, liquidity.
     - **Credit and risk:** financing choice, runway, supplier reputation.
@@ -527,7 +530,7 @@ Short answers first. Add a sentence only if the judge asks for more.
     - **Payments:** payment-plan choice.
     - **Fraud detection:** the payment-fraud check.
 
-32. **What happens if the AI or internet is down during the demo?**
+33. **What happens if the AI or internet is down during the demo?**
     - The demo quotation and the Jack F5 market data are cached.
     - The reply parser works without AI.
     - The memo falls back to a code template.

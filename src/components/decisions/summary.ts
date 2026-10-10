@@ -1,4 +1,5 @@
 // Slim, list-friendly view of a decision. Built on the server so the list page doesn't ship whole workspaces.
+import { effectiveRow, overrideRow } from "@/lib/finance";
 import type { DecisionRecord, DecisionStatus } from "@/lib/types";
 
 export type DecisionSummary = {
@@ -13,16 +14,15 @@ export type DecisionSummary = {
 
 export function summarizeDecision(d: DecisionRecord): DecisionSummary {
   const suppliers = [...new Set(d.offers.map((o) => o.supplierName).filter(Boolean))];
-  const best = d.decision
-    ? (d.decision.rows.find((r) => r.recommended) ?? d.decision.rows.find((r) => r.id === d.decision?.recommendedId))
-    : undefined;
+  const best = effectiveRow(d.decision, d.chosenRowId);
+  const ownChoice = !!overrideRow(d.decision, d.chosenRowId);
   return {
     id: d.id,
     title: d.title,
     status: d.status,
     updatedAt: d.updatedAt,
     suppliers,
-    bestOption: best?.label ?? null,
+    bestOption: best ? (ownChoice ? `Your choice: ${best.label}` : best.label) : null,
     savingsAfterTax: d.decision?.savingsVsBaseline?.afterTax ?? null,
   };
 }

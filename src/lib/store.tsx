@@ -35,6 +35,7 @@ export type FaislaState = {
   suppliers: Supplier[];
   emails: EmailRecord[];
   decision: DecideResult | null;
+  chosenRowId: string | null; // the owner's own pick on Compare; null = the recommended row
   memo: MemoResult | null;
   paymentConfirmations: string[];
 };
@@ -53,6 +54,7 @@ const DECISION_KEYS = [
   "suppliers",
   "emails",
   "decision",
+  "chosenRowId",
   "memo",
   "paymentConfirmations",
 ] as const satisfies readonly (keyof FaislaState & keyof DecisionPatch)[];
@@ -109,6 +111,7 @@ function stateFrom(company: CompanyRecord, decision?: DecisionRecord | null): Fa
     suppliers: decision?.suppliers ?? [],
     emails: decision?.emails ?? [],
     decision: decision?.decision ?? null,
+    chosenRowId: decision?.chosenRowId ?? null,
     memo: decision?.memo ?? null,
     paymentConfirmations: decision?.paymentConfirmations ?? [],
   };
@@ -205,6 +208,10 @@ export function StoreProvider({
     (patch) => {
       setState((s) => {
         const next = { ...s, ...(typeof patch === "function" ? patch(s) : patch) };
+        // A recalculated comparison that no longer has the owner's chosen row drops the choice.
+        if (next.chosenRowId && next.decision && !next.decision.rows.some((r) => r.id === next.chosenRowId)) {
+          next.chosenRowId = null;
+        }
         // Recording changes inside the updater is idempotent, so a double-invoked updater is harmless.
         schedule(s, next);
         return next;
@@ -242,6 +249,7 @@ export function StoreProvider({
       suppliers: [],
       emails: [],
       decision: null,
+      chosenRowId: null,
       memo: null,
       paymentConfirmations: [],
     });

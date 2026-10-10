@@ -65,9 +65,7 @@ export function InboxView({ items }: { items: InboxItem[] }) {
             <InboxIcon />
           </EmptyMedia>
           <EmptyTitle>No emails yet</EmptyTitle>
-          <EmptyDescription>
-            Send RFQs to suppliers from a decision&apos;s Offers step. Replies and term-sheet requests appear here.
-          </EmptyDescription>
+          <EmptyDescription>Ask suppliers for prices from a decision&apos;s Other offers step.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button render={<Link href="/decisions" />} nativeButton={false}>
@@ -238,7 +236,6 @@ function ExtractedOffer({ offer, href }: { offer: Offer; href: string }) {
         ))}
       </dl>
       {offer.summary && <p className="mt-3 text-sm text-muted-foreground">{offer.summary}</p>}
-      <p className="mt-2 text-xs text-muted-foreground">AI read the reply into these fields; every calculation with them is done by code.</p>
     </div>
   );
 }

@@ -15,10 +15,7 @@ export default async function FinancingPage() {
     <div className="space-y-6">
       <div className="space-y-1 border-b border-foreground/80 pb-4">
         <h1 className="text-[1.75rem] leading-tight font-bold">Financing</h1>
-        <p className="text-sm text-muted-foreground">
-          The Shariah-compliant financing every decision compares against cash and the supplier&apos;s deferred-price
-          plan. Changes apply to new comparisons.
-        </p>
+        <p className="text-sm text-muted-foreground">Bank financing every decision compares against cash.</p>
       </div>
       {company ? (
         <StoreProvider company={company}>

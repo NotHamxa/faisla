@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, ShieldAlert, Star } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { HelpTip } from "@/components/simple";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { DEMO_MODEL } from "@/lib/demoData";
@@ -14,7 +15,13 @@ import { useStore } from "@/lib/store";
 import type { ReputationFlag, ReputationResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Subject = { key: string; supplierName: string; model: string | null; kind: "Supplier" | "Machine model" };
+type Subject = {
+  key: string;
+  supplierName: string;
+  model: string | null;
+  sourceLink?: string | null;
+  kind: "Store" | "Product";
+};
 
 const FLAG_BADGE: Record<ReputationFlag, { variant: "success" | "warning" | "destructive" | "muted"; text: string }> = {
   good: { variant: "success", text: "Good" },
@@ -32,10 +39,10 @@ export default function ReputationCard() {
   const subjects: Subject[] = [];
   for (const o of state.offers) {
     if (!subjects.some((s) => s.key === o.supplierName)) {
-      subjects.push({ key: o.supplierName, supplierName: o.supplierName, model: o.model, kind: "Supplier" });
+      subjects.push({ key: o.supplierName, supplierName: o.supplierName, model: o.model, sourceLink: o.sourceLink, kind: "Store" });
     }
   }
-  if (subjects.length) subjects.push({ key: model, supplierName: "", model, kind: "Machine model" });
+  if (subjects.length) subjects.push({ key: model, supplierName: "", model, kind: "Product" });
   const missingKey = subjects
     .filter((s) => !state.reputations[s.key] && !failed[s.key])
     .map((s) => s.key)
@@ -50,7 +57,7 @@ export default function ReputationCard() {
       fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplierName: s.supplierName, model: s.model }),
+        body: JSON.stringify({ supplierName: s.supplierName, model: s.model, sourceLink: s.sourceLink ?? null }),
       })
         .then(async (res) => {
           if (!res.ok) throw new Error(`Reviews failed (${res.status})`);
@@ -80,8 +87,14 @@ export default function ReputationCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Reputation</CardTitle>
-        <CardDescription>Reviews of each supplier and the machine, scored by fixed rules</CardDescription>
+        <CardTitle className="flex items-center gap-1.5">
+          Reputation
+          <HelpTip label="How reviews are scored">
+            Fewer than 3 reviews: not enough to judge. Any fraud complaint, an average below 3, or 3+ delivery/warranty
+            complaints: red flags. Average 4+ with at most 1 such complaint: good. Otherwise mixed.
+          </HelpTip>
+        </CardTitle>
+        <CardDescription>What other buyers say about each store and the product.</CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
@@ -183,10 +196,6 @@ export default function ReputationCard() {
           </Alert>
         )}
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">
-        Rules: fewer than 3 reviews → not enough; any fraud, average below 3, or 3+ delivery/warranty/fraud complaints → red
-        flags; average 4+ with at most 1 such complaint → good; otherwise mixed.
-      </CardFooter>
     </Card>
   );
 }

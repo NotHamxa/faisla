@@ -225,6 +225,40 @@ export function isShariahRow(row: Pick<ComparisonRow, "method"> & { shariahCompl
   return !(CONVENTIONAL_FINANCING_TYPES as readonly string[]).includes(row.method);
 }
 
+// ---------- the owner's choice ----------
+
+export function recommendedRowOf(result: DecideResult | null | undefined): ComparisonRow | null {
+  if (!result?.rows.length) return null;
+  return result.rows.find((r) => r.id === result.recommendedId) ?? result.rows.find((r) => r.recommended) ?? null;
+}
+
+// The owner's own pick on Compare, only while that row still exists in the comparison.
+export function chosenRowOf(result: DecideResult | null | undefined, chosenRowId: string | null | undefined): ComparisonRow | null {
+  if (!result || !chosenRowId) return null;
+  return result.rows.find((r) => r.id === chosenRowId) ?? null;
+}
+
+// The row the owner goes ahead with everywhere (memo, bank request, dashboard): their pick, else the recommendation.
+export function effectiveRow(result: DecideResult | null | undefined, chosenRowId: string | null | undefined): ComparisonRow | null {
+  return chosenRowOf(result, chosenRowId) ?? recommendedRowOf(result);
+}
+
+// The owner's pick when it differs from the recommendation (null when they go with Faisla).
+export function overrideRow(result: DecideResult | null | undefined, chosenRowId: string | null | undefined): ComparisonRow | null {
+  const chosen = chosenRowOf(result, chosenRowId);
+  return chosen && chosen.id !== recommendedRowOf(result)?.id ? chosen : null;
+}
+
+// Extra true cost of the owner's pick over the recommendation, after tax, in today's money (whole rupees;
+// negative when the pick is cheaper but was not recommended for cash safety).
+export function extraCostAfterTax(chosen: ComparisonRow, recommended: ComparisonRow): number {
+  return Math.round(chosen.pvAfterTax) - Math.round(recommended.pvAfterTax);
+}
+
+export function extraCostBeforeTax(chosen: ComparisonRow, recommended: ComparisonRow): number {
+  return Math.round(chosen.pvBeforeTax) - Math.round(recommended.pvBeforeTax);
+}
+
 // Plain-English product names (used in labels, verdicts, memo and emails).
 export const FINANCING_NAMES: Record<FinancingType, string> = {
   diminishing_musharakah: "Diminishing Musharakah",

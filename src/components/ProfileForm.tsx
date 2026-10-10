@@ -7,11 +7,11 @@ import { demoCompany } from "@/lib/demoData";
 import { formatLakh, groupPKR } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import type { Company, FinancingPreference } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { HelpTip } from "@/components/simple";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 
@@ -129,10 +129,9 @@ export default function ProfileForm() {
           <Building2Icon className="size-4 text-muted-foreground" />
           Company profile
         </CardTitle>
-        <CardDescription>Used for cash runway, tax and the cost of money. Set it once.</CardDescription>
+        <CardDescription>Set it once. Every comparison uses it.</CardDescription>
         <CardAction className="flex items-center gap-2">
-          {isDemo && <Badge variant="outline">Demo data</Badge>}
-          <Button variant="outline" size="sm" onClick={loadDemo}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={loadDemo}>
             <RotateCcwIcon data-icon="inline-start" />
             Load demo company
           </Button>
@@ -166,7 +165,7 @@ export default function ProfileForm() {
             <MoneyField
               id="pf-fixed"
               label="Monthly fixed costs"
-              hint="Salaries, rent, utilities, existing installments"
+              hint="Salaries, rent, bills, installments"
               value={draft.monthlyFixedCosts}
               onChange={(v) => set("monthlyFixedCosts", v)}
             />
@@ -180,8 +179,8 @@ export default function ProfileForm() {
             />
             <PctField
               id="pf-discount"
-              label="Discount rate (cost of money)"
-              hint="≈ your cost of financing, KIBOR + 3%"
+              label="Cost of money (discount rate)"
+              hint="About KIBOR + 3%"
               value={draft.discountPct}
               invalid={discountRate === null}
               onChange={(v) => set("discountPct", v)}
@@ -191,9 +190,7 @@ export default function ProfileForm() {
               <Switch id="pf-exporter" checked={draft.isExporter} onCheckedChange={(v) => set("isExporter", v)} />
               <FieldContent>
                 <FieldLabel htmlFor="pf-exporter">We are an exporter</FieldLabel>
-                <FieldDescription>
-                  Eligible for SBP Islamic LTFF (and conventional LTFF) machinery financing at policy rate − 3%.
-                </FieldDescription>
+                <FieldDescription>Unlocks SBP&apos;s cheap Islamic LTFF financing.</FieldDescription>
               </FieldContent>
             </Field>
 
@@ -205,9 +202,12 @@ export default function ProfileForm() {
               />
               <FieldContent>
                 <FieldLabel htmlFor="pf-payinfull">Pay in full when we can afford it</FieldLabel>
-                <FieldDescription>
-                  Recommend buying outright (no financing) whenever paying cash still leaves at least 2 months of fixed costs in
-                  the bank, even if financing is slightly cheaper in today&apos;s money.
+                <FieldDescription className="flex items-center gap-1">
+                  Recommend cash if 2+ months of costs stay in the bank.
+                  <HelpTip>
+                    Buy outright (no financing) whenever paying cash still leaves at least 2 months of fixed costs in
+                    the bank, even if financing is slightly cheaper in today&apos;s money.
+                  </HelpTip>
                 </FieldDescription>
               </FieldContent>
             </Field>
@@ -330,15 +330,22 @@ export function FinancingPreferenceToggle({
   id?: string;
 }) {
   const options: { value: FinancingPreference; label: string; hint: string }[] = [
-    { value: "islamic", label: "Shariah-compliant only", hint: "Diminishing Musharakah, Ijarah, Murabaha, Islamic LTFF" },
-    { value: "both", label: "Islamic and conventional", hint: "Conventional loans shown for comparison, never recommended" },
+    {
+      value: "islamic",
+      label: "Shariah-compliant only",
+      hint: "Diminishing Musharakah, Ijarah, Murabaha, Islamic LTFF",
+    },
+    {
+      value: "both",
+      label: "Islamic and conventional",
+      hint: "Conventional shown for comparison only",
+    },
   ];
   return (
     <div className="rounded-lg border p-3">
       <div id={`${id}-label`} className="text-sm font-medium">
         Financing preference
       </div>
-      <p className="text-xs text-muted-foreground">Which bank financing every comparison includes.</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby={`${id}-label`}>
         {options.map((o) => (
           <button

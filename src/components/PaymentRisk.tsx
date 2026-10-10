@@ -5,9 +5,13 @@ import { useMemo } from "react";
 import { PhoneCall, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Details } from "@/components/simple";
 import { assessPaymentRisks, blockingRisks, type PaymentRisk } from "@/lib/fraud";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+// Two reasons stay visible; the rest sit under "Why".
+const VISIBLE_REASONS = 2;
 
 export function usePaymentRisks() {
   const { state, update } = useStore();
@@ -74,20 +78,29 @@ function RiskCard({ risk, onConfirm }: { risk: PaymentRisk; onConfirm: (confirme
           </div>
           {!risk.confirmed && (
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-              {risk.reasons.map((reason) => (
+              {risk.reasons.slice(0, VISIBLE_REASONS).map((reason) => (
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
           )}
+          {!risk.confirmed && risk.reasons.length > VISIBLE_REASONS && (
+            <Details title="Why" className="border-t-0 [&>button]:py-1">
+              <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                {risk.reasons.slice(VISIBLE_REASONS).map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </Details>
+          )}
           {!risk.confirmed && high && (
             <p className="border-t border-destructive/30 pt-2 font-semibold text-destructive">
-              Do not pay. Payment and the bank term-sheet request are blocked until you confirm the account.
+              Do not pay. Payment and the bank request stay blocked until you confirm.
             </p>
           )}
           <label className="flex w-fit cursor-pointer items-start gap-2 pt-1 sm:items-center">
             <Checkbox checked={risk.confirmed} onCheckedChange={(c) => onConfirm(Boolean(c))} />
             <PhoneCall className="size-3.5 text-muted-foreground" />
-            <span>I confirmed this account by phone on a number I already had (not one from the email)</span>
+            <span>I confirmed this account by phone, on a number I already had</span>
           </label>
         </div>
       </div>

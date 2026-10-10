@@ -1,6 +1,6 @@
 // Fallback decision memo (markdown), filled only from the decision. Used when the AI is off or its
 // draft fails the number check. Every number here goes through lib/format.ts, same as the facts list.
-import { isShariahRow } from "./finance";
+import { extraCostAfterTax, isShariahRow, overrideRow } from "./finance";
 import { formatLakh, formatMonths, formatPKR, formatPct } from "./format";
 import {
   MIN_SAFE_RUNWAY_MONTHS,
@@ -38,15 +38,16 @@ const facilityPhrases: Record<ComparisonRow["method"], string> = {
 
 const isSbpFacility = (row: ComparisonRow) => row.method === "iltf" || row.method === "ltff";
 
-// Markdown comparison table, rows in the decision's order, recommended row in bold.
-export function comparisonTable(decision: DecideResult): string {
+// Markdown comparison table, rows in the decision's order, recommended row in bold, the owner's own choice marked.
+export function comparisonTable(decision: DecideResult, chosenRowId?: string | null): string {
+  const choice = overrideRow(decision, chosenRowId);
   const lines = [
     "| Option | Pay | True cost before tax | True cost after tax | Runway | Verdict |",
     "| --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of decision.rows) {
     const cells = [
-      row.label,
+      choice?.id === row.id ? `${row.label} (your choice)` : row.label,
       payDescription(row),
       formatPKR(row.pvBeforeTax),
       formatPKR(row.pvAfterTax),
@@ -86,7 +87,10 @@ export function memoTemplate(
   context: MemoContext = {},
 ): string {
   const { rows, company } = decision;
-  const rec = rows.find((r) => r.id === decision.recommendedId) ?? rows[0];
+  const recommended = rows.find((r) => r.id === decision.recommendedId) ?? rows[0];
+  // The owner's own choice, when it differs from the recommendation. The memo is about the row they go ahead with.
+  const choice = overrideRow(decision, context.chosenRowId);
+  const rec = choice ?? recommended;
   const baseline = rows.find((r) => r.id === decision.baselineId) ?? null;
   const cashRows = rows.filter((r) => r.method === "cash");
   const cheapestCash = cashRows.length ? cashRows.reduce((a, b) => (b.pvBeforeTax < a.pvBeforeTax ? b : a)) : null;
@@ -104,14 +108,15 @@ export function memoTemplate(
   out.push(`# Decision memo: ${company.name}`);
   out.push("");
 
-  // Recommendation
-  out.push("## Recommendation");
+  // Recommendation (or the owner's decision, when they chose a different row)
+  out.push(choice ? "## Decision" : "## Recommendation");
   // "Pay in full when affordable" can pick cash over cheaper Shariah-compliant financing; the memo says so plainly.
   const cheapestCompliant = rows.find((r) => isShariahRow(r)) ?? rows[0];
   const paidInFullByChoice =
-    rec.method === "cash" && !!company.payInFullWhenAffordable && cheapestCompliant.id !== rec.id;
-  const ranking =
-    rec.id === rows[0].id
+    !choice && rec.method === "cash" && !!company.payInFullWhenAffordable && cheapestCompliant.id !== rec.id;
+  const ranking = choice
+    ? `your own choice among the ${rows.length} ways to pay we compared`
+    : rec.id === rows[0].id
       ? `the lowest of the ${rows.length} ways to pay we compared`
       : paidInFullByChoice
         ? `your preferred way to pay (in full, from cash, with no financing) among the ${rows.length} ways to pay we compared`
@@ -121,11 +126,35 @@ export function memoTemplate(
       `In today's money this costs **${formatPKR(rec.pvBeforeTax)}** before tax and **${formatPKR(rec.pvAfterTax)}** after tax, ` +
       `${ranking}.`,
   );
+  if (choice) {
+    const extra = extraCostAfterTax(choice, recommended);
+    const cost =
+      extra > 0
+        ? `It costs **${formatPKR(extra)} more** than the recommended option in today's money, after tax`
+        : extra < 0
+          ? `It costs ${formatPKR(-extra)} less than the recommended option in today's money, after tax, but Faisla recommended ${recommended.label} to keep cash safe`
+          : "It costs the same as the recommended option in today's money, after tax";
+    out.push("");
+    out.push(
+      `**Your choice, not Faisla's recommendation:** Faisla recommended ${recommended.label} with ${recommended.supplierName}; ` +
+        `you chose ${choice.label}. ${cost}, and leaves ${formatMonths(choice.runwayMonths)} of cash ` +
+        `(against ${formatMonths(recommended.runwayMonths)} with the recommended option).`,
+    );
+    if (!isShariahRow(choice)) {
+      out.push("");
+      out.push(`${choice.label} is conventional (interest-based) financing and is not Shariah-compliant.`);
+    }
+  }
   out.push("");
 
   // Why
   out.push("## Why");
-  if (baseline && decision.savingsVsBaseline && baseline.id !== rec.id) {
+  if (choice) {
+    out.push(
+      `- **Faisla's recommendation was ${recommended.label}:** ${formatPKR(recommended.pvAfterTax)} after tax in today's money, ` +
+        `against ${formatPKR(choice.pvAfterTax)} for your choice.`,
+    );
+  } else if (baseline && decision.savingsVsBaseline && baseline.id !== rec.id) {
     out.push(
       `- **Saves ${formatPKR(decision.savingsVsBaseline.beforeTax)}** (${formatLakh(decision.savingsVsBaseline.beforeTax)}) ` +
         `against the original quotation's plan (${baseline.label}), and ${formatPKR(decision.savingsVsBaseline.afterTax)} even after tax.`,
@@ -135,7 +164,12 @@ export function memoTemplate(
       `- After tax it costs ${formatPKR(rec.pvAfterTax)} in today's money, against ${formatPKR(nextBest.pvAfterTax)} for the next option (${nextBest.label}).`,
     );
   }
-  if (baseline?.hiddenYearlyRate != null) {
+  if (choice?.hiddenYearlyRate != null && baseline?.id === choice.id) {
+    out.push(
+      `- Your choice (${choice.label}) is a deferred-price sale: paying ${payDescription(choice)} instead of ${formatPKR(choice.cashPrice)} in cash ` +
+        `means **paying later costs ${formatPct(choice.hiddenYearlyRate, 1)} a year**. That is permissible, but dearer than the alternatives.`,
+    );
+  } else if (baseline?.hiddenYearlyRate != null) {
     out.push(
       `- The original plan (${baseline.label}) is a deferred-price sale: paying ${payDescription(baseline)} instead of ${formatPKR(baseline.cashPrice)} in cash ` +
         `means **paying later costs ${formatPct(baseline.hiddenYearlyRate, 1)} a year**. That is permissible, but dearer than the alternatives.`,
@@ -151,7 +185,12 @@ export function memoTemplate(
         `against ${formatPKR(rec.pvAfterTax)} for paying cash; paying in full avoids a financing contract, bank approval and monthly payments.`,
     );
   }
-  if (cheapestCash && cheapestCash.id !== rec.id) {
+  if (choice && choice.runwayMonths < MIN_SAFE_RUNWAY_MONTHS) {
+    out.push(
+      `- **Cash warning:** after buying, cash covers only ${formatMonths(choice.runwayMonths)} of fixed costs, ` +
+        `under the ${MIN_SAFE_RUNWAY_MONTHS} months minimum.`,
+    );
+  } else if (cheapestCash && cheapestCash.id !== rec.id) {
     out.push(
       `- **Keeps cash in the bank:** after buying, cash covers ${formatMonths(rec.runwayMonths)} of fixed costs, ` +
         `against ${formatMonths(cheapestCash.runwayMonths)} if you pay ${formatPKR(cheapestCash.upfront)} in cash (${cheapestCash.label}).`,
@@ -168,7 +207,7 @@ export function memoTemplate(
       `${formatPct(decision.afterTaxDiscountRate, 2)} after tax). Runway is how many months of fixed costs the cash left over can pay.`,
   );
   out.push("");
-  out.push(comparisonTable(decision));
+  out.push(comparisonTable(decision, context.chosenRowId));
   out.push("");
 
   // Risks
@@ -176,7 +215,7 @@ export function memoTemplate(
   const thinRows = rows.filter((r) => r.runwayMonths < MIN_SAFE_RUNWAY_MONTHS);
   let runwayLine =
     `- **Cash runway:** today cash covers ${formatMonths(decision.runwayToday)} of fixed costs; ` +
-    `with the recommended option it covers ${formatMonths(rec.runwayMonths)}. This counts no sales income, so it is a floor.`;
+    `with ${choice ? "your choice" : "the recommended option"} it covers ${formatMonths(rec.runwayMonths)}. This counts no sales income, so it is a floor.`;
   if (thinRows.length) {
     runwayLine += ` These options would leave less than ${MIN_SAFE_RUNWAY_MONTHS} months: ${thinRows.map((r) => r.label).join("; ")}.`;
   }
@@ -212,7 +251,7 @@ export function memoTemplate(
   if (conventionalShown) {
     out.push(`- Conventional (interest-based) options are shown for comparison only and are not recommended.`);
   }
-  if (decision.breakEvenDiscountRate != null && isFinanced(rec)) {
+  if (decision.breakEvenDiscountRate != null && isFinanced(rec) && !choice) {
     out.push(
       `- **Discount rate:** financing beats paying cash for any yearly discount rate above ${formatPct(decision.breakEvenDiscountRate, 2)}, ` +
         `well below the ${formatPct(company.discountRate, 0)} used here.`,
@@ -246,7 +285,11 @@ export function memoTemplate(
     steps.push(
       `No bank financing is needed. Before paying ${formatPKR(rec.upfront)}, confirm the bank account of ${rec.supplierName} by phone on a number you already have.`,
     );
-    steps.push(`Recheck cash on the day you pay: runway must stay at or above ${MIN_SAFE_RUNWAY_MONTHS} months.`);
+    steps.push(
+      rec.runwayMonths < MIN_SAFE_RUNWAY_MONTHS
+        ? `Plan how to cover fixed costs before paying: this leaves ${formatMonths(rec.runwayMonths)} of cash, under the ${MIN_SAFE_RUNWAY_MONTHS} months minimum.`
+        : `Recheck cash on the day you pay: runway must stay at or above ${MIN_SAFE_RUNWAY_MONTHS} months.`,
+    );
   } else {
     steps.push(
       `Keep runway at or above ${MIN_SAFE_RUNWAY_MONTHS} months: avoid paying the full price in cash, and recheck cash before each payment.`,

@@ -24,6 +24,7 @@ function record(over: Partial<DecisionRecord> & Pick<DecisionRecord, "id" | "tit
     suppliers: [],
     emails: [],
     decision: null,
+    chosenRowId: null,
     memo: null,
     ...over,
   };
@@ -225,5 +226,42 @@ describe("a decided cash purchase (pay in full)", () => {
   it("asks for no term sheet and raises no runway alert", () => {
     expect(d.alerts.some((a) => /term sheet/i.test(a.title))).toBe(false);
     expect(d.alerts.some((a) => a.title.startsWith("Runway drops"))).toBe(false);
+  });
+});
+
+describe("the owner chose a different row than recommended", () => {
+  const ijarah = jukiDecision.rows.find((r) => r.id === "offer-b:ijarah")!;
+  const chose = record({ ...juki, id: "chose", chosenRowId: ijarah.id });
+  const d = buildDashboard(company, [chose], now);
+
+  it("schedules and commits the chosen Ijarah rentals, not the recommended LTFF", () => {
+    expect(d.upcomingPayments[0].label).toBe("Ijarah rental 1 of 36");
+    expect(d.upcomingPayments[0].amount).toBe(ijarah.monthlyPayment);
+    expect(d.kpis.committedUpfront).toBe(ijarah.upfront);
+    expect(d.kpis.committedMonthly).toBe(ijarah.monthlyPayment);
+    expect(d.kpis.runwayAfterCommitments).toBeCloseTo(ijarah.runwayMonths, 6);
+  });
+
+  it("asks for the Ijarah term sheet and shows the choice in recent decisions", () => {
+    expect(d.alerts.some((a) => a.title === "Request the Ijarah term sheet")).toBe(true);
+    expect(d.alerts.some((a) => /Islamic LTFF term sheet/.test(a.title))).toBe(false);
+    expect(d.recentDecisions[0].recommendedLabel).toBe(ltff.label);
+    expect(d.recentDecisions[0].chosenLabel).toBe("B, Ijarah 14.8%");
+  });
+
+  it("a chosen cash row commits the cash price and needs no term sheet", () => {
+    const cashRow = jukiDecision.rows.find((r) => r.id === "offer-b:cash")!;
+    const c = buildDashboard(company, [record({ ...juki, id: "c", chosenRowId: cashRow.id })], now);
+    expect(c.kpis.committedUpfront).toBe(53_60_000);
+    expect(c.kpis.committedMonthly).toBe(0);
+    expect(c.upcomingPayments).toEqual([]);
+    expect(c.alerts.some((a) => /term sheet/i.test(a.title))).toBe(false);
+    expect(c.alerts.some((a) => a.title.startsWith("Runway drops"))).toBe(true);
+  });
+
+  it("falls back to the recommendation when the chosen row no longer exists", () => {
+    const stale = buildDashboard(company, [record({ ...juki, id: "s", chosenRowId: "offer-z:cash" })], now);
+    expect(stale.kpis.committedMonthly).toBe(ltff.monthlyPayment);
+    expect(stale.recentDecisions[0].chosenLabel).toBeNull();
   });
 });

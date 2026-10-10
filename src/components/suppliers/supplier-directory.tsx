@@ -50,9 +50,7 @@ export function SupplierDirectory({ suppliers }: { suppliers: SupplierEntry[] })
             <TruckIcon />
           </EmptyMedia>
           <EmptyTitle>No suppliers yet</EmptyTitle>
-          <EmptyDescription>
-            Suppliers appear here as soon as a decision has a quotation, an RFQ list or an email reply.
-          </EmptyDescription>
+          <EmptyDescription>Suppliers appear here once a decision has a quotation or reply.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button render={<Link href="/decisions?new=1" />} nativeButton={false}>
