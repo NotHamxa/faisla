@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f6f4ee;
+  --ink: #16201b;
+  --muted: #5d6b63;
+  --line: #dcd8cc;
+  --brand: #0f5c3f; /* deep green */
+  --brand-soft: #e3efe8;
+  --warn: #b45309;
+  --warn-soft: #fdf2e2;
+  --bad: #b42318;
+  --bad-soft: #fdecea;
+  --good: #146c43;
+  --good-soft: #e6f4ec;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Shared building blocks. Use these instead of re-inventing card/button styles per component. */
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-white p-5 shadow-sm;
+  }
+  .card-title {
+    @apply text-lg font-semibold tracking-tight text-ink;
+  }
+  .card-sub {
+    @apply text-sm text-muted;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn border-brand bg-brand text-white hover:bg-brand/90;
+  }
+  .btn-ghost {
+    @apply btn border-transparent bg-transparent hover:bg-brand-soft;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-good {
+    @apply badge bg-good-soft text-good;
+  }
+  .badge-warn {
+    @apply badge bg-warn-soft text-warn;
+  }
+  .badge-bad {
+    @apply badge bg-bad-soft text-bad;
+  }
+  .badge-muted {
+    @apply badge bg-paper text-muted;
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+}
